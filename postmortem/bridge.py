@@ -8,22 +8,38 @@ BridgeError when ok is not true.
 import json
 import os
 import subprocess
+import sys
+import tempfile
 from datetime import datetime, timezone
 
-BRIDGE_ROOT = os.environ.get(
-    "REAPER_DAEMON_ROOT",
-    os.path.expanduser("~/workspace/audio/reaper-bridge"),
-)
-REAPERD = os.path.join(BRIDGE_ROOT, "reaperd.py")
+from . import config
 
 
 class BridgeError(RuntimeError):
     pass
 
 
+def _reaperd():
+    """Path to reaperd.py in the user's reaper-daemon clone. Set
+    REAPER_DAEMON_ROOT (env or config file) to point at the clone."""
+    root = config.get(
+        "REAPER_DAEMON_ROOT",
+        os.path.expanduser("~/workspace/audio/reaper-bridge"),
+    )
+    reaperd = os.path.join(root, "reaperd.py")
+    if not os.path.exists(reaperd):
+        raise BridgeError(
+            f"reaperd.py not found at {reaperd}. Post Mortem needs the Reaper "
+            "Daemon bridge: clone https://github.com/wretcher207/reaper-daemon, "
+            "run its setup/install.py, then set REAPER_DAEMON_ROOT to the clone "
+            f"path (env var, or a line in {config.CONFIG_PATH})."
+        )
+    return reaperd
+
+
 def _run(args, timeout_seconds):
     proc = subprocess.run(
-        ["python3", REAPERD, *args],
+        [sys.executable, _reaperd(), *args],
         capture_output=True,
         text=True,
         timeout=timeout_seconds,
@@ -46,7 +62,7 @@ def status():
     """Liveness gate. Call before anything else; raise if the bridge is dead.
     reaperd status prints human text and signals via exit code (0 = alive)."""
     proc = subprocess.run(
-        ["python3", REAPERD, "status"],
+        [sys.executable, _reaperd(), "status"],
         capture_output=True,
         text=True,
         timeout=15,
@@ -79,10 +95,12 @@ def get_track_routing(track_name):
     return cmd("get_track_routing", {"target_track_name": track_name})
 
 
-def capture_track_audio(track_name, duration_seconds=30, temp_dir="/tmp/reaper-diagnosis"):
+def capture_track_audio(track_name, duration_seconds=30, temp_dir=None):
     """Post-FX stem capture. Verifies the returned file is real and fresh:
     exists, nonzero size, mtime newer than when we sent the command. A stale
     WAV diagnosed confidently is this tool's worst failure mode."""
+    if temp_dir is None:
+        temp_dir = os.path.join(tempfile.gettempdir(), "reaper-diagnosis")
     os.makedirs(temp_dir, exist_ok=True)
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S")
     safe_name = "".join(c if c.isalnum() else "-" for c in track_name.lower())

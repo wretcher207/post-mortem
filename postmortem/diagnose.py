@@ -5,6 +5,8 @@ import os
 
 import anthropic
 
+from . import config
+
 SECRETS_DIR = os.path.expanduser("~/.config/david-secrets")
 
 
@@ -17,12 +19,18 @@ def _first_line_matching(path, predicate):
 
 
 def _resolve_client_and_model():
-    """Env key wins, then a real Anthropic key file, then MiniMax via its
-    Anthropic-compatible endpoint. Lives here (not the bin/ wrapper) so every
-    invocation path gets the same auth."""
-    model = os.environ.get("POSTMORTEM_MODEL")
-    if os.environ.get("ANTHROPIC_API_KEY"):
-        return anthropic.Anthropic(), model or "claude-opus-4-8"
+    """Key/endpoint/model from env or ~/.config/postmortem/config (see
+    config.py). Works with the Anthropic API or any Anthropic-compatible
+    endpoint (MiniMax, etc.). Lives here (not the bin/ wrapper) so every
+    invocation path gets the same auth. The david-secrets fallbacks keep
+    the dev machine working; they're no-ops anywhere else."""
+    model = config.get("POSTMORTEM_MODEL")
+    key = config.get("ANTHROPIC_API_KEY")
+    base_url = config.get("ANTHROPIC_BASE_URL")
+    if key:
+        if base_url:
+            return anthropic.Anthropic(api_key=key, base_url=base_url), model or "claude-opus-4-8"
+        return anthropic.Anthropic(api_key=key), model or "claude-opus-4-8"
 
     key = _first_line_matching(
         os.path.join(SECRETS_DIR, "anthropic-api-key"),
@@ -37,13 +45,18 @@ def _resolve_client_and_model():
     )
     if key_line:
         key = key_line.split(":", 1)[1].strip()
-        base_url = os.environ.get("ANTHROPIC_BASE_URL", "https://api.minimax.io/anthropic")
-        return anthropic.Anthropic(api_key=key, base_url=base_url), model or "MiniMax-M3"
+        return (
+            anthropic.Anthropic(api_key=key, base_url=base_url or "https://api.minimax.io/anthropic"),
+            model or "MiniMax-M3",
+        )
 
     raise SystemExit(
-        "postmortem: no API key found. Set ANTHROPIC_API_KEY, or put a key in\n"
-        f"  {SECRETS_DIR}/anthropic-api-key (sk-ant-... line), or\n"
-        f"  {SECRETS_DIR}/minimax-api.md ('- Key: ...' line)"
+        "postmortem: no API key found. Set ANTHROPIC_API_KEY in the\n"
+        f"environment, or create {config.CONFIG_PATH} with:\n"
+        "  ANTHROPIC_API_KEY=<your key>\n"
+        "  # optional, for Anthropic-compatible endpoints like MiniMax:\n"
+        "  ANTHROPIC_BASE_URL=https://api.minimax.io/anthropic\n"
+        "  POSTMORTEM_MODEL=MiniMax-M3"
     )
 
 SYSTEM_PROMPT = """\

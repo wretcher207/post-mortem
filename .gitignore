@@ -6,3 +6,5 @@ venv/
 .DS_Store
 HANDOFF.md
 .venv/
+build/
+*.egg-info/

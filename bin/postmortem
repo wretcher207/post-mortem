@@ -5,7 +5,7 @@ ROOT="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"
 PY="$ROOT/.venv/bin/python"
 if [ ! -x "$PY" ]; then
     echo "postmortem: no .venv found. From $ROOT run:" >&2
-    echo "  python3 -m venv .venv && .venv/bin/pip install -r requirements.txt" >&2
+    echo "  python3 -m venv .venv && .venv/bin/pip install -e ." >&2
     exit 1
 fi
 

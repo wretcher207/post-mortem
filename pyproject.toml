@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "postmortem-reaper"
+version = "0.1.0"
+description = "AI track diagnosis for REAPER: reads a track's FX chain, routing, and a post-FX stem capture, returns an honest mix diagnosis"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "David Russell", email = "wretched207@icloud.com" }]
+dependencies = [
+    "numpy>=2.0",
+    "anthropic>=0.116",
+]
+
+[project.urls]
+Homepage = "https://github.com/wretcher207/post-mortem"
+
+[project.scripts]
+postmortem = "postmortem.cli:main"
+
+[tool.setuptools]
+packages = ["postmortem"]
