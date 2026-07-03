@@ -16,9 +16,11 @@ A Dead Pixel Design tool. Built on the [Reaper Daemon](https://github.com/wretch
 
 - REAPER 7+ with the Reaper Daemon bridge installed and running
 - Python 3.10+, numpy
-- An Anthropic API key: paste it into `~/.config/david-secrets/anthropic-api-key`
-  (the wrapper loads it automatically; `ANTHROPIC_API_KEY` in the environment
-  also works and takes precedence)
+- A model API key. The wrapper resolves one automatically:
+  `ANTHROPIC_API_KEY` in the environment, then a real Anthropic key in
+  `~/.config/david-secrets/anthropic-api-key`, then the MiniMax key in
+  `~/.config/david-secrets/minimax-api.md` (the current backend, via
+  MiniMax's Anthropic-compatible endpoint, model MiniMax-M3)
 
 ## Setup (once)
 
