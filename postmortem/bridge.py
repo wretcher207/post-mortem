@@ -33,6 +33,9 @@ def _run(args, timeout_seconds):
         raise BridgeError(
             f"reaperd returned no output (exit {proc.returncode}): {proc.stderr.strip()}"
         )
+    # reaperd prints a human "Sent command <id>" line before the JSON reply;
+    # the reply is the last non-empty line of stdout.
+    out = out.splitlines()[-1]
     try:
         return json.loads(out)
     except json.JSONDecodeError as e:
