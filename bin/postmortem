@@ -8,4 +8,19 @@ if [ ! -x "$PY" ]; then
     echo "  python3 -m venv .venv && .venv/bin/pip install -r requirements.txt" >&2
     exit 1
 fi
+
+# API key: use the environment if set, otherwise load from the secrets file.
+KEYFILE="$HOME/.config/david-secrets/anthropic-api-key"
+if [ -z "$ANTHROPIC_API_KEY" ] && [ -f "$KEYFILE" ]; then
+    ANTHROPIC_API_KEY="$(grep -m1 '^sk-ant-' "$KEYFILE")"
+    export ANTHROPIC_API_KEY
+fi
+if [ -z "$ANTHROPIC_API_KEY" ]; then
+    echo "postmortem: no Anthropic API key found." >&2
+    echo "Create one at https://console.anthropic.com/settings/keys," >&2
+    echo "then paste it (the sk-ant-... line) into:" >&2
+    echo "  $KEYFILE" >&2
+    exit 1
+fi
+
 exec "$PY" -m postmortem "$@"
