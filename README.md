@@ -44,21 +44,22 @@ Real output, run on a kick drum:
 - The [Reaper Daemon](https://github.com/wretcher207/reaper-daemon) bridge,
   installed and running inside REAPER
 - Python 3.10+
-- An API key: Anthropic, or any Anthropic-compatible endpoint (MiniMax works)
+- An API key. A plain Anthropic key is all you need (it defaults to Claude
+  Opus). Any Anthropic-compatible endpoint works too (MiniMax is tested).
 
 ## Install
 
-**1. The bridge** (this is what lets anything talk to REAPER):
+**1. The bridge** (this is what lets anything talk to REAPER). Copy-paste,
+then restart REAPER:
 
 ```bash
 git clone https://github.com/wretcher207/reaper-daemon.git
-cd reaper-daemon
-python3 setup/install.py   # use `python` on Windows
+cd reaper-daemon && python3 setup/install.py   # use `python` on Windows
 ```
 
-Restart REAPER. Full details and options are in that repo's README.
+Full details and options are in that repo's README.
 
-**2. Post Mortem:**
+**2. Post Mortem.** One command:
 
 ```bash
 pipx install git+https://github.com/wretcher207/post-mortem.git
@@ -66,13 +67,18 @@ pipx install git+https://github.com/wretcher207/post-mortem.git
 
 (No pipx? `python3 -m pip install --user pipx && python3 -m pipx ensurepath`.)
 
-**3. Config.** Create `~/.config/postmortem/config`:
+**3. Config.** Create `~/.config/postmortem/config`. The whole file, for a
+plain Anthropic key, is two lines:
 
 ```
 ANTHROPIC_API_KEY=<your key>
 REAPER_DAEMON_ROOT=/path/to/your/reaper-daemon/clone
+```
 
-# Only if you're using an Anthropic-compatible endpoint instead of Anthropic:
+That's it. It defaults to Claude Opus. To use an Anthropic-compatible
+endpoint instead (MiniMax, etc.), add two more lines:
+
+```
 ANTHROPIC_BASE_URL=https://api.minimax.io/anthropic
 POSTMORTEM_MODEL=MiniMax-M3
 ```
