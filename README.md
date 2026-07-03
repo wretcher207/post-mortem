@@ -17,8 +17,12 @@ rating, and when the data is thin the diagnosis says the data is thin. An
 honest "I'm not sure" beats a confident wrong answer. That contract lives in
 the prompt and it's not coming out.
 
-A Dead Pixel Design release. Built on the
-[Reaper Daemon](https://github.com/wretcher207/reaper-daemon) bridge.
+A Dead Pixel Design release.
+
+**Post Mortem can't touch REAPER on its own. It needs [Reaper Daemon](https://github.com/wretcher207/reaper-daemon).**
+That's a free, open-source bridge that runs inside REAPER and is what actually
+reads the track and renders the stem. You install it first (step 1 below) and
+leave it running. No bridge, no diagnosis. It's a one-time setup.
 
 **Status: early build.** It works, it's diagnosed real problems on real
 mixes, and it's still young. Spec in `docs/SPEC.md`.
@@ -49,8 +53,8 @@ Real output, run on a kick drum:
 
 ## Install
 
-**1. The bridge** (this is what lets anything talk to REAPER). Copy-paste,
-then restart REAPER:
+**1. Reaper Daemon, the bridge (required).** This is what lets anything talk to
+REAPER. Post Mortem does not work without it. Copy-paste, then restart REAPER:
 
 ```bash
 git clone https://github.com/wretcher207/reaper-daemon.git
@@ -59,13 +63,17 @@ cd reaper-daemon && python3 setup/install.py   # use `python` on Windows
 
 Full details and options are in that repo's README.
 
-**2. Post Mortem.** One command:
+**2. Post Mortem:**
 
 ```bash
 pipx install git+https://github.com/wretcher207/post-mortem.git
+pipx ensurepath      # puts the postmortem command on your PATH
 ```
 
-(No pipx? `python3 -m pip install --user pipx && python3 -m pipx ensurepath`.)
+After `ensurepath`, **open a new terminal window** or the `postmortem` command
+won't be found yet. (No pipx? Install it first with
+`python3 -m pip install --user pipx`, use `python` on Windows, then run the two
+lines above.)
 
 **3. Config.** Create `~/.config/postmortem/config`. The whole file, for a
 plain Anthropic key, is two lines:
