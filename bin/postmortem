@@ -1,0 +1,11 @@
+#!/bin/sh
+# Post Mortem launcher. Always runs through the repo's .venv so it works
+# from anywhere, no activation, no caring which python is on PATH.
+ROOT="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"
+PY="$ROOT/.venv/bin/python"
+if [ ! -x "$PY" ]; then
+    echo "postmortem: no .venv found. From $ROOT run:" >&2
+    echo "  python3 -m venv .venv && .venv/bin/pip install -r requirements.txt" >&2
+    exit 1
+fi
+exec "$PY" -m postmortem "$@"

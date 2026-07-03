@@ -18,10 +18,21 @@ A Dead Pixel Design tool. Built on the [Reaper Daemon](https://github.com/wretch
 - Python 3.10+, numpy
 - An Anthropic API key (`ANTHROPIC_API_KEY`)
 
-## Usage (target)
+## Setup (once)
+
+From the repo root:
 
 ```bash
-python3 -m postmortem "Rhythm L"
+python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+ln -sf "$PWD/bin/postmortem" ~/.local/bin/postmortem
 ```
 
-Prints the diagnosis to the terminal and to REAPER's console.
+## Usage
+
+```bash
+postmortem "Rhythm L"
+```
+
+That's the whole command, from any directory. The wrapper always runs
+through the repo's `.venv`, so it doesn't matter which `python` your
+shell finds. Prints the diagnosis to the terminal and to REAPER's console.
