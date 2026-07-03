@@ -9,25 +9,6 @@ if [ ! -x "$PY" ]; then
     exit 1
 fi
 
-# API key resolution: env var > real Anthropic key file > MiniMax
-# (Anthropic-compatible endpoint). MiniMax is the working backend today.
-KEYFILE="$HOME/.config/david-secrets/anthropic-api-key"
-MINIMAX="$HOME/.config/david-secrets/minimax-api.md"
-if [ -z "$ANTHROPIC_API_KEY" ] && [ -f "$KEYFILE" ]; then
-    ANTHROPIC_API_KEY="$(grep -m1 '^sk-ant-' "$KEYFILE")"
-    export ANTHROPIC_API_KEY
-fi
-if [ -z "$ANTHROPIC_API_KEY" ] && [ -f "$MINIMAX" ]; then
-    ANTHROPIC_API_KEY="$(grep -m1 '^- Key:' "$MINIMAX" | sed 's/^- Key: *//')"
-    export ANTHROPIC_API_KEY
-    export ANTHROPIC_BASE_URL="${ANTHROPIC_BASE_URL:-https://api.minimax.io/anthropic}"
-    export POSTMORTEM_MODEL="${POSTMORTEM_MODEL:-MiniMax-M3}"
-fi
-if [ -z "$ANTHROPIC_API_KEY" ]; then
-    echo "postmortem: no API key found. Expected one of:" >&2
-    echo "  $MINIMAX (MiniMax key)" >&2
-    echo "  $KEYFILE (Anthropic key, sk-ant-... line)" >&2
-    exit 1
-fi
-
+# API key resolution lives in postmortem/diagnose.py so it works for every
+# invocation path (this wrapper, python -m postmortem, anything else).
 exec "$PY" -m postmortem "$@"

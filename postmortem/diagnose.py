@@ -5,7 +5,46 @@ import os
 
 import anthropic
 
-MODEL = os.environ.get("POSTMORTEM_MODEL", "claude-opus-4-8")
+SECRETS_DIR = os.path.expanduser("~/.config/david-secrets")
+
+
+def _first_line_matching(path, predicate):
+    try:
+        with open(path) as f:
+            return next((line.strip() for line in f if predicate(line)), None)
+    except OSError:
+        return None
+
+
+def _resolve_client_and_model():
+    """Env key wins, then a real Anthropic key file, then MiniMax via its
+    Anthropic-compatible endpoint. Lives here (not the bin/ wrapper) so every
+    invocation path gets the same auth."""
+    model = os.environ.get("POSTMORTEM_MODEL")
+    if os.environ.get("ANTHROPIC_API_KEY"):
+        return anthropic.Anthropic(), model or "claude-opus-4-8"
+
+    key = _first_line_matching(
+        os.path.join(SECRETS_DIR, "anthropic-api-key"),
+        lambda l: l.startswith("sk-ant-"),
+    )
+    if key:
+        return anthropic.Anthropic(api_key=key), model or "claude-opus-4-8"
+
+    key_line = _first_line_matching(
+        os.path.join(SECRETS_DIR, "minimax-api.md"),
+        lambda l: l.startswith("- Key:"),
+    )
+    if key_line:
+        key = key_line.split(":", 1)[1].strip()
+        base_url = os.environ.get("ANTHROPIC_BASE_URL", "https://api.minimax.io/anthropic")
+        return anthropic.Anthropic(api_key=key, base_url=base_url), model or "MiniMax-M3"
+
+    raise SystemExit(
+        "postmortem: no API key found. Set ANTHROPIC_API_KEY, or put a key in\n"
+        f"  {SECRETS_DIR}/anthropic-api-key (sk-ant-... line), or\n"
+        f"  {SECRETS_DIR}/minimax-api.md ('- Key: ...' line)"
+    )
 
 SYSTEM_PROMPT = """\
 You are a mix engineer analyzing a single track inside a REAPER session. You
@@ -75,9 +114,12 @@ def build_payload(context, track_scan, routing, capture_data, stats):
 
 def diagnose(payload, client=None):
     """Send the payload to the model, return the diagnosis text."""
-    client = client or anthropic.Anthropic()
+    if client is None:
+        client, model = _resolve_client_and_model()
+    else:
+        model = os.environ.get("POSTMORTEM_MODEL", "claude-opus-4-8")
     response = client.messages.create(
-        model=MODEL,
+        model=model,
         # Thinking counts against this budget; reasoning models can burn 4k
         # tokens before the first text block, which returned an empty diagnosis.
         max_tokens=16384,
