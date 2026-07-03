@@ -78,7 +78,9 @@ def diagnose(payload, client=None):
     client = client or anthropic.Anthropic()
     response = client.messages.create(
         model=MODEL,
-        max_tokens=4096,
+        # Thinking counts against this budget; reasoning models can burn 4k
+        # tokens before the first text block, which returned an empty diagnosis.
+        max_tokens=16384,
         thinking={"type": "adaptive"},
         system=SYSTEM_PROMPT,
         messages=[
@@ -90,4 +92,10 @@ def diagnose(payload, client=None):
     )
     if response.stop_reason == "refusal":
         return "Diagnosis unavailable: the model declined this request."
-    return next((b.text for b in response.content if b.type == "text"), "")
+    text = next((b.text for b in response.content if b.type == "text"), "")
+    if not text:
+        return (
+            "Diagnosis unavailable: the model returned no text "
+            f"(stop_reason={response.stop_reason})."
+        )
+    return text
