@@ -10,6 +10,7 @@ import os
 import subprocess
 import sys
 import tempfile
+import uuid
 from datetime import datetime, timezone
 
 from . import config
@@ -38,12 +39,21 @@ def _reaperd():
 
 
 def _run(args, timeout_seconds):
-    proc = subprocess.run(
-        [sys.executable, _reaperd(), *args],
-        capture_output=True,
-        text=True,
-        timeout=timeout_seconds,
-    )
+    try:
+        proc = subprocess.run(
+            [sys.executable, _reaperd(), *args],
+            capture_output=True,
+            text=True,
+            timeout=timeout_seconds,
+        )
+    except subprocess.TimeoutExpired:
+        # Surface as a clean BridgeError, not a raw traceback. REAPER may still
+        # be rendering; a stuck render dialog hangs the bridge until dismissed.
+        raise BridgeError(
+            f"reaperd timed out after {timeout_seconds:.0f}s on '{args[0]}'. "
+            "REAPER may still be processing; check the session for a render "
+            "dialog waiting to be dismissed."
+        )
     out = proc.stdout.strip()
     if not out:
         raise BridgeError(
@@ -53,20 +63,29 @@ def _run(args, timeout_seconds):
     # the reply is the last non-empty line of stdout.
     out = out.splitlines()[-1]
     try:
-        return json.loads(out)
+        reply = json.loads(out)
     except json.JSONDecodeError as e:
         raise BridgeError(f"reaperd output is not JSON: {out[:200]}") from e
+    # Guard the protocol shape: a bare null / list / scalar decodes fine but
+    # then blows up on res.get(...) downstream with an AttributeError that
+    # bypasses clean handling.
+    if not isinstance(reply, dict):
+        raise BridgeError(f"reaperd reply is not a JSON object: {out[:200]}")
+    return reply
 
 
 def status():
     """Liveness gate. Call before anything else; raise if the bridge is dead.
     reaperd status prints human text and signals via exit code (0 = alive)."""
-    proc = subprocess.run(
-        [sys.executable, _reaperd(), "status"],
-        capture_output=True,
-        text=True,
-        timeout=15,
-    )
+    try:
+        proc = subprocess.run(
+            [sys.executable, _reaperd(), "status"],
+            capture_output=True,
+            text=True,
+            timeout=15,
+        )
+    except subprocess.TimeoutExpired:
+        raise BridgeError("bridge status check timed out after 15s (is REAPER running?)")
     line = proc.stdout.strip().splitlines()[0] if proc.stdout.strip() else "no output"
     if proc.returncode != 0:
         raise BridgeError(f"bridge is not alive: {line}")
@@ -80,7 +99,9 @@ def cmd(cmd_type, payload, timeout_ms=10000):
     )
     if not res.get("ok"):
         raise BridgeError(f"{cmd_type} failed: {json.dumps(res)[:400]}")
-    return res.get("data", {})
+    # "data": null decodes to None (the default only fires on a missing key),
+    # which then breaks .get(...) downstream; coerce to an empty dict.
+    return res.get("data") or {}
 
 
 def scan_fx(track_name):
@@ -102,9 +123,11 @@ def capture_track_audio(track_name, duration_seconds=30, temp_dir=None):
     if temp_dir is None:
         temp_dir = os.path.join(tempfile.gettempdir(), "reaper-diagnosis")
     os.makedirs(temp_dir, exist_ok=True)
-    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S")
+    # Microseconds + a short random token so two captures of the same track in
+    # the same second can't collide (which would overwrite or cross-diagnose).
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S_%f")
     safe_name = "".join(c if c.isalnum() else "-" for c in track_name.lower())
-    output_file = os.path.join(temp_dir, f"{safe_name}-{stamp}.wav")
+    output_file = os.path.join(temp_dir, f"{safe_name}-{stamp}-{uuid.uuid4().hex[:8]}.wav")
 
     sent_at = datetime.now(timezone.utc).timestamp()
     data = cmd(
@@ -118,7 +141,14 @@ def capture_track_audio(track_name, duration_seconds=30, temp_dir=None):
         timeout_ms=120000,
     )
 
+    # Only ever accept (and later delete) the exact path we asked for. A
+    # malformed reply pointing file_path at some other recent WAV must not be
+    # trusted, analyzed, or unlinked.
     path = data.get("file_path", output_file)
+    if os.path.realpath(path) != os.path.realpath(output_file):
+        raise BridgeError(
+            f"capture returned an unexpected path: {path} (requested {output_file})"
+        )
     if not os.path.exists(path):
         raise BridgeError(f"capture reported ok but file does not exist: {path}")
     stat = os.stat(path)

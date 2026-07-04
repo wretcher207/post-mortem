@@ -62,8 +62,10 @@ def _resolve_client_and_model():
 SYSTEM_PROMPT = """\
 You are a mix engineer analyzing a single track inside a REAPER session. You
 receive the track's FX chain (with current parameter values), routing (sends,
-receives, parent bus), and a post-FX audio snapshot (LUFS, true peak, crest
-factor, and 1/3-octave spectrum).
+receives, parent bus, phase, automation mode), and a post-FX audio snapshot
+(sample peak, crest factor, 1/3-octave spectrum, and integrated LUFS when it is
+available). Some fields may be null; treat null as "not measured", never as a
+value. Do not infer true-peak headroom from sample peak; they differ.
 
 Your job: diagnose what's wrong or could be improved. Be specific. Name
 frequencies. Name parameters. Propose one concrete move, not five.
@@ -106,6 +108,8 @@ def build_payload(context, track_scan, routing, capture_data, stats):
             "volume_db": routing.get("volume_db"),
             "pan": routing.get("pan"),
             "parent_track": (routing.get("parent_track") or {}).get("name"),
+            "phase_inverted": routing.get("phase_inverted"),
+            "automation_mode": routing.get("automation_mode"),
         },
         "fx_chain": track.get("fx", []),
         "routing": {
@@ -147,10 +151,22 @@ def diagnose(payload, client=None):
     )
     if response.stop_reason == "refusal":
         return "Diagnosis unavailable: the model declined this request."
-    text = next((b.text for b in response.content if b.type == "text"), "")
+    # Join every text block, not just the first: a reasoning model can emit the
+    # diagnosis across multiple text blocks, and taking only content[0] dropped
+    # the rest.
+    text = "\n".join(b.text for b in response.content if b.type == "text" and b.text).strip()
     if not text:
         return (
             "Diagnosis unavailable: the model returned no text "
             f"(stop_reason={response.stop_reason})."
+        )
+    # Fail loud, not open: a max_tokens cutoff yields a partial diagnosis that is
+    # probably missing its CONFIDENCE line. Flag it instead of printing a truncated
+    # answer as if it were complete.
+    if response.stop_reason == "max_tokens":
+        return (
+            "[postmortem] WARNING: the model hit its token limit before finishing; "
+            "this diagnosis is incomplete (likely missing its CONFIDENCE line). "
+            "Treat it as partial.\n\n" + text
         )
     return text

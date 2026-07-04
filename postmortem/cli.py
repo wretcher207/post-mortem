@@ -2,6 +2,7 @@
 
 import argparse
 import difflib
+import os
 import sys
 
 from . import bridge
@@ -50,7 +51,8 @@ def resolve_track(requested, names):
     # "Kick - stem" despite the suffix dragging down the full-string ratio.
     candidates = {n: n for n in names}
     for n in names:
-        token = n.replace("_", " ").split(" - ")[0].split()[0]
+        tokens = n.replace("_", " ").split(" - ")[0].split()
+        token = tokens[0] if tokens else n
         candidates.setdefault(token, n)
     hits = difflib.get_close_matches(requested, list(candidates), n=3, cutoff=0.4)
     suggestions = list(dict.fromkeys(candidates[h] for h in hits))
@@ -62,13 +64,25 @@ def resolve_track(requested, names):
     raise TrackNotResolved("\n".join(lines))
 
 
+def _capture_seconds(value):
+    """argparse type: a capture length in [1, 600]. Rejects zero/negative up
+    front instead of forwarding a nonsense render duration to the daemon."""
+    try:
+        seconds = int(value)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"'{value}' is not an integer")
+    if not 1 <= seconds <= 600:
+        raise argparse.ArgumentTypeError("must be between 1 and 600 seconds")
+    return seconds
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(
         prog="postmortem",
         description="Post Mortem: AI mix diagnosis for a single REAPER track.",
     )
     parser.add_argument("track", help="target track name (case-insensitive; unique substring is enough)")
-    parser.add_argument("--seconds", type=int, default=30, help="capture length (default 30, from cursor)")
+    parser.add_argument("--seconds", type=_capture_seconds, default=30, help="capture length 1-600 (default 30, from cursor)")
     parser.add_argument("--keep-wav", action="store_true", help="don't delete the temp stem after analysis")
     parser.add_argument("--payload-only", action="store_true", help="print the payload JSON and exit (no model call)")
     args = parser.parse_args(argv)
@@ -99,24 +113,29 @@ def _run(args):
     print(f"[postmortem] capturing {args.seconds}s post-FX stem...", file=sys.stderr)
     capture_data, wav_path = bridge.capture_track_audio(track, duration_seconds=args.seconds)
 
-    print("[postmortem] analyzing...", file=sys.stderr)
-    stats = analyze_wav(wav_path)
-    payload = build_payload(context, track_scan, routing, capture_data, stats)
+    # We own wav_path (bridge verified it's the exact temp file we asked for);
+    # clean it up on every path unless --keep-wav, even if analysis or the model
+    # call raises. --keep-wav preserves it for inspection.
+    try:
+        print("[postmortem] analyzing...", file=sys.stderr)
+        stats = analyze_wav(wav_path)
+        payload = build_payload(context, track_scan, routing, capture_data, stats)
 
-    if not args.keep_wav:
-        import os
+        if args.payload_only:
+            import json
 
-        os.unlink(wav_path)
+            print(json.dumps(payload, indent=2))
+            return 0
 
-    if args.payload_only:
-        import json
-
-        print(json.dumps(payload, indent=2))
+        print("[postmortem] diagnosing...", file=sys.stderr)
+        print(diagnose(payload))
         return 0
-
-    print("[postmortem] diagnosing...", file=sys.stderr)
-    print(diagnose(payload))
-    return 0
+    finally:
+        if not args.keep_wav:
+            try:
+                os.unlink(wav_path)
+            except OSError:
+                pass
 
 
 if __name__ == "__main__":

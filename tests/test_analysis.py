@@ -35,7 +35,42 @@ def write_sine_wav(path, freq_hz, amplitude=1.0, seconds=2.0, rate=48000, width=
         w.writeframes(frames)
 
 
+def write_samples_wav(path, samples, rate=48000):
+    """Write a mono float array in [-1, 1] as 16-bit PCM."""
+    with wave.open(path, "wb") as w:
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(rate)
+        w.writeframes((np.clip(samples, -1, 1) * (2**15 - 1)).astype("<i2").tobytes())
+
+
 class TestAnalysis(unittest.TestCase):
+    def test_boundary_tone_is_not_lost_between_bands(self):
+        # 1412 Hz fell in the gap between the old (rounded-label) 1250 and 1600
+        # bands and read as near-silence. With edges from exact centers it must
+        # land in a real band at full strength.
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "boundary.wav")
+            write_sine_wav(path, 1412.109375, amplitude=1.0)  # bin-centered at 48k/8192
+            stats = analyze_wav(path)
+            home = next(b for b in stats.spectrum_third_octave if b["freq_hz"] == 1250)
+            self.assertGreater(home["level_db"], -6.0)
+
+    def test_transient_in_final_partial_segment_is_captured(self):
+        # A burst living only in the last <hop samples was dropped by the old
+        # floor-division segment count while still counting toward peak/RMS.
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "tail.wav")
+            rate = 48000
+            head = np.zeros(8192)
+            t = np.arange(4095) / rate
+            tail = np.sin(2 * np.pi * 1000 * t)
+            write_samples_wav(path, np.concatenate([head, tail]), rate=rate)
+            stats = analyze_wav(path)
+            band = next(b for b in stats.spectrum_third_octave if b["freq_hz"] == 1000)
+            self.assertGreater(band["level_db"], -40.0)
+
+
     def test_full_scale_sine_reads_minus_3dbfs_in_its_band(self):
         with tempfile.TemporaryDirectory() as d:
             path = os.path.join(d, "sine.wav")

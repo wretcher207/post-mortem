@@ -90,7 +90,11 @@ def third_octave_spectrum(samples, rate):
     window = np.hanning(seg)
     win_power = np.sum(window**2)
 
-    n_segments = max(1, (len(samples) - seg) // hop + 1)
+    # ceil, not floor: floor division drops the final partial hop, so a
+    # transient living only in the last <hop samples was silently excluded
+    # from the spectrum while still counting toward peak/RMS. The short tail
+    # segment is zero-padded below.
+    n_segments = max(1, int(np.ceil((len(samples) - seg) / hop)) + 1)
     power = np.zeros(seg // 2 + 1)
     for i in range(n_segments):
         chunk = samples[i * hop : i * hop + seg]
@@ -107,13 +111,20 @@ def third_octave_spectrum(samples, rate):
     # of sum(w^2) here overshoots by the Hann coherent gain, +1.76 dB.)
     freqs = np.fft.rfftfreq(seg, d=1.0 / rate)
     edge = 2 ** (1 / 6)
+    i_1k = THIRD_OCTAVE_CENTERS_HZ.index(1000)
     bands = []
-    for center in THIRD_OCTAVE_CENTERS_HZ:
+    for i, label in enumerate(THIRD_OCTAVE_CENTERS_HZ):
+        # Band EDGES must come from the EXACT geometric center (base-2, anchored
+        # at 1 kHz), not the rounded ISO label. The rounded labels aren't a clean
+        # 2^(1/3) apart, so edges built from them leave gaps and overlaps between
+        # adjacent bands (a 1412 Hz tone fell between the 1250 and 1600 bands and
+        # read as near-silence). The rounded value stays only as the display label.
+        center = 1000.0 * 2.0 ** ((i - i_1k) / 3.0)
         if center > rate / 2:
             break
         mask = (freqs >= center / edge) & (freqs < center * edge)
         band_rms = np.sqrt(2.0 * power[mask].sum() / (seg * win_power))
-        bands.append({"freq_hz": center, "level_db": round(_db(band_rms), 1)})
+        bands.append({"freq_hz": label, "level_db": round(_db(band_rms), 1)})
     return bands
 
 
