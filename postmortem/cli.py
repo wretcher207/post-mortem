@@ -6,8 +6,13 @@ import os
 import sys
 
 from . import bridge
-from .analysis import analyze_wav
-from .diagnose import build_payload, diagnose
+from .analysis import analyze_wav, masking_overlap
+from .diagnose import (
+    MASKING_SYSTEM_PROMPT,
+    build_masking_payload,
+    build_payload,
+    diagnose,
+)
 
 
 class TrackNotResolved(Exception):
@@ -108,9 +113,15 @@ def _capture_seconds(value):
 def main(argv=None):
     parser = argparse.ArgumentParser(
         prog="postmortem",
-        description="Post Mortem: AI mix diagnosis for a single REAPER track.",
+        description="Post Mortem: AI mix diagnosis for REAPER tracks. One track "
+        "= single-track diagnosis; two or more = cross-track masking.",
     )
-    parser.add_argument("track", help="target track name (case-insensitive; unique substring is enough)")
+    parser.add_argument(
+        "track",
+        nargs="+",
+        help="target track name(s), case-insensitive, unique substring is enough. "
+        "One name = single-track diagnosis; two or more = cross-track masking.",
+    )
     parser.add_argument("--seconds", type=_capture_seconds, default=30, help="capture length 1-600 (default 30, from cursor)")
     parser.add_argument("--keep-wav", action="store_true", help="don't delete the temp stem after analysis")
     parser.add_argument("--payload-only", action="store_true", help="print the payload JSON and exit (no model call)")
@@ -123,18 +134,35 @@ def main(argv=None):
         return 1
 
 
+def _resolve_all(requested, names):
+    """Resolve each requested name against the live track list. Prints each
+    rename, returns the resolved list. Raises TrackNotResolved on any miss."""
+    resolved = []
+    for req in requested:
+        r = resolve_track(req, names)
+        if r != req:
+            print(f"[postmortem] resolved '{req}' -> '{r}'", file=sys.stderr)
+        resolved.append(r)
+    return resolved
+
+
 def _run(args):
     print(f"[postmortem] {bridge.status()}", file=sys.stderr)
 
     context = bridge.get_context()
+    names = _track_names(context)
     try:
-        track = resolve_track(args.track, _track_names(context))
+        resolved = _resolve_all(args.track, names)
     except TrackNotResolved as e:
         print(f"[postmortem] {e}", file=sys.stderr)
         return 2
-    if track != args.track:
-        print(f"[postmortem] resolved '{args.track}' -> '{track}'", file=sys.stderr)
 
+    if len(resolved) > 1:
+        return _run_masking(args, context, resolved)
+    return _run_single(args, context, resolved[0])
+
+
+def _run_single(args, context, track):
     print(f"[postmortem] reading FX chain + routing for '{track}'...", file=sys.stderr)
     track_scan = bridge.scan_fx(track)
     routing = bridge.get_track_routing(track)
@@ -170,6 +198,64 @@ def _run(args):
                 os.unlink(wav_path)
             except OSError:
                 pass
+
+
+def _run_masking(args, context, tracks):
+    """Cross-track masking: capture each track's post-FX stem, compute the
+    contested-band overlap, and diagnose masking with the sibling prompt."""
+    distinct = list(dict.fromkeys(tracks))
+    if len(distinct) < 2:
+        print(
+            "[postmortem] masking needs two distinct tracks; the names given all "
+            f"resolved to '{distinct[0]}'. Pass two different tracks.",
+            file=sys.stderr,
+        )
+        return 2
+
+    per_track = []
+    wav_paths = []
+    try:
+        for track in distinct:
+            print(f"[postmortem] reading FX chain + routing for '{track}'...", file=sys.stderr)
+            track_scan = bridge.scan_fx(track)
+            routing = bridge.get_track_routing(track)
+
+            print(f"[postmortem] capturing {args.seconds}s post-FX stem for '{track}'...", file=sys.stderr)
+            capture_data, wav_path = bridge.capture_track_audio(track, duration_seconds=args.seconds)
+            wav_paths.append(wav_path)
+            _assert_same_track(track_scan, routing, capture_data)
+
+            print(f"[postmortem] analyzing '{track}'...", file=sys.stderr)
+            stats = analyze_wav(wav_path)
+            per_track.append(
+                {
+                    "name": track,
+                    "track_scan": track_scan,
+                    "routing": routing,
+                    "capture_data": capture_data,
+                    "stats": stats,
+                }
+            )
+
+        masking = masking_overlap({pt["name"]: pt["stats"].spectrum_third_octave for pt in per_track})
+        payload = build_masking_payload(context, per_track, masking)
+
+        if args.payload_only:
+            import json
+
+            print(json.dumps(payload, indent=2))
+            return 0
+
+        print("[postmortem] diagnosing masking...", file=sys.stderr)
+        print(diagnose(payload, system=MASKING_SYSTEM_PROMPT, intro="Diagnose masking across these tracks:"))
+        return 0
+    finally:
+        if not args.keep_wav:
+            for wav_path in wav_paths:
+                try:
+                    os.unlink(wav_path)
+                except OSError:
+                    pass
 
 
 if __name__ == "__main__":

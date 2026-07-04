@@ -114,6 +114,74 @@ Do not suggest moves you can't verify from the data. If the diagnosis is
 uncertain, say so. An honest "I'm not sure" beats a confident wrong answer.
 """
 
+# Sibling of SYSTEM_PROMPT. Only ever used when the payload carries 2+ tracks'
+# spectra plus a computed contested-band table, so masking claims ARE backed by
+# data here. This is a deliberate, gated relaxation of the single-track hedge,
+# NOT a weakening of it: it stays honest about what coarse bands can prove.
+MASKING_SYSTEM_PROMPT = """\
+You are a mix engineer analyzing frequency masking BETWEEN tracks inside a REAPER
+session. You receive two or more tracks, each with its FX chain, routing, and a
+post-FX audio snapshot (1/3-octave spectrum, sample peak, crest factor, LUFS when
+available). You also receive a precomputed masking table: for each pair of tracks,
+the "contested" 1/3-octave bands where BOTH tracks have real energy, with each
+track's level and which one is louder. Some fields may be null; treat null as "not
+measured", never as a value.
+
+Unlike single-track analysis, you DO have cross-track data, so you ARE allowed to
+diagnose masking here, but only what the contested-band table supports. Honesty
+rules that still bind you:
+- 1/3-octave bands are coarse. A contested band flags a candidate collision
+  region, not a proven audible one. Say "candidate" / "likely", not "definitely".
+- A shared band is not automatically a problem. Two tracks can share low end by
+  design (kick + bass). Judge whether the overlap is likely to cause mud or
+  smearing, and say when it's probably fine.
+- You cannot resolve the exact collision frequency inside a wide band; name the
+  region, not a false-precise single Hz.
+- The louder track in a contested band is the likely masker; the quieter is at
+  risk. Base "who moves" on that plus the FX chains you can see.
+
+Your job: identify the most likely masking problem across these tracks and propose
+ONE concrete move. Prefer a complementary move (a small carve in the masker where
+the masked track lives, or a boost/reposition of the masked track) referencing a
+real EQ/plugin already in the relevant track's FX chain when one exists.
+
+Format:
+1. DIAGNOSIS: [2-3 sentences. Which two tracks contest which region, and why it
+   likely does or doesn't matter.]
+2. PROBABLE CAUSE: [1-2 sentences. Which track/FX is doing the masking.]
+3. SUGGESTED MOVE: [1-2 sentences. The exact change: track, plugin, parameter,
+   current value, proposed value, and why. One move.]
+4. CONFIDENCE: [low / medium / high. Coarse bands and a single snapshot cap how
+   high this can honestly go.]
+
+If the tracks barely overlap, say the masking is minimal and stop; do not invent a
+problem to look useful. An honest "these two aren't really fighting" beats a
+confident wrong carve.
+"""
+
+
+def _audio_block(stats, capture_data):
+    return {
+        "duration_seconds": stats.duration_seconds,
+        "integrated_lufs": capture_data.get("render_loudness_lufs"),
+        "sample_peak_db": stats.sample_peak_db,
+        "rms_db": stats.rms_db,
+        "crest_factor_db": stats.crest_factor_db,
+        "spectrum_third_octave": stats.spectrum_third_octave,
+        "spectrum_note": "1/3-octave band levels in dBFS, channels combined in the power domain (no phase cancellation)",
+    }
+
+
+def _resolve_scan_track(track_scan, target_name):
+    """Pick the target track out of a scan_fx result by name, falling back to the
+    first entry so a multi-track scan isn't silently reduced to index 0."""
+    tracks = track_scan.get("tracks") or [{}]
+    if target_name is not None:
+        match = next((t for t in tracks if t.get("name") == target_name), None)
+        if match is not None:
+            return match
+    return tracks[0]
+
 
 def build_payload(context, track_scan, routing, capture_data, stats, target_name=None):
     """Assemble the model payload from bridge results + local analysis.
@@ -124,12 +192,7 @@ def build_payload(context, track_scan, routing, capture_data, stats, target_name
     target_name: the resolved track name to pick out of the scan (falls back to
     the first entry) so a multi-track scan isn't silently reduced to index 0.
     """
-    tracks = track_scan.get("tracks") or [{}]
-    track = None
-    if target_name is not None:
-        track = next((t for t in tracks if t.get("name") == target_name), None)
-    if track is None:
-        track = tracks[0]
+    track = _resolve_scan_track(track_scan, target_name)
     payload = {
         "project": {
             "name": (context or {}).get("project_name"),
@@ -149,21 +212,53 @@ def build_payload(context, track_scan, routing, capture_data, stats, target_name
             "sends": routing.get("sends", []),
             "receives": routing.get("receives", []),
         },
-        "audio": {
-            "duration_seconds": stats.duration_seconds,
-            "integrated_lufs": capture_data.get("render_loudness_lufs"),
-            "sample_peak_db": stats.sample_peak_db,
-            "rms_db": stats.rms_db,
-            "crest_factor_db": stats.crest_factor_db,
-            "spectrum_third_octave": stats.spectrum_third_octave,
-            "spectrum_note": "1/3-octave band levels in dBFS, channels combined in the power domain (no phase cancellation)",
-        },
+        "audio": _audio_block(stats, capture_data),
     }
     return payload
 
 
-def diagnose(payload, client=None):
-    """Send the payload to the model, return the diagnosis text."""
+def build_masking_payload(context, per_track, masking):
+    """Assemble the cross-track masking payload.
+
+    per_track: list of dicts, one per captured track, each with keys
+    {name, track_scan, routing, capture_data, stats} (the same objects the
+    single-track path produces, one set per track). masking: the dict returned by
+    analysis.masking_overlap over every track's spectrum. Structure mirrors the
+    single-track payload but carries a list of tracks plus the masking table.
+    """
+    tracks = []
+    for pt in per_track:
+        track = _resolve_scan_track(pt["track_scan"], pt["name"])
+        routing = pt["routing"]
+        tracks.append(
+            {
+                "name": track.get("name"),
+                "index": track.get("index"),
+                "volume_db": routing.get("volume_db"),
+                "pan": routing.get("pan"),
+                "parent_track": (routing.get("parent_track") or {}).get("name"),
+                "fx_chain": track.get("fx", []),
+                "routing": {
+                    "sends": routing.get("sends", []),
+                    "receives": routing.get("receives", []),
+                },
+                "audio": _audio_block(pt["stats"], pt["capture_data"]),
+            }
+        )
+    return {
+        "project": {
+            "name": (context or {}).get("project_name"),
+            "tempo": (context or {}).get("tempo"),
+        },
+        "tracks": tracks,
+        "masking": masking,
+    }
+
+
+def diagnose(payload, client=None, system=SYSTEM_PROMPT, intro="Diagnose this track:"):
+    """Send the payload to the model, return the diagnosis text. system/intro
+    default to the single-track hedge contract; the masking path passes
+    MASKING_SYSTEM_PROMPT and its own intro."""
     if client is None:
         client, model = _resolve_client_and_model()
     else:
@@ -175,11 +270,11 @@ def diagnose(payload, client=None):
         # Thinking counts against this budget; reasoning models can burn 4k
         # tokens before the first text block, which returned an empty diagnosis.
         "max_tokens": 16384,
-        "system": SYSTEM_PROMPT,
+        "system": system,
         "messages": [
             {
                 "role": "user",
-                "content": "Diagnose this track:\n\n" + json.dumps(payload, indent=1),
+                "content": f"{intro}\n\n" + json.dumps(payload, indent=1),
             }
         ],
     }

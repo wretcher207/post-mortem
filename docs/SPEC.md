@@ -29,7 +29,17 @@ proposed move with specific values.
 **Scope honesty:** true frequency *masking* is a between-tracks phenomenon. One
 track's spectrum cannot prove masking; claiming it would make the model bluff.
 v1 diagnoses what single-track data can support (tonal balance, dynamics, chain
-sanity). Masking detection needs cross-track spectra and is explicitly v2.
+sanity). Masking detection needs cross-track spectra.
+
+**Masking shipped (build #2, 2026-07-04):** cross-track masking is now
+implemented in the same CLI. Passing two or more track names captures each stem,
+computes the 1/3-octave overlap, and diagnoses masking with a SIBLING prompt
+contract (`MASKING_SYSTEM_PROMPT`) that IS allowed to make masking claims because
+the data now backs them. This is a deliberate, gated relaxation of the
+single-track hedge, not a weakening: it still refuses to over-claim on coarse
+bands (contested band = candidate collision region, not proof). The single-track
+hedge (`SYSTEM_PROMPT`) is unchanged and still governs single-track runs. See
+"Cross-track masking (build #2)" below.
 
 The wedge is the **read-and-diagnose** side of AI in REAPER. Existing projects
 (DAWZY, reaper-reapy-mcp, the Reaper MCP server) all point the other direction:
@@ -433,6 +443,51 @@ The result comes back to the agent as JSON. The agent can:
 
 **v1: console message only.** Get the loop working before building UI.
 
+## Cross-track masking (build #2, shipped 2026-07-04)
+
+The v2 headline. Single-track diagnosis structurally cannot see masking, and the
+single-track hedge explicitly forbids it. This build promotes masking to a shipped
+feature in the same CLI, gated on having 2+ stems.
+
+**CLI:** the positional `track` argument is now `nargs="+"`. One name runs the
+existing single-track flow unchanged. Two or more names run the masking flow:
+capture each track's post-FX stem (reusing `capture_track_audio`), analyze each
+spectrum (reusing `analyze_wav`), compute the overlap, and diagnose with the
+masking contract. Duplicate names that resolve to the same track are rejected
+(masking needs two distinct tracks).
+
+**Overlap computation (`analysis.masking_overlap`, pure numpy, no REAPER):** for
+every unordered pair of tracks, a 1/3-octave band is *contested* when BOTH tracks
+have real energy in it. "Real energy" = the band sits within
+`MASKING_PROMINENCE_DB` (12 dB) of that track's own loudest band AND above
+`MASKING_ABSOLUTE_FLOOR_DB` (-60 dBFS); a track below the floor is treated as
+silent and masks nothing. Each contested band carries both levels, the signed
+difference (a − b), and which track is louder (the likely masker; the quieter is
+at risk). Deliberately coarse: a contested band flags a candidate collision
+region, it does not prove an audible clash, and a narrow collision can hide inside
+a wide band. The method note ships in the payload so the model sees the caveat.
+
+**The masking payload (`diagnose.build_masking_payload`):** mirrors the
+single-track payload but carries a list of tracks (each with FX chain, routing,
+audio + spectrum) plus the `masking` table from `masking_overlap`. Project block
+is shared (one session).
+
+**The sibling prompt (`diagnose.MASKING_SYSTEM_PROMPT`):** a separate system
+prompt, NOT an edit to the single-track hedge. It is allowed to diagnose masking
+because the cross-track data backs it, but it stays honest: contested = candidate
+not proof, name the region not a false-precise Hz, a shared band can be fine by
+design (kick + bass), and if the tracks barely overlap it says so instead of
+inventing a problem. Same 4-part format (diagnosis / cause / move / confidence),
+same "one concrete move" discipline, biased toward a complementary carve
+referencing a real EQ already on the relevant track. `diagnose()` takes `system`
+and `intro` params; single-track defaults are unchanged.
+
+**Monetization note:** the original spec filed cross-track masking under the paid
+v2 tier. Shipping it in the free CLI is a product decision still open for David;
+the code doesn't gate it. If the paid tier happens, batch-all-tracks masking + the
+ReaImGui panel + one-click apply are the natural paid surface, not a paywall on
+this.
+
 ## Build order
 
 ### Phase 1: capture (1-2 days)
@@ -484,7 +539,8 @@ Goal: produce a diagnosis from real data.
 - Automatic fix application (diagnosis only; the user applies the move
   manually, or through the existing `set_fx_param` command)
 - ReaImGui panel (console output first)
-- Cross-track masking analysis (comparing two tracks' spectra to find overlap)
+- ~~Cross-track masking analysis~~ — SHIPPED in build #2 (2026-07-04); see the
+  "Cross-track masking (build #2)" section. No longer deferred.
 - The model calling back to adjust its diagnosis after listening (no audio
   feedback loop; the model works from numbers, not from hearing)
 

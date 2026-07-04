@@ -175,6 +175,95 @@ def third_octave_spectrum(samples, rate):
     return bands
 
 
+# A band counts as real "energy" for a track when it sits within this many dB of
+# that track's own loudest band. Keeps near-silent bands out of the masking test.
+MASKING_PROMINENCE_DB = 12.0
+# A track whose loudest band is below this is treated as effectively silent and
+# excluded from masking entirely (a near-empty capture can't mask anything).
+MASKING_ABSOLUTE_FLOOR_DB = -60.0
+
+
+def _significant_bands(bands, prominence_db, floor_db):
+    """Return {freq_hz: level_db} for bands with real energy: within prominence_db
+    of the track's loudest band AND above the absolute floor. Empty dict if the
+    whole track is below the floor (effectively silent)."""
+    levels = {b["freq_hz"]: b["level_db"] for b in bands}
+    if not levels:
+        return {}
+    top = max(levels.values())
+    if top < floor_db:
+        return {}
+    threshold = max(top - prominence_db, floor_db)
+    return {f: lvl for f, lvl in levels.items() if lvl >= threshold}
+
+
+def masking_overlap(
+    spectra,
+    prominence_db=MASKING_PROMINENCE_DB,
+    floor_db=MASKING_ABSOLUTE_FLOOR_DB,
+):
+    """Find candidate frequency masking between tracks from their 1/3-octave spectra.
+
+    spectra: dict {track_name: [ {freq_hz, level_db}, ... ]} (the
+    spectrum_third_octave lists from analyze_wav). For every unordered pair of
+    tracks, a band is CONTESTED when both tracks have real energy in it (see
+    _significant_bands). Contested bands are candidate masking; the louder track
+    is the likely masker, the quieter one is at risk. This is deliberately coarse:
+    1/3-octave bands flag a contested region, they do not prove an audible
+    collision, and a narrow clash can hide inside a wide band.
+
+    Returns {"pairs": [...], "method_note": str}. Each pair carries every contested
+    band (freq, both levels, signed diff, which track is louder) sorted by
+    frequency, plus a short human summary.
+    """
+    names = list(spectra)
+    sig = {n: _significant_bands(spectra[n], prominence_db, floor_db) for n in names}
+    pairs = []
+    for i in range(len(names)):
+        for j in range(i + 1, len(names)):
+            a, b = names[i], names[j]
+            shared = sorted(set(sig[a]) & set(sig[b]))
+            contested = []
+            for f in shared:
+                diff = round(sig[a][f] - sig[b][f], 1)
+                contested.append(
+                    {
+                        "freq_hz": f,
+                        "a_level_db": sig[a][f],
+                        "b_level_db": sig[b][f],
+                        "diff_db": diff,          # a minus b; positive => a louder
+                        "louder": a if diff >= 0 else b,
+                    }
+                )
+            pairs.append(
+                {
+                    "a": a,
+                    "b": b,
+                    "contested_bands": contested,
+                    "summary": _masking_summary(a, b, contested),
+                }
+            )
+    return {
+        "pairs": pairs,
+        "method_note": (
+            "A band is contested when both tracks have energy within "
+            f"{prominence_db:.0f} dB of their own loudest band. Contested bands "
+            "flag CANDIDATE masking in a shared region, not a proven audible "
+            "collision; 1/3-octave bands are coarse, so a narrow clash can hide "
+            "inside a wide band and exact collision frequencies are not resolved."
+        ),
+    }
+
+
+def _masking_summary(a, b, contested):
+    if not contested:
+        return f"No shared bands between '{a}' and '{b}' (little spectral overlap)."
+    lo = contested[0]["freq_hz"]
+    hi = contested[-1]["freq_hz"]
+    span = f"{lo} Hz" if lo == hi else f"{lo}-{hi} Hz"
+    return f"{len(contested)} contested band(s) between '{a}' and '{b}', spanning {span}."
+
+
 def analyze_wav(path):
     samples, rate, channels = read_wav(path)  # (frames, channels)
     if samples.shape[0] == 0:
