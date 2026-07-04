@@ -73,6 +73,14 @@ def main(argv=None):
     parser.add_argument("--payload-only", action="store_true", help="print the payload JSON and exit (no model call)")
     args = parser.parse_args(argv)
 
+    try:
+        return _run(args)
+    except bridge.BridgeError as e:
+        print(f"[postmortem] {e}", file=sys.stderr)
+        return 1
+
+
+def _run(args):
     print(f"[postmortem] {bridge.status()}", file=sys.stderr)
 
     context = bridge.get_context()
