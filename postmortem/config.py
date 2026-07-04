@@ -35,3 +35,10 @@ def _load_file():
 
 def get(key, default=None):
     return os.environ.get(key) or _load_file().get(key) or default
+
+
+def file_get(key, default=None):
+    """Value from the config file only (ignores the environment). Used to tell
+    a key co-located with a base_url in the config from a bare env key that was
+    set for a different endpoint."""
+    return _load_file().get(key) or default

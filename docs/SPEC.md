@@ -327,11 +327,12 @@ in order of preference:
 tonal balance and dynamic issues. librosa is a v2 upgrade if the diagnosis
 quality warrants it.
 
-The spectrum is computed on a **mono sum** of the rendered stem for v1 (one
-band array, simpler payload). Trade-off: hard-panned dual-mono sources (rhythm
-guitar pairs) read ~6 dB low relative to a centered source, and any L/R
-asymmetry is invisible. Per-channel spectra are a v2 field addition, not a
-schema change.
+The spectrum is one band array combining all channels in the **power domain**
+(per-channel power spectra averaged), not an amplitude mono-sum. This avoids the
+cancellation trap: an out-of-phase stereo stem (or R = -L) would amplitude-sum
+to silence and report a false diagnosis. Trade-off: L/R asymmetry is still
+invisible in a single band array. Per-channel spectra are a v2 field addition,
+not a schema change.
 
 ### Payload shape sent to the model
 
@@ -372,7 +373,8 @@ schema change.
   "audio": {
     "duration_seconds": 30.0,
     "integrated_lufs": -18.3,
-    "true_peak_dbtp": -0.8,
+    "sample_peak_db": -0.8,
+    "rms_db": -13.2,
     "crest_factor_db": 12.4,
     "spectrum_third_octave": [
       { "freq_hz": 20, "level_db": -52.1 },
@@ -391,8 +393,9 @@ schema change.
 ```
 You are a mix engineer analyzing a single track inside a REAPER session. You
 receive the track's FX chain (with current parameter values), routing (sends,
-receives, parent bus), and a 30-second post-FX audio snapshot (LUFS, true peak,
-crest factor, and 1/3-octave spectrum).
+receives, parent bus, phase, automation mode), and a 30-second post-FX audio
+snapshot (sample peak, crest factor, 1/3-octave spectrum, and integrated LUFS
+when available). Some fields may be null; treat null as "not measured".
 
 Your job: diagnose what's wrong or could be improved. Be specific. Name
 frequencies. Name parameters. Propose one concrete move, not five.

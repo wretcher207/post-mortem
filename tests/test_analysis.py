@@ -12,7 +12,36 @@ import numpy as np
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from postmortem.analysis import analyze_wav, read_wav_mono  # noqa: E402
+from postmortem.analysis import analyze_wav, read_wav  # noqa: E402
+
+
+def write_raw_wav(path, samples_2d, rate=48000, audio_format=1, bits=16):
+    """Write (frames, channels) float samples as a RIFF/WAVE file with an
+    explicit format tag and bit depth. Lets tests exercise 32-bit int PCM and
+    IEEE float, which the stdlib wave module can't produce."""
+    frames, channels = samples_2d.shape
+    if audio_format == 1 and bits == 16:
+        payload = (np.clip(samples_2d, -1, 1) * (2**15 - 1)).astype("<i2").tobytes()
+    elif audio_format == 1 and bits == 32:
+        payload = (np.clip(samples_2d, -1, 1) * (2**31 - 1)).astype("<i4").tobytes()
+    elif audio_format == 3 and bits == 32:
+        payload = samples_2d.astype("<f4").tobytes()
+    else:
+        raise ValueError(f"unsupported test format {audio_format}/{bits}")
+    block_align = channels * bits // 8
+    byte_rate = rate * block_align
+    fmt = struct.pack("<HHIIHH", audio_format, channels, rate, byte_rate, block_align, bits)
+    data_size = len(payload)
+    with open(path, "wb") as f:
+        f.write(b"RIFF")
+        f.write(struct.pack("<I", 4 + (8 + len(fmt)) + (8 + data_size)))
+        f.write(b"WAVE")
+        f.write(b"fmt ")
+        f.write(struct.pack("<I", len(fmt)))
+        f.write(fmt)
+        f.write(b"data")
+        f.write(struct.pack("<I", data_size))
+        f.write(payload)
 
 
 def write_sine_wav(path, freq_hz, amplitude=1.0, seconds=2.0, rate=48000, width=2, channels=1):
@@ -90,14 +119,52 @@ class TestAnalysis(unittest.TestCase):
             self.assertAlmostEqual(stats.crest_factor_db, 3.01, delta=0.1)
             self.assertAlmostEqual(stats.sample_peak_db, 20 * math.log10(0.5), delta=0.1)
 
-    def test_24bit_and_stereo_mono_sum(self):
+    def test_24bit_and_stereo_read(self):
         with tempfile.TemporaryDirectory() as d:
             path = os.path.join(d, "s24.wav")
             write_sine_wav(path, 200, amplitude=0.8, width=3, channels=2)
-            samples, rate, channels = read_wav_mono(path)
+            samples, rate, channels = read_wav(path)
             self.assertEqual(rate, 48000)
             self.assertEqual(channels, 2)
+            self.assertEqual(samples.shape[1], 2)  # channels kept separate
             self.assertAlmostEqual(float(np.max(np.abs(samples))), 0.8, delta=0.01)
+
+    def test_antiphase_stereo_does_not_cancel_to_silence(self):
+        # L = +sine, R = -sine. Amplitude-averaging the channels would report
+        # digital silence for a full-level stem (H2). Power-domain combine must
+        # report its true level.
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "antiphase.wav")
+            rate = 48000
+            t = np.arange(int(2.0 * rate)) / rate
+            sine = np.sin(2 * np.pi * 1000 * t)
+            stereo = np.stack([sine, -sine], axis=1)
+            write_raw_wav(path, stereo, rate=rate, audio_format=1, bits=16)
+            stats = analyze_wav(path)
+            self.assertGreater(stats.sample_peak_db, -1.0)
+            self.assertGreater(stats.rms_db, -6.0)
+            band = next(b for b in stats.spectrum_third_octave if b["freq_hz"] == 1000)
+            self.assertAlmostEqual(band["level_db"], -3.0, delta=0.7)
+
+    def test_32bit_int_pcm_not_misread_as_float(self):
+        # A 32-bit int PCM DC-ish signal used to be misclassified as IEEE float
+        # by the magnitude heuristic and decoded to near-silence (M3). Reading
+        # the fmt tag must decode it at the right scale.
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "pcm32.wav")
+            samples = np.full((48000, 1), 0.25)
+            write_raw_wav(path, samples, audio_format=1, bits=32)
+            got, _, _ = read_wav(path)
+            self.assertAlmostEqual(float(np.mean(got)), 0.25, delta=0.001)
+
+    def test_32bit_float_wav_reads(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "f32.wav")
+            t = np.arange(48000) / 48000
+            samples = (0.5 * np.sin(2 * np.pi * 1000 * t)).reshape(-1, 1)
+            write_raw_wav(path, samples, audio_format=3, bits=32)
+            got, _, _ = read_wav(path)
+            self.assertAlmostEqual(float(np.max(np.abs(got))), 0.5, delta=0.01)
 
     def test_duration_and_band_count(self):
         with tempfile.TemporaryDirectory() as d:

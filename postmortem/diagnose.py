@@ -18,45 +18,71 @@ def _first_line_matching(path, predicate):
         return None
 
 
-def _resolve_client_and_model():
-    """Key/endpoint/model from env or ~/.config/postmortem/config (see
-    config.py). Works with the Anthropic API or any Anthropic-compatible
-    endpoint (MiniMax, etc.). Lives here (not the bin/ wrapper) so every
-    invocation path gets the same auth. The david-secrets fallbacks keep
-    the dev machine working; they're no-ops anywhere else."""
-    model = config.get("POSTMORTEM_MODEL")
-    key = config.get("ANTHROPIC_API_KEY")
-    base_url = config.get("ANTHROPIC_BASE_URL")
-    if key:
-        if base_url:
-            return anthropic.Anthropic(api_key=key, base_url=base_url), model or "claude-opus-4-8"
-        return anthropic.Anthropic(api_key=key), model or "claude-opus-4-8"
+def _is_anthropic_endpoint(base_url):
+    """True for the real Anthropic API (or no override). A compatible endpoint
+    like DeepSeek's /anthropic or MiniMax's /anthropic is NOT the Anthropic API,
+    even though its path contains the word 'anthropic'."""
+    return (not base_url) or "anthropic.com" in base_url
 
-    key = _first_line_matching(
+
+def _thinking_enabled(base_url):
+    """Whether to send the adaptive-thinking extension. Configurable via
+    POSTMORTEM_THINKING (adaptive|off); defaults on. Compatible endpoints that
+    don't implement thinking can turn it off without code changes."""
+    mode = (config.get("POSTMORTEM_THINKING") or "adaptive").strip().lower()
+    return mode not in ("off", "0", "false", "none")
+
+
+def _resolve_client_and_model():
+    """Resolve endpoint, key, and model as ONE provider profile.
+
+    A non-Anthropic compatible endpoint (DeepSeek, MiniMax, ...) must use its
+    OWN key: either POSTMORTEM_API_KEY, or an ANTHROPIC_API_KEY set in the
+    config file alongside the base_url. It must NEVER borrow a bare env
+    ANTHROPIC_API_KEY, which belongs to api.anthropic.com and would be leaked to
+    the third-party vendor. Lives here (not the wrapper) so every invocation
+    path gets the same auth; the david-secrets fallbacks are dev-machine no-ops
+    elsewhere."""
+    model = config.get("POSTMORTEM_MODEL")
+    base_url = config.get("ANTHROPIC_BASE_URL")
+
+    if not _is_anthropic_endpoint(base_url):
+        # Same-source key only: a dedicated POSTMORTEM_API_KEY, or an
+        # ANTHROPIC_API_KEY that lives in the config file next to the base_url.
+        key = config.get("POSTMORTEM_API_KEY") or config.file_get("ANTHROPIC_API_KEY")
+        if key:
+            return anthropic.Anthropic(api_key=key, base_url=base_url), model or "claude-opus-4-8"
+        # Dev-machine MiniMax fallback (explicit, from david-secrets).
+        key_line = _first_line_matching(
+            os.path.join(SECRETS_DIR, "minimax-api.md"),
+            lambda l: l.startswith("- Key:"),
+        )
+        if key_line and "minimax" in base_url:
+            key = key_line.split(":", 1)[1].strip()
+            return anthropic.Anthropic(api_key=key, base_url=base_url), model or "MiniMax-M3"
+        raise SystemExit(
+            f"postmortem: {base_url} is a non-Anthropic endpoint. Set its own key\n"
+            f"as POSTMORTEM_API_KEY (env or {config.CONFIG_PATH}). A bare\n"
+            "ANTHROPIC_API_KEY from the environment is NOT used for a third-party\n"
+            "endpoint, to avoid sending your Anthropic key to another vendor."
+        )
+
+    # Real Anthropic API.
+    key = config.get("ANTHROPIC_API_KEY") or _first_line_matching(
         os.path.join(SECRETS_DIR, "anthropic-api-key"),
         lambda l: l.startswith("sk-ant-"),
     )
     if key:
         return anthropic.Anthropic(api_key=key), model or "claude-opus-4-8"
 
-    key_line = _first_line_matching(
-        os.path.join(SECRETS_DIR, "minimax-api.md"),
-        lambda l: l.startswith("- Key:"),
-    )
-    if key_line:
-        key = key_line.split(":", 1)[1].strip()
-        return (
-            anthropic.Anthropic(api_key=key, base_url=base_url or "https://api.minimax.io/anthropic"),
-            model or "MiniMax-M3",
-        )
-
     raise SystemExit(
         "postmortem: no API key found. Set ANTHROPIC_API_KEY in the\n"
         f"environment, or create {config.CONFIG_PATH} with:\n"
         "  ANTHROPIC_API_KEY=<your key>\n"
-        "  # optional, for Anthropic-compatible endpoints like MiniMax:\n"
-        "  ANTHROPIC_BASE_URL=https://api.minimax.io/anthropic\n"
-        "  POSTMORTEM_MODEL=MiniMax-M3"
+        "  # optional, for Anthropic-compatible endpoints like DeepSeek/MiniMax:\n"
+        "  ANTHROPIC_BASE_URL=https://api.deepseek.com/anthropic\n"
+        "  POSTMORTEM_API_KEY=<that endpoint's key>\n"
+        "  POSTMORTEM_MODEL=deepseek-v4-flash"
     )
 
 SYSTEM_PROMPT = """\
@@ -89,14 +115,21 @@ uncertain, say so. An honest "I'm not sure" beats a confident wrong answer.
 """
 
 
-def build_payload(context, track_scan, routing, capture_data, stats):
+def build_payload(context, track_scan, routing, capture_data, stats, target_name=None):
     """Assemble the model payload from bridge results + local analysis.
 
     context: get_context data (or None), track_scan: scan_fx data for the
     target track, routing: get_track_routing data, capture_data: the
-    capture_track_audio result, stats: TrackStats from analysis.analyze_wav.
+    capture_track_audio result, stats: TrackStats from analysis.analyze_wav,
+    target_name: the resolved track name to pick out of the scan (falls back to
+    the first entry) so a multi-track scan isn't silently reduced to index 0.
     """
-    track = track_scan["tracks"][0]
+    tracks = track_scan.get("tracks") or [{}]
+    track = None
+    if target_name is not None:
+        track = next((t for t in tracks if t.get("name") == target_name), None)
+    if track is None:
+        track = tracks[0]
     payload = {
         "project": {
             "name": (context or {}).get("project_name"),
@@ -123,7 +156,7 @@ def build_payload(context, track_scan, routing, capture_data, stats):
             "rms_db": stats.rms_db,
             "crest_factor_db": stats.crest_factor_db,
             "spectrum_third_octave": stats.spectrum_third_octave,
-            "spectrum_note": "mono sum of the stem; hard-panned dual-mono sources read ~6 dB low",
+            "spectrum_note": "1/3-octave band levels in dBFS, channels combined in the power domain (no phase cancellation)",
         },
     }
     return payload
@@ -134,21 +167,25 @@ def diagnose(payload, client=None):
     if client is None:
         client, model = _resolve_client_and_model()
     else:
-        model = os.environ.get("POSTMORTEM_MODEL", "claude-opus-4-8")
-    response = client.messages.create(
-        model=model,
+        # Honor the config file too, not just the environment, so an injected
+        # client still targets the configured model.
+        model = config.get("POSTMORTEM_MODEL", "claude-opus-4-8")
+    request = {
+        "model": model,
         # Thinking counts against this budget; reasoning models can burn 4k
         # tokens before the first text block, which returned an empty diagnosis.
-        max_tokens=16384,
-        thinking={"type": "adaptive"},
-        system=SYSTEM_PROMPT,
-        messages=[
+        "max_tokens": 16384,
+        "system": SYSTEM_PROMPT,
+        "messages": [
             {
                 "role": "user",
                 "content": "Diagnose this track:\n\n" + json.dumps(payload, indent=1),
             }
         ],
-    )
+    }
+    if _thinking_enabled(config.get("ANTHROPIC_BASE_URL")):
+        request["thinking"] = {"type": "adaptive"}
+    response = client.messages.create(**request)
     if response.stop_reason == "refusal":
         return "Diagnosis unavailable: the model declined this request."
     # Join every text block, not just the first: a reasoning model can emit the

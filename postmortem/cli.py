@@ -15,6 +15,23 @@ class TrackNotResolved(Exception):
     track. Carries a human-readable, multi-line message for the CLI to print."""
 
 
+def _assert_same_track(track_scan, routing, capture_data):
+    """Raise BridgeError if the scan / routing / capture commands resolved to
+    different tracks. Compares GUIDs where present (routing and capture return
+    one); scan entries may not carry a GUID, so they're skipped if absent."""
+    guids = {
+        "scan": (track_scan.get("tracks") or [{}])[0].get("guid"),
+        "routing": (routing.get("track") or {}).get("guid"),
+        "capture": (capture_data.get("track") or {}).get("guid"),
+    }
+    present = {k: v for k, v in guids.items() if v}
+    if len(set(present.values())) > 1:
+        raise bridge.BridgeError(
+            "commands resolved to different tracks (GUID mismatch): "
+            f"{present}. Refusing to diagnose mixed-track evidence."
+        )
+
+
 def _track_names(context):
     names = []
     for t in context.get("tracks", []):
@@ -28,12 +45,24 @@ def resolve_track(requested, names):
     """Forgiving track-name resolution against the live track list. Tries, in
     order: exact, case-insensitive exact, unique case-insensitive substring.
     Raises TrackNotResolved (with a helpful message) on no match or ambiguity."""
-    if requested in names:
+    exact = [n for n in names if n == requested]
+    if len(exact) == 1:
         return requested
+    if len(exact) > 1:
+        raise TrackNotResolved(
+            f"'{requested}' is the exact name of {len(exact)} tracks. Rename or "
+            "reorder so the target is unique; the daemon can't tell them apart."
+        )
 
     ci = [n for n in names if n.lower() == requested.lower()]
     if len(ci) == 1:
         return ci[0]
+    if len(ci) > 1:
+        listing = "\n".join(f"  - {n}" for n in ci)
+        raise TrackNotResolved(
+            f"'{requested}' matches {len(ci)} tracks case-insensitively:\n{listing}\n"
+            "Quote the exact name."
+        )
 
     sub = [n for n in names if requested.lower() in n.lower()]
     if len(sub) == 1:
@@ -113,13 +142,18 @@ def _run(args):
     print(f"[postmortem] capturing {args.seconds}s post-FX stem...", file=sys.stderr)
     capture_data, wav_path = bridge.capture_track_audio(track, duration_seconds=args.seconds)
 
+    # Wrong-track guard: each command resolves the name independently, so a
+    # duplicate name or a mid-run reorder could make them hit different tracks.
+    # Where a track GUID is present, they must all agree before we diagnose.
+    _assert_same_track(track_scan, routing, capture_data)
+
     # We own wav_path (bridge verified it's the exact temp file we asked for);
     # clean it up on every path unless --keep-wav, even if analysis or the model
     # call raises. --keep-wav preserves it for inspection.
     try:
         print("[postmortem] analyzing...", file=sys.stderr)
         stats = analyze_wav(wav_path)
-        payload = build_payload(context, track_scan, routing, capture_data, stats)
+        payload = build_payload(context, track_scan, routing, capture_data, stats, target_name=track)
 
         if args.payload_only:
             import json
