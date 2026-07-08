@@ -1,6 +1,7 @@
 """Payload assembly + model call. The hedge contract lives here; don't weaken it."""
 
 import json
+import math
 import os
 
 import anthropic
@@ -89,9 +90,14 @@ SYSTEM_PROMPT = """\
 You are a mix engineer analyzing a single track inside a REAPER session. You
 receive the track's FX chain (with current parameter values), routing (sends,
 receives, parent bus, phase, automation mode), and a post-FX audio snapshot
-(sample peak, crest factor, 1/3-octave spectrum, and integrated LUFS when it is
-available). Some fields may be null; treat null as "not measured", never as a
-value. Do not infer true-peak headroom from sample peak; they differ.
+(sample peak, crest factor, 1/3-octave spectrum, and, when available: integrated
+LUFS, true peak, loudness range (LRA), momentary/short-term LUFS maxima, and a
+stereo block with phase correlation, mid/side levels, and L/R balance). Some
+fields may be null; treat null as "not measured", never as a value. Use
+true_peak_db when present; never infer true peak from sample peak, they differ.
+silence_fraction is how much of the capture is dead air: when it is high, every
+level statistic is diluted by silence — weight your confidence accordingly and
+say so.
 
 Your job: diagnose what's wrong or could be improved. Be specific. Name
 frequencies. Name parameters. Propose one concrete move, not five.
@@ -121,8 +127,10 @@ uncertain, say so. An honest "I'm not sure" beats a confident wrong answer.
 MASKING_SYSTEM_PROMPT = """\
 You are a mix engineer analyzing frequency masking BETWEEN tracks inside a REAPER
 session. You receive two or more tracks, each with its FX chain, routing, and a
-post-FX audio snapshot (1/3-octave spectrum, sample peak, crest factor, LUFS when
-available). You also receive a precomputed masking table: for each pair of tracks,
+post-FX audio snapshot (1/3-octave spectrum, sample peak, crest factor, and when
+available: LUFS, true peak, LRA, a stereo block with phase correlation and
+mid/side levels, and silence_fraction — how much of that capture is dead air).
+You also receive a precomputed masking table: for each pair of tracks,
 the "contested" 1/3-octave bands where BOTH tracks have real energy, with each
 track's level and which one is louder. Some fields may be null; treat null as "not
 measured", never as a value.
@@ -160,16 +168,63 @@ confident wrong carve.
 """
 
 
+# REAPER's RENDER_STATS keys -> payload field names. The raw string is
+# semicolon-separated KEY:value pairs; key spellings vary a little between
+# stats, so each field lists every spelling observed or plausible. First
+# match wins. Non-numeric values (e.g. FILE:C:\out.wav) are skipped.
+_RENDER_STATS_FIELDS = [
+    ("true_peak_db", ("TRUEPEAK", "TPEAK", "TPK")),
+    ("loudness_range_lu", ("LRA",)),
+    ("lufs_momentary_max", ("LUFSMMAX", "MAXLUFSM", "LUFSM")),
+    ("lufs_short_term_max", ("LUFSSMAX", "MAXLUFSS", "LUFSS")),
+]
+
+
+def parse_render_stats(raw):
+    """Pull true peak, LRA, and momentary/short-term LUFS maxima out of the
+    raw RENDER_STATS string the bridge passes through. The bridge itself only
+    parses LUFS-I (surfaced separately as integrated_lufs); everything else
+    REAPER measured was being dropped on the floor. Returns {} when raw is
+    missing; absent keys are simply omitted (never null-filled)."""
+    if not raw:
+        return {}
+    values = {}
+    for pair in raw.split(";"):
+        key, sep, value = pair.partition(":")
+        if not sep:
+            continue
+        try:
+            number = float(value)
+        except ValueError:
+            continue
+        if math.isfinite(number):
+            values.setdefault(key.strip().upper(), number)
+    out = {}
+    for field, keys in _RENDER_STATS_FIELDS:
+        for key in keys:
+            if key in values:
+                out[field] = values[key]
+                break
+    return out
+
+
 def _audio_block(stats, capture_data):
-    return {
+    block = {
         "duration_seconds": stats.duration_seconds,
         "integrated_lufs": capture_data.get("render_loudness_lufs"),
         "sample_peak_db": stats.sample_peak_db,
         "rms_db": stats.rms_db,
         "crest_factor_db": stats.crest_factor_db,
-        "spectrum_third_octave": stats.spectrum_third_octave,
-        "spectrum_note": "1/3-octave band levels in dBFS, channels combined in the power domain (no phase cancellation)",
+        "silence_fraction": stats.silence_fraction,
+        "stereo": stats.stereo,
     }
+    block.update(parse_render_stats(capture_data.get("render_stats_raw")))
+    block["spectrum_third_octave"] = stats.spectrum_third_octave
+    block["spectrum_note"] = (
+        "1/3-octave band levels in dBFS, channels combined in the power domain "
+        "(no phase cancellation)"
+    )
+    return block
 
 
 def _resolve_scan_track(track_scan, target_name):

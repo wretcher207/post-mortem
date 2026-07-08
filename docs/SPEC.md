@@ -386,6 +386,18 @@ not a schema change.
     "sample_peak_db": -0.8,
     "rms_db": -13.2,
     "crest_factor_db": 12.4,
+    "silence_fraction": 0.03,
+    "stereo": {
+      "correlation": 0.82,
+      "mid_rms_db": -14.1,
+      "side_rms_db": -24.7,
+      "balance_db": 0.4,
+      "note": "correlation is zero-lag L/R phase correlation ..."
+    },
+    "true_peak_db": -0.5,
+    "loudness_range_lu": 5.4,
+    "lufs_momentary_max": -14.9,
+    "lufs_short_term_max": -16.2,
     "spectrum_third_octave": [
       { "freq_hz": 20, "level_db": -52.1 },
       { "freq_hz": 25, "level_db": -48.3 },
@@ -430,6 +442,25 @@ uncertain, say so. An honest "I'm not sure" beats a confident wrong answer.
 
 The last line is deliberate. The llm-proxy-hedge-contract pattern applies here:
 an AI mix tool that bluffs will destroy trust on the first wrong call.
+
+**Audio-block additions (2026-07-08, shipped):** the audio block now also
+carries, when available: `silence_fraction` (share of 100 ms blocks below
+-70 dBFS — how much of the capture is dead air), a `stereo` block (zero-lag L/R
+phase correlation, mid/side RMS, L-minus-R balance; `null` for mono), and the
+rest of REAPER's RENDER_STATS parsed client-side in
+`diagnose.parse_render_stats` (`true_peak_db`, `loudness_range_lu`,
+`lufs_momentary_max`, `lufs_short_term_max` — the bridge itself still parses
+only LUFS-I). Absent stats are omitted, never null-filled. The live prompt in
+`diagnose.SYSTEM_PROMPT` describes these fields; the prompt block quoted above
+is the original v1 wording, kept for design history.
+
+**Silence gate (2026-07-08, shipped):** the CLI refuses to spend a model call
+on dead air. A capture with overall RMS at or below -60 dBFS, or with
+`silence_fraction >= 0.85`, prints a "park the cursor where the track is
+playing" message and exits with code 3 instead of diagnosing. `--force`
+overrides; `--payload-only` is never gated (the payload is still useful for
+debugging). Thresholds live in `cli.NEAR_SILENT_RMS_DB` /
+`cli.SILENCE_GATE_FRACTION`.
 
 ## Diagnosis output
 

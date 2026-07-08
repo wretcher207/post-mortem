@@ -76,6 +76,31 @@ class TestBuildPayload(unittest.TestCase):
         self.assertIsNone(payload["audio"]["integrated_lufs"])
         self.assertEqual(payload["audio"]["sample_peak_db"], -1.0)
 
+    def test_render_stats_fields_land_in_audio_block(self):
+        scan = {"tracks": [{"name": "Rhythm L", "index": 3, "fx": []}]}
+        capture = {
+            "render_loudness_lufs": -18.3,
+            "render_stats_raw": (
+                "FILE:C:\\temp\\out.wav;PEAK:-1.02;TRUEPEAK:-0.84;"
+                "LUFSI:-18.3;LUFSM:-14.9;LUFSS:-16.2;LRA:5.4"
+            ),
+        }
+        payload = diagnose.build_payload(None, scan, self._routing(), capture, _stats())
+        audio = payload["audio"]
+        self.assertEqual(audio["true_peak_db"], -0.84)
+        self.assertEqual(audio["loudness_range_lu"], 5.4)
+        self.assertEqual(audio["lufs_momentary_max"], -14.9)
+        self.assertEqual(audio["lufs_short_term_max"], -16.2)
+        # Fields carried from TrackStats defaults.
+        self.assertEqual(audio["silence_fraction"], 0.0)
+        self.assertIsNone(audio["stereo"])
+
+    def test_missing_render_stats_omits_fields_not_nulls_them(self):
+        scan = {"tracks": [{"name": "Rhythm L", "index": 3, "fx": []}]}
+        payload = diagnose.build_payload(None, scan, self._routing(), {}, _stats())
+        self.assertNotIn("true_peak_db", payload["audio"])
+        self.assertNotIn("loudness_range_lu", payload["audio"])
+
     def test_selects_target_track_not_index_zero(self):
         scan = {"tracks": [
             {"name": "Kick", "index": 0, "fx": []},
@@ -84,6 +109,28 @@ class TestBuildPayload(unittest.TestCase):
         payload = diagnose.build_payload(None, scan, self._routing(), {}, _stats(), target_name="Snare")
         self.assertEqual(payload["track"]["name"], "Snare")
         self.assertEqual(payload["track"]["index"], 1)
+
+
+class TestParseRenderStats(unittest.TestCase):
+    def test_none_and_empty_return_empty(self):
+        self.assertEqual(diagnose.parse_render_stats(None), {})
+        self.assertEqual(diagnose.parse_render_stats(""), {})
+
+    def test_file_path_with_drive_colon_is_skipped(self):
+        out = diagnose.parse_render_stats("FILE:C:\\x.wav;TRUEPEAK:-2.5")
+        self.assertEqual(out, {"true_peak_db": -2.5})
+
+    def test_alternate_key_spellings(self):
+        self.assertEqual(
+            diagnose.parse_render_stats("TPK:-1.5"), {"true_peak_db": -1.5}
+        )
+        self.assertEqual(
+            diagnose.parse_render_stats("LUFSMMAX:-12.0;LUFSM:-13.0"),
+            {"lufs_momentary_max": -12.0},
+        )
+
+    def test_non_numeric_and_partial_pairs_ignored(self):
+        self.assertEqual(diagnose.parse_render_stats("LRA:abc;TRUEPEAK;X"), {})
 
 
 class TestDiagnoseReply(unittest.TestCase):

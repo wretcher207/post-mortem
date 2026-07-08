@@ -5,17 +5,21 @@ what's actually wrong with it.
 
 It reads the track's real state: every FX and its current parameter values,
 sends, receives, parent bus, fader, pan. Then it renders a 30 second post-FX
-stem, measures it (LUFS, peak, crest factor, 1/3-octave spectrum), and hands
-the numbers to a model that answers like a mix engineer: what it sees, what's
-probably causing it, one concrete move with the exact parameter and value,
-and how confident it is. Not five suggestions. One move.
+stem, measures it (LUFS, true peak, sample peak, crest factor, loudness
+range, 1/3-octave spectrum, stereo correlation and mid/side balance, and how
+much of the capture is dead air), and hands the numbers to a model that
+answers like a mix engineer: what it sees, what's probably causing it, one
+concrete move with the exact parameter and value, and how confident it is.
+Not five suggestions. One move.
 
-The part I care about most: it's not allowed to bluff. It sees ONE track,
-not your mix, so it will never tell you your guitars are masking your vocal.
-It can't know that and it says so. Every diagnosis carries a confidence
-rating, and when the data is thin the diagnosis says the data is thin. An
-honest "I'm not sure" beats a confident wrong answer. That contract lives in
-the prompt and it's not coming out.
+The part I care about most: it's not allowed to bluff. A single-track run
+sees ONE track, not your mix, so it will never claim your guitars are masking
+your vocal from one stem — that takes the cross-track mode, which measures
+both tracks first. Every diagnosis carries a confidence rating, and when the
+data is thin the diagnosis says the data is thin. If the capture is
+essentially silence, it refuses to diagnose at all instead of inventing
+something. An honest "I'm not sure" beats a confident wrong answer. That
+contract lives in the prompt and it's not coming out.
 
 A Dead Pixel Design release.
 
@@ -107,16 +111,39 @@ That's it. Options:
 --seconds N        capture length, default 30, starting at the edit cursor
 --keep-wav         keep the temp stem instead of deleting it
 --payload-only     print the data payload as JSON and skip the model call
+--force            diagnose even a capture the silence gate would refuse
+```
+
+Two or more track names run a **cross-track masking diagnosis** instead:
+each track's stem is captured, the 1/3-octave overlap is computed, and the
+model names the most likely masking problem (or says the tracks aren't
+really fighting):
+
+```bash
+postmortem "Kick" "Bass"
 ```
 
 The capture starts at your edit cursor, so park the cursor somewhere the
-track is actually playing. A diagnosis of 30 seconds of silence is accurate
-and useless.
+track is actually playing. If the capture comes back essentially silent,
+Post Mortem refuses to diagnose it (a diagnosis of dead air would be accurate
+and useless), tells you to move the cursor, and exits with code 3. `--force`
+overrides the gate.
+
+## Prefer chat? Use it through MCP
+
+Reaper Daemon ships an MCP server (`reaper_mcp.py`) whose `analyze_track` and
+`compare_tracks` tools run Post Mortem's capture + measurement and hand the
+payload to the model you're already chatting with (Claude Desktop, Claude
+Code, any MCP client) — that model does the diagnosing, so **no API key and
+no config file are needed** in that mode. Install Post Mortem (step 2 above),
+wire up the MCP server per the Reaper Daemon README, then just ask: *"what's
+wrong with my kick?"*. The same honesty contract rides along in the tool
+output.
 
 ## What it won't do (yet)
 
-One track per run. No cross-track masking analysis, no real-time monitoring,
-no automatic fix application, no fancy panel. Console output, one diagnosis,
+No real-time monitoring, no automatic fix application, no fancy panel.
+Console output, one diagnosis,
 you apply the move with your own hands and ears. If the free version earns
 it, the batch and cross-track stuff is the natural next step.
 

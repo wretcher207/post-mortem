@@ -166,6 +166,67 @@ class TestAnalysis(unittest.TestCase):
             got, _, _ = read_wav(path)
             self.assertAlmostEqual(float(np.max(np.abs(got))), 0.5, delta=0.01)
 
+    def test_mono_has_no_stereo_block(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "mono.wav")
+            write_sine_wav(path, 1000, channels=1)
+            stats = analyze_wav(path)
+            self.assertIsNone(stats.stereo)
+
+    def test_dual_mono_stereo_block(self):
+        # L == R: correlation +1, side channel is digital silence, balance 0.
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "dualmono.wav")
+            rate = 48000
+            t = np.arange(int(2.0 * rate)) / rate
+            sine = 0.5 * np.sin(2 * np.pi * 1000 * t)
+            write_raw_wav(path, np.stack([sine, sine], axis=1), rate=rate)
+            stats = analyze_wav(path)
+            self.assertAlmostEqual(stats.stereo["correlation"], 1.0, delta=0.01)
+            self.assertLess(stats.stereo["side_rms_db"], -90)
+            self.assertAlmostEqual(stats.stereo["balance_db"], 0.0, delta=0.05)
+
+    def test_antiphase_stereo_block(self):
+        # L == -R: correlation -1, mid channel cancels to silence.
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "anti.wav")
+            rate = 48000
+            t = np.arange(int(2.0 * rate)) / rate
+            sine = 0.5 * np.sin(2 * np.pi * 1000 * t)
+            write_raw_wav(path, np.stack([sine, -sine], axis=1), rate=rate)
+            stats = analyze_wav(path)
+            self.assertAlmostEqual(stats.stereo["correlation"], -1.0, delta=0.01)
+            self.assertLess(stats.stereo["mid_rms_db"], -90)
+
+    def test_silent_channel_correlation_is_none(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "onesided.wav")
+            rate = 48000
+            t = np.arange(int(1.0 * rate)) / rate
+            sine = 0.5 * np.sin(2 * np.pi * 1000 * t)
+            write_raw_wav(path, np.stack([sine, np.zeros_like(sine)], axis=1), rate=rate)
+            stats = analyze_wav(path)
+            self.assertIsNone(stats.stereo["correlation"])
+            self.assertIsNone(stats.stereo["balance_db"])
+
+    def test_silence_fraction_half(self):
+        # 1 s of silence + 1 s of sine reads ~0.5.
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "half.wav")
+            rate = 48000
+            t = np.arange(rate) / rate
+            sine = 0.5 * np.sin(2 * np.pi * 1000 * t)
+            write_samples_wav(path, np.concatenate([np.zeros(rate), sine]), rate=rate)
+            stats = analyze_wav(path)
+            self.assertAlmostEqual(stats.silence_fraction, 0.5, delta=0.05)
+
+    def test_silence_fraction_zero_for_steady_tone(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "tone.wav")
+            write_sine_wav(path, 440, amplitude=0.5)
+            stats = analyze_wav(path)
+            self.assertEqual(stats.silence_fraction, 0.0)
+
     def test_duration_and_band_count(self):
         with tempfile.TemporaryDirectory() as d:
             path = os.path.join(d, "sine.wav")

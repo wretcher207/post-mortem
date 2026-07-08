@@ -98,6 +98,36 @@ def resolve_track(requested, names):
     raise TrackNotResolved("\n".join(lines))
 
 
+# Silence gate: refuse to spend a model call on a capture that is essentially
+# dead air. Overall RMS below the first threshold, or nearly the whole capture
+# below the per-block silence floor, both mean "the cursor was in the wrong
+# place", not "here is a mix problem".
+# Same -60 dBFS idea as analysis.MASKING_ABSOLUTE_FLOOR_DB but a different
+# quantity (broadband RMS vs loudest 1/3-octave band) — tune them together.
+NEAR_SILENT_RMS_DB = -60.0
+SILENCE_GATE_FRACTION = 0.85
+
+
+def silence_gate(stats):
+    """Message explaining why this capture is too silent to diagnose, or None
+    when it has enough signal. The caller decides whether the gate is binding
+    (--force and --payload-only bypass it)."""
+    if stats.rms_db <= NEAR_SILENT_RMS_DB:
+        return (
+            f"capture is essentially silent (RMS {stats.rms_db:.1f} dBFS). A "
+            "diagnosis of dead air would be accurate and useless. Park the edit "
+            "cursor where the track is actually playing and rerun "
+            "(--force to diagnose anyway)."
+        )
+    if stats.silence_fraction >= SILENCE_GATE_FRACTION:
+        return (
+            f"{stats.silence_fraction:.0%} of the capture is silence "
+            f"(RMS {stats.rms_db:.1f} dBFS). Park the edit cursor where the "
+            "track is actually playing and rerun (--force to diagnose anyway)."
+        )
+    return None
+
+
 def _capture_seconds(value):
     """argparse type: a capture length in [1, 600]. Rejects zero/negative up
     front instead of forwarding a nonsense render duration to the daemon."""
@@ -125,6 +155,7 @@ def main(argv=None):
     parser.add_argument("--seconds", type=_capture_seconds, default=30, help="capture length 1-600 (default 30, from cursor)")
     parser.add_argument("--keep-wav", action="store_true", help="don't delete the temp stem after analysis")
     parser.add_argument("--payload-only", action="store_true", help="print the payload JSON and exit (no model call)")
+    parser.add_argument("--force", action="store_true", help="diagnose even a capture the silence gate would refuse")
     args = parser.parse_args(argv)
 
     try:
@@ -181,6 +212,13 @@ def _run_single(args, context, track):
     try:
         print("[postmortem] analyzing...", file=sys.stderr)
         stats = analyze_wav(wav_path)
+
+        if not args.payload_only and not args.force:
+            gate = silence_gate(stats)
+            if gate:
+                print(f"[postmortem] {gate}", file=sys.stderr)
+                return 3
+
         payload = build_payload(context, track_scan, routing, capture_data, stats, target_name=track)
 
         if args.payload_only:
@@ -236,6 +274,21 @@ def _run_masking(args, context, tracks):
                     "stats": stats,
                 }
             )
+
+        if not args.payload_only and not args.force:
+            gated = []
+            for pt in per_track:
+                gate = silence_gate(pt["stats"])
+                if gate:
+                    gated.append((pt["name"], gate))
+            if gated:
+                for name, gate in gated:
+                    print(f"[postmortem] '{name}': {gate}", file=sys.stderr)
+                print(
+                    "[postmortem] a silent stem can't mask anything; not diagnosing.",
+                    file=sys.stderr,
+                )
+                return 3
 
         masking = masking_overlap({pt["name"]: pt["stats"].spectrum_third_octave for pt in per_track})
         payload = build_masking_payload(context, per_track, masking)

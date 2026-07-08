@@ -67,6 +67,36 @@ class TestAssertSameTrack(unittest.TestCase):
         )
 
 
+class TestSilenceGate(unittest.TestCase):
+    def _stats(self, rms_db=-12.0, silence_fraction=0.0):
+        from postmortem.analysis import TrackStats
+
+        return TrackStats(
+            duration_seconds=30.0,
+            sample_rate=48000,
+            channels=2,
+            sample_peak_db=-1.0,
+            rms_db=rms_db,
+            crest_factor_db=11.0,
+            silence_fraction=silence_fraction,
+        )
+
+    def test_normal_capture_passes(self):
+        self.assertIsNone(cli.silence_gate(self._stats()))
+
+    def test_near_silent_rms_is_gated(self):
+        msg = cli.silence_gate(self._stats(rms_db=-72.0))
+        self.assertIn("essentially silent", msg)
+
+    def test_mostly_silent_capture_is_gated(self):
+        msg = cli.silence_gate(self._stats(rms_db=-30.0, silence_fraction=0.9))
+        self.assertIn("90% of the capture is silence", msg)
+
+    def test_quiet_but_present_signal_passes(self):
+        # Quiet is not silent: a -45 dBFS pad with steady signal must pass.
+        self.assertIsNone(cli.silence_gate(self._stats(rms_db=-45.0, silence_fraction=0.2)))
+
+
 class TestCaptureSeconds(unittest.TestCase):
     def test_rejects_zero_and_negative(self):
         import argparse

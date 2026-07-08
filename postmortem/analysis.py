@@ -35,6 +35,11 @@ class TrackStats:
     rms_db: float
     crest_factor_db: float
     spectrum_third_octave: list = field(default_factory=list)
+    # Fraction of the capture (100 ms blocks) that is effectively silent. High
+    # values mean every other number here is diluted by dead air.
+    silence_fraction: float = 0.0
+    # Stereo image block (phase correlation, mid/side, L/R balance); None for mono.
+    stereo: dict = None
 
 
 def _parse_wav(path):
@@ -180,6 +185,8 @@ def third_octave_spectrum(samples, rate):
 MASKING_PROMINENCE_DB = 12.0
 # A track whose loudest band is below this is treated as effectively silent and
 # excluded from masking entirely (a near-empty capture can't mask anything).
+# Same -60 dBFS idea as cli.NEAR_SILENT_RMS_DB but a different quantity
+# (loudest 1/3-octave band vs broadband RMS) — tune them together.
 MASKING_ABSOLUTE_FLOOR_DB = -60.0
 
 
@@ -264,6 +271,67 @@ def _masking_summary(a, b, contested):
     return f"{len(contested)} contested band(s) between '{a}' and '{b}', spanning {span}."
 
 
+# A 100 ms block below this combined-channel RMS counts as silence.
+SILENCE_BLOCK_FLOOR_DB = -70.0
+SILENCE_BLOCK_SECONDS = 0.1
+
+
+def silence_fraction(samples, rate, block_seconds=SILENCE_BLOCK_SECONDS,
+                     floor_db=SILENCE_BLOCK_FLOOR_DB):
+    """Fraction of the capture that is effectively silent: the share of
+    block_seconds-long blocks whose combined-channel RMS sits below floor_db.
+    Distinguishes 'the track is quiet' from 'the cursor was parked in a gap'."""
+    frames = samples.shape[0]
+    block = max(1, int(rate * block_seconds))
+    n_blocks = max(1, int(np.ceil(frames / block)))
+    floor_amp = 10.0 ** (floor_db / 20.0)
+    # Pad the tail block with zeros and compare mean-square per block against
+    # the squared floor, all vectorized. Zero-padding biases the tail block
+    # quieter, which errs toward calling it silent — acceptable for a <100 ms
+    # remainder.
+    padded = np.zeros((n_blocks * block, samples.shape[1]))
+    padded[:frames] = samples
+    block_ms = np.mean(padded.reshape(n_blocks, block, -1) ** 2, axis=(1, 2))
+    silent = int(np.count_nonzero(block_ms < floor_amp**2))
+    return round(silent / n_blocks, 3)
+
+
+def stereo_stats(samples):
+    """Stereo image block, or None for mono. Uses the first two channels.
+
+    correlation is the zero-lag normalized cross-correlation (the convention a
+    phase-correlation meter uses, no mean subtraction): +1.0 dual-mono, ~0
+    decorrelated, -1.0 anti-phase. None when either channel is digital silence
+    (the ratio is undefined). Mid = (L+R)/2, side = (L-R)/2; balance_db is the
+    L-minus-R RMS difference (positive = left-heavy)."""
+    if samples.shape[1] < 2:
+        return None
+    left = samples[:, 0]
+    right = samples[:, 1]
+    l_energy = float(np.sum(left**2))
+    r_energy = float(np.sum(right**2))
+    if l_energy > 0.0 and r_energy > 0.0:
+        correlation = round(float(np.sum(left * right)) / np.sqrt(l_energy * r_energy), 3)
+    else:
+        correlation = None
+    mid_rms = float(np.sqrt(np.mean(((left + right) / 2.0) ** 2)))
+    side_rms = float(np.sqrt(np.mean(((left - right) / 2.0) ** 2)))
+    l_rms = np.sqrt(l_energy / len(left))
+    r_rms = np.sqrt(r_energy / len(right))
+    balance_db = round(_db(l_rms) - _db(r_rms), 2) if l_energy > 0 and r_energy > 0 else None
+    return {
+        "correlation": correlation,
+        "mid_rms_db": round(_db(mid_rms), 2),
+        "side_rms_db": round(_db(side_rms), 2),
+        "balance_db": balance_db,
+        "note": (
+            "correlation is zero-lag L/R phase correlation: +1 dual-mono, ~0 "
+            "decorrelated, -1 anti-phase (mono-cancel risk). balance_db is "
+            "L minus R RMS."
+        ),
+    }
+
+
 def analyze_wav(path):
     samples, rate, channels = read_wav(path)  # (frames, channels)
     if samples.shape[0] == 0:
@@ -282,4 +350,6 @@ def analyze_wav(path):
         rms_db=round(rms_db, 2),
         crest_factor_db=round(peak_db - rms_db, 2),
         spectrum_third_octave=third_octave_spectrum(samples, rate),
+        silence_fraction=silence_fraction(samples, rate),
+        stereo=stereo_stats(samples),
     )
