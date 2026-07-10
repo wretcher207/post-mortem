@@ -3,10 +3,14 @@
 import os
 import sys
 import unittest
+from contextlib import redirect_stderr
+from io import StringIO
+from unittest.mock import patch
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from postmortem import bridge, cli  # noqa: E402
+from postmortem.providers.base import ProviderError, ProviderErrorCategory  # noqa: E402
 
 
 class TestResolveTrack(unittest.TestCase):
@@ -113,6 +117,25 @@ class TestCaptureSeconds(unittest.TestCase):
 
     def test_accepts_valid(self):
         self.assertEqual(cli._capture_seconds("30"), 30)
+
+
+class TestProviderErrors(unittest.TestCase):
+    def test_cli_prints_clean_provider_error_and_returns_stable_exit_code(self):
+        error = ProviderError(
+            ProviderErrorCategory.RATE_LIMIT,
+            "the provider rate limit or available credit was exhausted",
+        )
+        stderr = StringIO()
+
+        with patch.object(cli, "_run", side_effect=error), redirect_stderr(stderr):
+            exit_code = cli.main(["Kick"])
+
+        self.assertEqual(exit_code, 5)
+        self.assertEqual(
+            stderr.getvalue().strip(),
+            "[postmortem] provider/rate_limit: "
+            "the provider rate limit or available credit was exhausted",
+        )
 
 
 if __name__ == "__main__":

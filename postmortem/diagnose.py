@@ -1,90 +1,7 @@
 """Payload assembly + model call. The hedge contract lives here; don't weaken it."""
 
-import json
 import math
-import os
-
-import anthropic
-
-from . import config
-
-SECRETS_DIR = os.path.expanduser("~/.config/david-secrets")
-
-
-def _first_line_matching(path, predicate):
-    try:
-        with open(path) as f:
-            return next((line.strip() for line in f if predicate(line)), None)
-    except OSError:
-        return None
-
-
-def _is_anthropic_endpoint(base_url):
-    """True for the real Anthropic API (or no override). A compatible endpoint
-    like DeepSeek's /anthropic or MiniMax's /anthropic is NOT the Anthropic API,
-    even though its path contains the word 'anthropic'."""
-    return (not base_url) or "anthropic.com" in base_url
-
-
-def _thinking_enabled(base_url):
-    """Whether to send the adaptive-thinking extension. Configurable via
-    POSTMORTEM_THINKING (adaptive|off); defaults on. Compatible endpoints that
-    don't implement thinking can turn it off without code changes."""
-    mode = (config.get("POSTMORTEM_THINKING") or "adaptive").strip().lower()
-    return mode not in ("off", "0", "false", "none")
-
-
-def _resolve_client_and_model():
-    """Resolve endpoint, key, and model as ONE provider profile.
-
-    A non-Anthropic compatible endpoint (DeepSeek, MiniMax, ...) must use its
-    OWN key: either POSTMORTEM_API_KEY, or an ANTHROPIC_API_KEY set in the
-    config file alongside the base_url. It must NEVER borrow a bare env
-    ANTHROPIC_API_KEY, which belongs to api.anthropic.com and would be leaked to
-    the third-party vendor. Lives here (not the wrapper) so every invocation
-    path gets the same auth; the david-secrets fallbacks are dev-machine no-ops
-    elsewhere."""
-    model = config.get("POSTMORTEM_MODEL")
-    base_url = config.get("ANTHROPIC_BASE_URL")
-
-    if not _is_anthropic_endpoint(base_url):
-        # Same-source key only: a dedicated POSTMORTEM_API_KEY, or an
-        # ANTHROPIC_API_KEY that lives in the config file next to the base_url.
-        key = config.get("POSTMORTEM_API_KEY") or config.file_get("ANTHROPIC_API_KEY")
-        if key:
-            return anthropic.Anthropic(api_key=key, base_url=base_url), model or "claude-opus-4-8"
-        # Dev-machine MiniMax fallback (explicit, from david-secrets).
-        key_line = _first_line_matching(
-            os.path.join(SECRETS_DIR, "minimax-api.md"),
-            lambda l: l.startswith("- Key:"),
-        )
-        if key_line and "minimax" in base_url:
-            key = key_line.split(":", 1)[1].strip()
-            return anthropic.Anthropic(api_key=key, base_url=base_url), model or "MiniMax-M3"
-        raise SystemExit(
-            f"postmortem: {base_url} is a non-Anthropic endpoint. Set its own key\n"
-            f"as POSTMORTEM_API_KEY (env or {config.CONFIG_PATH}). A bare\n"
-            "ANTHROPIC_API_KEY from the environment is NOT used for a third-party\n"
-            "endpoint, to avoid sending your Anthropic key to another vendor."
-        )
-
-    # Real Anthropic API.
-    key = config.get("ANTHROPIC_API_KEY") or _first_line_matching(
-        os.path.join(SECRETS_DIR, "anthropic-api-key"),
-        lambda l: l.startswith("sk-ant-"),
-    )
-    if key:
-        return anthropic.Anthropic(api_key=key), model or "claude-opus-4-8"
-
-    raise SystemExit(
-        "postmortem: no API key found. Set ANTHROPIC_API_KEY in the\n"
-        f"environment, or create {config.CONFIG_PATH} with:\n"
-        "  ANTHROPIC_API_KEY=<your key>\n"
-        "  # optional, for Anthropic-compatible endpoints like DeepSeek/MiniMax:\n"
-        "  ANTHROPIC_BASE_URL=https://api.deepseek.com/anthropic\n"
-        "  POSTMORTEM_API_KEY=<that endpoint's key>\n"
-        "  POSTMORTEM_MODEL=deepseek-v4-flash"
-    )
+from .providers.base import ModelProfile, TextDiagnosisResult
 
 SYSTEM_PROMPT = """\
 You are a mix engineer analyzing a single track inside a REAPER session. You
@@ -310,50 +227,35 @@ def build_masking_payload(context, per_track, masking):
     }
 
 
-def diagnose(payload, client=None, system=SYSTEM_PROMPT, intro="Diagnose this track:"):
+def diagnose(
+    payload,
+    client=None,
+    system=SYSTEM_PROMPT,
+    intro="Diagnose this track:",
+    provider=None,
+    profile: ModelProfile | None = None,
+):
     """Send the payload to the model, return the diagnosis text. system/intro
     default to the single-track hedge contract; the masking path passes
     MASKING_SYSTEM_PROMPT and its own intro."""
-    if client is None:
-        client, model = _resolve_client_and_model()
-    else:
-        # Honor the config file too, not just the environment, so an injected
-        # client still targets the configured model.
-        model = config.get("POSTMORTEM_MODEL", "claude-opus-4-8")
-    request = {
-        "model": model,
-        # Thinking counts against this budget; reasoning models can burn 4k
-        # tokens before the first text block, which returned an empty diagnosis.
-        "max_tokens": 16384,
-        "system": system,
-        "messages": [
-            {
-                "role": "user",
-                "content": f"{intro}\n\n" + json.dumps(payload, indent=1),
-            }
-        ],
-    }
-    if _thinking_enabled(config.get("ANTHROPIC_BASE_URL")):
-        request["thinking"] = {"type": "adaptive"}
-    response = client.messages.create(**request)
-    if response.stop_reason == "refusal":
-        return "Diagnosis unavailable: the model declined this request."
-    # Join every text block, not just the first: a reasoning model can emit the
-    # diagnosis across multiple text blocks, and taking only content[0] dropped
-    # the rest.
-    text = "\n".join(b.text for b in response.content if b.type == "text" and b.text).strip()
-    if not text:
-        return (
-            "Diagnosis unavailable: the model returned no text "
-            f"(stop_reason={response.stop_reason})."
-        )
-    # Fail loud, not open: a max_tokens cutoff yields a partial diagnosis that is
-    # probably missing its CONFIDENCE line. Flag it instead of printing a truncated
-    # answer as if it were complete.
-    if response.stop_reason == "max_tokens":
-        return (
-            "[postmortem] WARNING: the model hit its token limit before finishing; "
-            "this diagnosis is incomplete (likely missing its CONFIDENCE line). "
-            "Treat it as partial.\n\n" + text
-        )
-    return text
+    if provider is None:
+        from .providers.anthropic_provider import AnthropicProvider
+
+        if client is None:
+            provider, profile = AnthropicProvider.from_config()
+        else:
+            provider = AnthropicProvider(client)
+            profile = profile or AnthropicProvider.model_profile_from_config()
+    elif profile is None:
+        raise ValueError("an injected provider requires an explicit model profile")
+
+    if profile is None:  # Defensive for type checkers and future provider factories.
+        raise ValueError("provider resolution did not return a model profile")
+    result = provider.generate(
+        system_contract=system,
+        payload=payload,
+        response_schema=TextDiagnosisResult,
+        model_profile=profile,
+        user_instruction=intro,
+    )
+    return TextDiagnosisResult.model_validate(result).text

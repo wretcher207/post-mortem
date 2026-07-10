@@ -9,6 +9,8 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from postmortem import config, diagnose  # noqa: E402
 from postmortem.analysis import TrackStats  # noqa: E402
+from postmortem.providers import anthropic_provider  # noqa: E402
+from postmortem.providers.base import ProviderError, ProviderErrorCategory  # noqa: E402
 
 
 class _Block:
@@ -143,36 +145,49 @@ class TestDiagnoseReply(unittest.TestCase):
         self.assertIn("part one", out)
         self.assertIn("part two", out)
 
-    def test_max_tokens_truncation_is_flagged(self):
+    def test_max_tokens_truncation_is_typed(self):
         client = _FakeClient(_Response([_Block("DIAGNOSIS: boom")], stop_reason="max_tokens"))
-        out = diagnose.diagnose(self._payload(), client=client)
-        self.assertIn("WARNING", out)
-        self.assertIn("incomplete", out)
+        with self.assertRaises(ProviderError) as ctx:
+            diagnose.diagnose(self._payload(), client=client)
+        self.assertIs(ctx.exception.category, ProviderErrorCategory.INCOMPLETE_RESPONSE)
 
-    def test_empty_text_reports_unavailable(self):
+    def test_empty_text_is_typed(self):
         client = _FakeClient(_Response([_Block(None, type="thinking")], stop_reason="end_turn"))
-        out = diagnose.diagnose(self._payload(), client=client)
-        self.assertIn("no text", out)
+        with self.assertRaises(ProviderError) as ctx:
+            diagnose.diagnose(self._payload(), client=client)
+        self.assertIs(ctx.exception.category, ProviderErrorCategory.INCOMPLETE_RESPONSE)
 
-    def test_refusal_is_reported(self):
+    def test_refusal_is_typed(self):
         client = _FakeClient(_Response([], stop_reason="refusal"))
-        out = diagnose.diagnose(self._payload(), client=client)
-        self.assertIn("declined", out)
+        with self.assertRaises(ProviderError) as ctx:
+            diagnose.diagnose(self._payload(), client=client)
+        self.assertIs(ctx.exception.category, ProviderErrorCategory.REFUSAL)
 
 
 class TestProviderProfile(unittest.TestCase):
     def test_endpoint_classification(self):
-        self.assertTrue(diagnose._is_anthropic_endpoint(None))
-        self.assertTrue(diagnose._is_anthropic_endpoint("https://api.anthropic.com"))
-        self.assertFalse(diagnose._is_anthropic_endpoint("https://api.deepseek.com/anthropic"))
+        self.assertTrue(anthropic_provider._is_anthropic_endpoint(None))
+        self.assertTrue(
+            anthropic_provider._is_anthropic_endpoint("https://api.anthropic.com")
+        )
+        self.assertFalse(
+            anthropic_provider._is_anthropic_endpoint(
+                "https://api.deepseek.com/anthropic"
+            )
+        )
+        self.assertFalse(
+            anthropic_provider._is_anthropic_endpoint(
+                "https://anthropic.com.attacker.example"
+            )
+        )
 
     def test_thinking_default_on_off_toggle(self):
         config._file_values = {}
         os.environ.pop("POSTMORTEM_THINKING", None)
-        self.assertTrue(diagnose._thinking_enabled(None))
+        self.assertTrue(anthropic_provider._thinking_enabled())
         os.environ["POSTMORTEM_THINKING"] = "off"
         try:
-            self.assertFalse(diagnose._thinking_enabled("https://api.deepseek.com/anthropic"))
+            self.assertFalse(anthropic_provider._thinking_enabled())
         finally:
             os.environ.pop("POSTMORTEM_THINKING", None)
 

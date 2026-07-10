@@ -13,6 +13,7 @@ from .diagnose import (
     build_payload,
     diagnose,
 )
+from .providers.base import ProviderError
 
 
 class TrackNotResolved(Exception):
@@ -163,6 +164,12 @@ def main(argv=None):
     except bridge.BridgeError as e:
         print(f"[postmortem] {e}", file=sys.stderr)
         return 1
+    except ProviderError as error:
+        print(
+            f"[postmortem] provider/{error.category.value}: {error}",
+            file=sys.stderr,
+        )
+        return error.exit_code
 
 
 def _resolve_all(requested, names):
