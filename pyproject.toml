@@ -13,6 +13,7 @@ authors = [{ name = "David Russell", email = "wretched207@icloud.com" }]
 dependencies = [
     "numpy>=2.0",
     "anthropic>=0.116",
+    "pydantic>=2.12,<3",
 ]
 
 [project.urls]
