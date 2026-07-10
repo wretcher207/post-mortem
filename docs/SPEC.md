@@ -34,12 +34,18 @@ sanity). Masking detection needs cross-track spectra.
 **Masking shipped (build #2, 2026-07-04):** cross-track masking is now
 implemented in the same CLI. Passing two or more track names captures each stem,
 computes the 1/3-octave overlap, and diagnoses masking with a SIBLING prompt
-contract (`MASKING_SYSTEM_PROMPT`) that IS allowed to make masking claims because
-the data now backs them. This is a deliberate, gated relaxation of the
-single-track hedge, not a weakening: it still refuses to over-claim on coarse
-bands (contested band = candidate collision region, not proof). The single-track
-hedge (`SYSTEM_PROMPT`) is unchanged and still governs single-track runs. See
-"Cross-track masking (build #2)" below.
+contract (`MASKING_SYSTEM_PROMPT`) only after every capture is verified isolated.
+This is a deliberate, gated relaxation of the single-track hedge, not a
+weakening: it still refuses to over-claim on coarse bands (contested band =
+candidate collision region, not proof). The single-track hedge (`SYSTEM_PROMPT`)
+is unchanged and still governs single-track runs. See "Cross-track masking
+(build #2)" below.
+
+**Capture-validity gate:** model diagnosis requires the daemon result to say
+`capture_scope: "isolated_track"` and `isolation_verified: true`. A `full_mix`,
+`master_output`, or missing-provenance result is not per-track evidence and is
+refused before analysis or a model call. `--payload-only` can inspect raw output
+without relaxing that boundary.
 
 The wedge is the **read-and-diagnose** side of AI in REAPER. Existing projects
 (DAWZY, reaper-reapy-mcp, the Reaper MCP server) all point the other direction:

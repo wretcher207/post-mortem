@@ -69,6 +69,23 @@ class TestBuildPayload(unittest.TestCase):
         self.assertEqual(payload["track"]["phase_inverted"], True)
         self.assertEqual(payload["track"]["automation_mode"], "trim/read")
 
+    def test_carries_capture_provenance(self):
+        scan = {"tracks": [{"name": "Rhythm L", "index": 3, "fx": []}]}
+        capture = {
+            "capture_scope": "full_mix",
+            "isolation_verified": False,
+            "note": "CAUTION: this is the full mix, not an isolated track.",
+        }
+        payload = diagnose.build_payload(None, scan, self._routing(), capture, _stats())
+        self.assertEqual(
+            payload["capture"],
+            {
+                "scope": "full_mix",
+                "isolation_verified": False,
+                "note": "CAUTION: this is the full mix, not an isolated track.",
+            },
+        )
+
     def test_null_lufs_passes_through_as_none(self):
         scan = {"tracks": [{"name": "Rhythm L", "index": 3, "fx": []}]}
         capture = {}  # empty RENDER_STATS -> no render_loudness_lufs
