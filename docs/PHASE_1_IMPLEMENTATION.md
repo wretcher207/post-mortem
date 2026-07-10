@@ -1,8 +1,8 @@
 # Phase 1 Implementation Backlog: Structured Track Check
 
-**Status:** Ready for implementation  
-**Date:** 2026-07-10  
-**Target:** Cross-platform, open-core engine milestone  
+**Status:** Ready for implementation
+**Date:** 2026-07-10
+**Target:** Cross-platform, open-core engine milestone
 **Depends on:** Reaper Daemon `cbff8d5` or later; Post Mortem `3184131` or later
 
 ## 1. Outcome
@@ -67,8 +67,8 @@ Implement in this order. Later tasks depend on the contracts established earlier
 
 ### P1-001 — Add stable bridge identities
 
-**Repository:** `reaper-daemon`  
-**Priority:** Blocking  
+**Repository:** `reaper-daemon`
+**Priority:** Blocking
 **Status:** Completed and verified 2026-07-10
 
 Add these fields without removing or renaming existing output:
@@ -99,8 +99,8 @@ Acceptance criteria:
 
 ### P1-002 — Define the structured result schema
 
-**Repository:** `post-mortem`  
-**Priority:** Blocking  
+**Repository:** `post-mortem`
+**Priority:** Blocking
 **Depends on:** P1-001 field contract
 
 Create `postmortem/schemas.py` using Pydantic v2 and add Pydantic as a direct project dependency rather than relying on it transitively through an SDK.
@@ -153,8 +153,8 @@ Acceptance criteria:
 
 ### P1-003 — Add a provider-independent diagnosis interface
 
-**Repository:** `post-mortem`  
-**Priority:** Blocking  
+**Repository:** `post-mortem`
+**Priority:** Blocking
 **Depends on:** P1-002
 
 Create:
@@ -195,8 +195,8 @@ Acceptance criteria:
 
 ### P1-004 — Convert the single-track prompt to a structured contract
 
-**Repository:** `post-mortem`  
-**Priority:** Blocking  
+**Repository:** `post-mortem`
+**Priority:** Blocking
 **Depends on:** P1-002, P1-003
 
 Preserve every current honesty rule:
@@ -233,8 +233,8 @@ Acceptance criteria:
 
 ### P1-005 — Implement deterministic proposal validation
 
-**Repository:** `post-mortem`  
-**Priority:** Blocking  
+**Repository:** `post-mortem`
+**Priority:** Blocking
 **Depends on:** P1-001, P1-002, P1-004
 
 Create `postmortem/proposals.py`.
@@ -269,8 +269,8 @@ Acceptance criteria:
 
 ### P1-006 — Render text and JSON from the same result
 
-**Repository:** `post-mortem`  
-**Priority:** High  
+**Repository:** `post-mortem`
+**Priority:** High
 **Depends on:** P1-002 through P1-005
 
 Add:
@@ -305,8 +305,8 @@ Acceptance criteria:
 
 ### P1-007 — Reduce and centralize the default capture duration
 
-**Repository:** `post-mortem`  
-**Priority:** Medium  
+**Repository:** `post-mortem`
+**Priority:** Medium
 **Depends on:** None
 
 Add `DEFAULT_CAPTURE_SECONDS = 10` in one shared location and use it for CLI, service, documentation, and tests.
@@ -322,8 +322,8 @@ Acceptance criteria:
 
 ### P1-008 — Build the golden diagnosis corpus
 
-**Repository:** `post-mortem`  
-**Priority:** High  
+**Repository:** `post-mortem`
+**Priority:** High
 **Depends on:** P1-002, P1-004, P1-005
 
 Create at least 20 de-identified payload fixtures covering:
@@ -360,8 +360,8 @@ Acceptance criteria:
 
 ### P1-009 — Add cross-platform CI from the beginning
 
-**Repository:** both  
-**Priority:** High  
+**Repository:** both
+**Priority:** High
 **Depends on:** None
 
 Add GitHub Actions matrices:
@@ -391,8 +391,8 @@ Acceptance criteria:
 
 ### P1-010 — Update product and developer documentation
 
-**Repository:** both  
-**Priority:** Medium  
+**Repository:** both
+**Priority:** Medium
 **Depends on:** All prior tasks
 
 Update:

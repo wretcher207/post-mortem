@@ -1,8 +1,8 @@
 # Post Mortem Product and Implementation Plan
 
-**Status:** First-pass product plan  
-**Date:** 2026-07-10  
-**Primary audience:** Bedroom musicians and self-producing artists using REAPER  
+**Status:** First-pass product plan
+**Date:** 2026-07-10
+**Primary audience:** Bedroom musicians and self-producing artists using REAPER
 **Product owner:** Dead Pixel Design
 
 ## 1. Executive decision
