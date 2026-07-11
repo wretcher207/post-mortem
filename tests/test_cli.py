@@ -268,7 +268,7 @@ class TestSingleTrackCaptureSafety(unittest.TestCase):
         track_check.assert_called_once()
         output = stdout.getvalue()
         self.assertIn("DIAGNOSIS: The upper mids are elevated.", output)
-        self.assertIn("SUGGESTED MOVE: No previewable move.", output)
+        self.assertIn("SUGGESTED MOVE: Advice only.", output)
 
 
 class TestMaskingCaptureSafety(unittest.TestCase):

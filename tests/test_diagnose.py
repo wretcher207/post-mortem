@@ -84,6 +84,34 @@ class _InvalidStructuredProvider:
         )
 
 
+class _StaleActionableProvider:
+    def generate(self, **kwargs):
+        return {
+            "schema_version": 1,
+            "finding": {
+                "summary": "The track is close to clipping.",
+                "probable_cause": "The output is too hot.",
+                "confidence": "high",
+                "confidence_reason": "The sample peak is -1 dBFS.",
+                "evidence_refs": [{"path": "audio.sample_peak_db"}],
+            },
+            "proposal": {
+                "operation": "set_track_volume",
+                "reason": "Preview a 2 dB reduction to create headroom.",
+                "target": {
+                    "track_guid": "{STALE-TRACK}",
+                    "track_name": "Kick",
+                },
+                "current_value": {"value": -3.0, "unit": "db"},
+                "proposed_value": {"value": -5.0, "unit": "db"},
+                "goal": "sample_peak_db",
+                "expected_direction": [
+                    {"metric": "sample_peak_db", "direction": "decrease"}
+                ],
+            },
+        }
+
+
 def _stats():
     return TrackStats(
         duration_seconds=30.0,
@@ -264,6 +292,7 @@ class TestDiagnoseReply(unittest.TestCase):
         self.assertIn("do not diagnose frequency masking", contract)
         self.assertIn("evidence references", contract)
         self.assertIn("operation: none", contract)
+        self.assertIn("does not remove or delete", contract)
 
     def test_track_check_turns_provider_refusal_into_non_actionable_result(self):
         result = diagnose.diagnose_track(
@@ -288,6 +317,25 @@ class TestDiagnoseReply(unittest.TestCase):
         self.assertEqual(
             result.proposal.rejection_reason, "invalid_structured_response"
         )
+
+    def test_track_check_validates_actionable_proposal_against_actual_payload(self):
+        result = diagnose.diagnose_track(
+            {
+                "track": {
+                    "guid": "{TRACK-KICK}",
+                    "name": "Kick",
+                    "volume_db": -3.0,
+                    "pan": 0.0,
+                },
+                "fx_chain": [],
+                "audio": {"sample_peak_db": -1.0},
+            },
+            provider=_StaleActionableProvider(),
+            profile=diagnose.ModelProfile(model="test", thinking=False),
+        )
+
+        self.assertEqual(result.proposal.operation, "none")
+        self.assertEqual(result.proposal.rejection_reason, "track_identity_mismatch")
 
 
 class TestProviderProfile(unittest.TestCase):
