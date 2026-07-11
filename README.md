@@ -118,8 +118,19 @@ That's it. Options:
 --seconds N        capture length, default 30, starting at the edit cursor
 --keep-wav         keep the temp stem instead of deleting it
 --payload-only     print the data payload as JSON and skip the model call
+--format text|json diagnosis output format; JSON is single-track only
 --force            diagnose even a capture the silence gate would refuse
 ```
+
+For shell-safe structured output, use a single-track Track Check:
+
+```bash
+postmortem "Kick" --format json
+```
+
+The validated diagnosis is the only content written to stdout. Progress and
+warnings remain on stderr. `--format json` cannot be combined with
+`--payload-only`; cross-track masking remains text-only in Phase 1.
 
 `--force` only overrides the silence gate. It never overrides capture
 isolation, because full-mix audio is not safe evidence for a track diagnosis.

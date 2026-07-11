@@ -276,6 +276,7 @@ Acceptance criteria:
 **Repository:** `post-mortem`
 **Priority:** High
 **Depends on:** P1-002 through P1-005
+**Status:** Completed and verified 2026-07-11
 
 Add:
 
