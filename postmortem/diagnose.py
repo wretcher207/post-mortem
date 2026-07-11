@@ -7,6 +7,7 @@ from .providers.base import (
     ProviderErrorCategory,
     TextDiagnosisResult,
 )
+from .proposals import SUPPORTED_METRICS, validate_proposal
 from .schemas import DiagnosisResult
 
 _SINGLE_TRACK_HONESTY_CONTRACT = """\
@@ -56,9 +57,15 @@ set_fx_bypass. Use operation: none when the evidence cannot support a safe move.
 For an actionable move, copy real track, FX, and parameter identities from the
 payload and report current and proposed values without inventing unavailable
 display mappings. Never claim a proposal improved the audio before a verified
-before/after comparison exists. A refusal or honest non-actionable result is
-better than fabricated certainty.
-"""
+before/after comparison exists. A set_fx_bypass proposal must explicitly say it
+is a preview and does not remove or delete the plugin. A refusal or honest
+non-actionable result is better than fabricated certainty.
+""" + (
+    "\nFor proposal.goal and every expected_direction.metric, use exactly one "
+    "supported metric name: "
+    + ", ".join(sorted(SUPPORTED_METRICS))
+    + "."
+)
 
 # Sibling of SYSTEM_PROMPT. Only ever used when the payload carries 2+ tracks'
 # spectra plus a computed contested-band table, so masking claims ARE backed by
@@ -362,15 +369,15 @@ def diagnose_track(
                 "rejection_reason": rejection_reason,
             },
         }
-    return DiagnosisResult.model_validate(result)
+    return validate_proposal(DiagnosisResult.model_validate(result), payload)
 
 
 def render_diagnosis_text(result: DiagnosisResult) -> str:
     """Compatibility text view for the structured single-track result."""
     if result.proposal.operation == "none":
-        move = f"No previewable move. {result.proposal.reason}"
+        move = f"Advice only. {result.proposal.reason}"
     else:
-        move = result.proposal.reason
+        move = f"Previewable move. {result.proposal.reason}"
     return "\n".join(
         (
             f"DIAGNOSIS: {result.finding.summary}",

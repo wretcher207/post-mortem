@@ -239,6 +239,7 @@ Acceptance criteria:
 **Repository:** `post-mortem`
 **Priority:** Blocking
 **Depends on:** P1-001, P1-002, P1-004
+**Status:** Completed and verified 2026-07-11
 
 Create `postmortem/proposals.py`.
 
