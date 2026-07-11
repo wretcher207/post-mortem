@@ -50,9 +50,15 @@ def _resolve_payload_path(payload, path):
 
 
 def _reject(result, reason):
+    proposal_reason = result.proposal.reason
+    if result.proposal.operation == "set_fx_param":
+        proposal_reason = (
+            "The proposed normalized FX parameter change was rejected by "
+            "deterministic validation."
+        )
     proposal = Proposal(
         operation="none",
-        reason=result.proposal.reason,
+        reason=proposal_reason,
         expected_direction=[],
         rejection_reason=reason,
     )
@@ -189,6 +195,11 @@ def validate_proposal(
         if sanitized.current_value.display != payload_display:
             sanitized.current_value.display = None
         sanitized.proposed_value.display = None
+        sanitized.reason = (
+            f"Preview changing {target.fx_name} / {target.parameter_name} from "
+            f"normalized {float(current.value):.3f} to "
+            f"{float(proposed.value):.3f}."
+        )
         result = result.model_copy(update={"proposal": sanitized})
     if result.proposal.operation == "set_fx_bypass":
         enabled = fx.get("enabled")

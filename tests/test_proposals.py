@@ -148,8 +148,8 @@ def test_each_supported_conservative_operation_can_remain_previewable(factory):
 
     validated = validate_proposal(result, _payload())
 
-    assert validated == result
-    assert validated.proposal.operation != "none"
+    assert validated.proposal.operation == result.proposal.operation
+    assert validated.finding == result.finding
 
 
 def test_missing_evidence_path_rejects_only_the_proposal():
@@ -296,12 +296,15 @@ def test_fx_parameter_displays_are_limited_to_payload_verified_text():
     result = _fx_parameter_result().model_copy(deep=True)
     result.proposal.current_value.display = "99 chainsaws"
     result.proposal.proposed_value.display = "-900 dB"
+    result.proposal.reason = "Preview setting this parameter to -900 dB."
 
     validated = validate_proposal(result, _payload())
 
     assert validated.proposal.operation == "set_fx_param"
     assert validated.proposal.current_value.display is None
     assert validated.proposal.proposed_value.display is None
+    assert "-900 dB" not in validated.proposal.reason
+    assert "normalized 0.500 to 0.420" in validated.proposal.reason
 
 
 def test_fx_parameter_move_over_point_one_is_rejected_without_display_mapping():
