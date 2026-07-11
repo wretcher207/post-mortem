@@ -8,6 +8,7 @@ import sys
 
 from . import bridge
 from .analysis import analyze_wav, masking_overlap
+from .constants import DEFAULT_CAPTURE_SECONDS
 from .diagnose import (
     MASKING_SYSTEM_PROMPT,
     build_masking_payload,
@@ -186,7 +187,15 @@ def main(argv=None):
         help="target track name(s), case-insensitive, unique substring is enough. "
         "One name = single-track diagnosis; two or more = cross-track masking.",
     )
-    parser.add_argument("--seconds", type=_capture_seconds, default=30, help="capture length 1-600 (default 30, from cursor)")
+    parser.add_argument(
+        "--seconds",
+        type=_capture_seconds,
+        default=DEFAULT_CAPTURE_SECONDS,
+        help=(
+            "capture length 1-600 "
+            f"(default {DEFAULT_CAPTURE_SECONDS}, from cursor)"
+        ),
+    )
     parser.add_argument("--keep-wav", action="store_true", help="don't delete the temp stem after analysis")
     parser.add_argument("--payload-only", action="store_true", help="print the payload JSON and exit (no model call)")
     parser.add_argument(
