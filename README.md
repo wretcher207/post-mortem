@@ -4,7 +4,7 @@ AI track diagnosis for REAPER. Select a track, run one command, get told
 what's actually wrong with it.
 
 It reads the track's real state: every FX and its current parameter values,
-sends, receives, parent bus, fader, pan. Then it renders a 30 second post-FX
+sends, receives, parent bus, fader, pan. Then it renders a 10-second post-FX
 stem, measures it (LUFS, true peak, sample peak, crest factor, loudness
 range, 1/3-octave spectrum, stereo correlation and mid/side balance, and how
 much of the capture is dead air), and hands the numbers to a model that

@@ -232,7 +232,7 @@ existing commands.
     "sample_rate": 48000,
     "channels": 2,
     "bit_depth": 24,
-    "file_size_bytes": 8644044,
+    "file_size_bytes": 2880044,
     "file_mtime": "2026-07-02T14:30:07-04:00",
     "render_loudness_lufs": -18.3
   }
