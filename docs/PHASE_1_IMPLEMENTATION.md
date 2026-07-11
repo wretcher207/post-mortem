@@ -331,6 +331,7 @@ Acceptance criteria:
 **Repository:** `post-mortem`
 **Priority:** High
 **Depends on:** P1-002, P1-004, P1-005
+**Status:** Completed and verified 2026-07-11
 
 Create at least 20 de-identified payload fixtures covering:
 

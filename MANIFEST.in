@@ -1,0 +1,2 @@
+include evaluations/results/README.md
+include tests/fixtures/diagnoses/corpus.json
