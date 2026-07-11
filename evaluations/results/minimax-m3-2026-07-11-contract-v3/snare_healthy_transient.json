@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "No clear problem. This snare is well gain-staged with healthy dynamics: 14 dB crest factor, -7.0 dBFS sample peak / -5.5 dBFS true peak leaving ample headroom, integrated -20 LUFS, and an FX chain with no plugins to misconfigure. The 1/3-octave spectrum shows a typical downward tilt (100 Hz -18, 1 kHz -24, 4 kHz -30 dB), consistent with a normal snare voicing.",
+    "probable_cause": "Capture shows no defects. Dynamics, headroom, and tonal balance are all within normal ranges for an isolated snare, and the empty FX chain plus null parent_track mean no hidden processing is in play.",
+    "confidence": "high",
+    "confidence_reason": "Isolation is verified (capture.isolation_verified=true), silence_fraction is low at 0.05 so statistics are not diluted, the FX chain is empty, and there are no receives or parent bus whose processing is unmeasured.",
+    "evidence_refs": [
+      {
+        "path": "audio.crest_factor_db",
+        "description": "14.0 dB crest factor indicates healthy transient dynamics, not overcompressed."
+      },
+      {
+        "path": "audio.sample_peak_db",
+        "description": "-7.0 dBFS sample peak leaves headroom below ceiling."
+      },
+      {
+        "path": "audio.true_peak_db",
+        "description": "-5.5 dBFS true peak leaves headroom below ceiling."
+      },
+      {
+        "path": "audio.integrated_lufs",
+        "description": "-20.0 LUFS integrated is a reasonable level for an isolated snare."
+      },
+      {
+        "path": "audio.silence_fraction",
+        "description": "0.05 silence fraction means the capture is essentially signal, so level stats are reliable."
+      },
+      {
+        "path": "audio.spectrum_third_octave",
+        "description": "Tilt from -18 dB at 100 Hz to -30 dB at 4 kHz is a typical, balanced snare spectrum."
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "none",
+    "reason": "No clear problem and no safe move is supported by this capture.",
+    "target": null,
+    "current_value": null,
+    "proposed_value": null,
+    "goal": null,
+    "expected_direction": [],
+    "rejection_reason": null
+  }
+}

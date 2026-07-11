@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "Levels and dynamics look healthy: 12 dB crest factor, 8 LU loudness range, -6.0 dB sample peak, -5.5 dB true peak, and -20.0 LUFS integrated. The only FX is an EQ with Upper Mid Gain at +3.0 dB, and the 3150 Hz third-octave band (-9.0 dB) is louder than the 5000 Hz band (-12.0 dB). With only two spectrum bands measured, a tonal problem cannot be confirmed or ruled out, and dynamics give no reason to act.",
+    "probable_cause": "Insufficient spectrum coverage to identify a clear tonal issue; dynamics and level measurements show no problem.",
+    "confidence": "medium",
+    "confidence_reason": "Capture is isolated and silence_fraction is low (0.05), but only two 1/3-octave bands are reported, which is too sparse for a confident tonal diagnosis. Dynamics and levels are in normal range.",
+    "evidence_refs": [
+      {
+        "path": "audio.crest_factor_db",
+        "description": "12.0 dB crest factor indicates healthy, non-overcompressed dynamics."
+      },
+      {
+        "path": "audio.loudness_range_lu",
+        "description": "8.0 LU loudness range is moderate, no overcompression indicated."
+      },
+      {
+        "path": "audio.sample_peak_db",
+        "description": "-6.0 dBFS sample peak, no clipping."
+      },
+      {
+        "path": "audio.true_peak_db",
+        "description": "-5.5 dBFS true peak, healthy headroom."
+      },
+      {
+        "path": "audio.integrated_lufs",
+        "description": "-20.0 LUFS integrated loudness, reasonable for an isolated guitar capture."
+      },
+      {
+        "path": "audio.silence_fraction",
+        "description": "0.05 silence fraction; capture is mostly signal, measurements are reliable."
+      },
+      {
+        "path": "audio.spectrum_third_octave[0].level_db",
+        "description": "3150 Hz band at -9.0 dB, the louder of the two reported bands."
+      },
+      {
+        "path": "audio.spectrum_third_octave[1].level_db",
+        "description": "5000 Hz band at -12.0 dB."
+      },
+      {
+        "path": "fx_chain[0].parameters[0].formatted_value",
+        "description": "Upper Mid Gain at +3.0 dB; single formatted point, display mapping not verified."
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "none",
+    "reason": "No clear problem is supported by this capture. Dynamics, levels, and loudness are healthy, and only two spectrum bands are available, which is insufficient to confirm a tonal issue with the +3 dB Upper Mid Gain boost. No safe move is supported.",
+    "target": null,
+    "current_value": null,
+    "proposed_value": null,
+    "goal": null,
+    "expected_direction": [],
+    "rejection_reason": null
+  }
+}

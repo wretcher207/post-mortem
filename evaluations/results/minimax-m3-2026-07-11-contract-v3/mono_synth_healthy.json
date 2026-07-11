@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "No clear problem detected on this isolated capture. Headroom, dynamics, and tonal balance all sit within normal ranges for an unprocessed synth.",
+    "probable_cause": "True peak is -5.5 dBFS with healthy 12 dB crest factor and 8 LU LRA, indicating neither limiting nor over-compression. Spectrum declines smoothly from 100 Hz (-18 dB) to 4 kHz (-30 dB), a typical synth tilt. The FX chain is empty and there are no sends or parent routing, so there is nothing misconfigured in the payload to act on.",
+    "confidence": "medium",
+    "confidence_reason": "Core dynamics and level metrics are present and within expected ranges, but with an empty FX chain and no processing context the evidence cannot justify any move beyond observation.",
+    "evidence_refs": [
+      {
+        "path": "audio.true_peak_db",
+        "description": "-5.5 dBFS leaves comfortable headroom; no clipping risk."
+      },
+      {
+        "path": "audio.crest_factor_db",
+        "description": "12 dB crest factor indicates healthy, non-squashed dynamics."
+      },
+      {
+        "path": "audio.loudness_range_lu",
+        "description": "8 LU LRA is moderate and consistent with natural performance dynamics."
+      },
+      {
+        "path": "audio.rms_db",
+        "description": "-20 dBFS RMS pairs with -5.5 dBTP to give a 14.5 dB peak-to-average ratio."
+      },
+      {
+        "path": "audio.silence_fraction",
+        "description": "0.05 silence fraction confirms the capture is essentially live content, so level stats are not diluted."
+      },
+      {
+        "path": "audio.spectrum_third_octave",
+        "description": "Smooth ~6 dB/oct decline from 100 Hz to 4 kHz; no obvious resonant or deficient band."
+      },
+      {
+        "path": "fx_chain",
+        "description": "Empty FX chain; no in-track processing to evaluate."
+      },
+      {
+        "path": "capture.isolation_verified",
+        "description": "true: capture is isolated to this track, supporting per-track conclusions."
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "none",
+    "reason": "No clear problem is present and no safe move is supported by this capture. Levels, dynamics, and tonal balance are all within normal ranges; the empty FX chain and absent sends/parent routing leave no in-payload misconfiguration to correct.",
+    "target": null,
+    "current_value": null,
+    "proposed_value": null,
+    "goal": null,
+    "expected_direction": [],
+    "rejection_reason": null
+  }
+}

@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "No clear problem. Healthy dynamics (12 dB crest factor, 8 LU LRA), proper headroom (true peak -5.5 dBFS), solid mono compatibility (correlation 0.91), balanced center image (balance +0.1 dB), and a 12 dB mid-to-side spread consistent with a tastefully wide clean guitar. Spectrum tilts ~6 dB/octave downward from 100 Hz to 4 kHz, but with only three 1/3-octave points the tonal picture is too sparse to call it wrong, and the track name 'Balanced Clean Guitar' suggests the tilt is intentional. No FX chain or routing anomalies.",
+    "probable_cause": "No defect attributable from the measured data; capture shows a well-behaved, lightly-processed (in this FX chain, none) clean guitar signal.",
+    "confidence": "medium",
+    "confidence_reason": "Capture isolation verified and silence fraction is low (0.05), so levels and dynamics are reliable. Tonal confidence is capped because only three 1/3-octave bands are reported and there is no FX chain to attribute findings to.",
+    "evidence_refs": [
+      {
+        "path": "audio.crest_factor_db",
+        "description": "12.0 dB crest factor indicates healthy, uncompressed dynamics."
+      },
+      {
+        "path": "audio.loudness_range_lu",
+        "description": "8.0 LU LRA is moderate, not crushed."
+      },
+      {
+        "path": "audio.true_peak_db",
+        "description": "-5.5 dBFS true peak leaves adequate inter-sample headroom."
+      },
+      {
+        "path": "audio.integrated_lufs",
+        "description": "-20.0 LUFS is a reasonable single-track level for a clean guitar."
+      },
+      {
+        "path": "audio.stereo.correlation",
+        "description": "0.91 correlation is solid; no phase problem."
+      },
+      {
+        "path": "audio.stereo.balance_db",
+        "description": "+0.1 dB L/R balance is effectively centered."
+      },
+      {
+        "path": "audio.stereo.mid_rms_db",
+        "description": "-18.0 dB mid RMS matches overall RMS, indicating mono-dominant content."
+      },
+      {
+        "path": "audio.stereo.side_rms_db",
+        "description": "-30.0 dB side RMS, 12 dB below mid, is a moderate stereo width."
+      },
+      {
+        "path": "audio.silence_fraction",
+        "description": "0.05 silence fraction means the capture is mostly signal, so level stats are trustworthy."
+      },
+      {
+        "path": "fx_chain",
+        "description": "Empty FX chain; no processing to evaluate or bypass."
+      },
+      {
+        "path": "routing.sends",
+        "description": "Empty sends; no parallel processing to evaluate."
+      },
+      {
+        "path": "routing.receives",
+        "description": "Empty receives; no bus-fed content to evaluate."
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "none",
+    "reason": "No clear problem is supported by this capture: dynamics, headroom, stereo image, and routing are all healthy, and the three-band spectrum is too sparse to justify a tonal change. No safe move is supported.",
+    "target": null,
+    "current_value": null,
+    "proposed_value": null,
+    "goal": null,
+    "expected_direction": [],
+    "rejection_reason": null
+  }
+}

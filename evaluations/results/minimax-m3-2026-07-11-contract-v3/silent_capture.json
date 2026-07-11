@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "Track capture is entirely silent (silence_fraction 1.0) with peak and RMS at the measurement floor; every reported level/loudness statistic is diluted by silence and cannot support any tonal or dynamic conclusion.",
+    "probable_cause": "audio.silence_fraction is 1.0 alongside audio.sample_peak_db -120.0 and audio.rms_db -120.0 indicate no measurable program material in the capture window; integrated LUFS and LRA values are not interpretable when the buffer is fully silent.",
+    "confidence": "low",
+    "confidence_reason": "Confidence is capped at low because audio.silence_fraction is 1.000.",
+    "evidence_refs": [
+      {
+        "path": "audio.silence_fraction",
+        "description": "Silence fraction is 1.0 — capture is fully silent."
+      },
+      {
+        "path": "audio.sample_peak_db",
+        "description": "Sample peak at -120.0 dBFS confirms no signal content."
+      },
+      {
+        "path": "audio.rms_db",
+        "description": "RMS at -120.0 dBFS confirms no signal content."
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "none",
+    "reason": "Capture is silent; no safe single-track move is supported by this evidence (silence_fraction ≥ 0.75 forces operation none).",
+    "target": null,
+    "current_value": null,
+    "proposed_value": null,
+    "goal": null,
+    "expected_direction": [],
+    "rejection_reason": null
+  }
+}

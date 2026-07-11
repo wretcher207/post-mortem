@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "The audio is right-channel biased (R is 3.6 dB louder than L) while the track pan sits at center (0.0).",
+    "probable_cause": "The source recording carries an inherent L/R imbalance that the centered track pan does not correct. A small pan offset toward the left would re-center the stereo image.",
+    "confidence": "medium",
+    "confidence_reason": "Balance measurement is clear and capture isolation is verified with low silence fraction, but the capture cannot rule out a deliberate stereo offset as an artistic choice.",
+    "evidence_refs": [
+      {
+        "path": "audio.stereo.balance_db",
+        "description": "Stereo balance reads +3.6 dB, indicating the right channel is louder than the left."
+      },
+      {
+        "path": "track.pan",
+        "description": "Track pan is at 0.0 (center), so no offset is being applied to compensate for the imbalance."
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "set_track_pan",
+    "reason": "Preview changing track pan from 0.000 to -0.100 to test whether stereo_balance_db decreases.",
+    "target": {
+      "track_guid": "{TRACK-CLEAN-GTR-01}",
+      "track_name": "Clean Guitar",
+      "fx_guid": null,
+      "fx_index": null,
+      "fx_scope": null,
+      "fx_name": null,
+      "parameter_index": null,
+      "parameter_name": "pan"
+    },
+    "current_value": {
+      "value": 0.0,
+      "unit": "normalized_pan",
+      "display": null
+    },
+    "proposed_value": {
+      "value": -0.1,
+      "unit": "normalized_pan",
+      "display": null
+    },
+    "goal": "stereo_balance_db",
+    "expected_direction": [
+      {
+        "metric": "stereo_balance_db",
+        "direction": "decrease"
+      }
+    ],
+    "rejection_reason": null
+  }
+}

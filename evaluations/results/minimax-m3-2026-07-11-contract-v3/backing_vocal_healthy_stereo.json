@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "No clear problem. Capture is verified isolated and mostly signal (silence_fraction 0.05). Dynamics are healthy: crest factor 13.5 dB and LRA 8.0 LU indicate no overcompression; true peak -5.5 dB keeps safe headroom; stereo correlation 0.77 with near-centered balance shows no phase or imaging issue; FX chain is empty but the unprocessed signal already meets typical targets.",
+    "probable_cause": "The track is well-gain-staged with appropriate headroom (true peak -5.5 dB vs sample peak -8.5 dB, a normal 3 dB difference) and natural dynamic range. The mid/side split (mid -22.0 dB, side -28.0 dB) and tilt from 100 Hz (-18.0 dB) up through 1 kHz (-24.0 dB) and 4 kHz (-30.0 dB) are consistent with a normal backing-vocal capture. Nothing in the captured evidence supports a safe, single-track corrective move.",
+    "confidence": "high",
+    "confidence_reason": "Capture isolation verified (capture.isolation_verified=true) and silence_fraction 0.05 keeps the statistics reliable. No FX chain exists, so no parameter is inferred from unmeasured processing. All cited leaves are measured and non-null.",
+    "evidence_refs": [
+      {
+        "path": "capture.isolation_verified",
+        "description": "true — single-track statistics are trustworthy."
+      },
+      {
+        "path": "audio.silence_fraction",
+        "description": "0.05 — capture is almost entirely signal."
+      },
+      {
+        "path": "audio.crest_factor_db",
+        "description": "13.5 dB — healthy crest factor; no overcompression evidence."
+      },
+      {
+        "path": "audio.loudness_range_lu",
+        "description": "8.0 LU — moderate dynamic range, consistent with crest factor."
+      },
+      {
+        "path": "audio.true_peak_db",
+        "description": "-5.5 dB — safe headroom, no clipping risk."
+      },
+      {
+        "path": "audio.sample_peak_db",
+        "description": "-8.5 dB — sample peak 3 dB below true peak, normal inter-sample peak margin."
+      },
+      {
+        "path": "audio.stereo.correlation",
+        "description": "0.77 — strongly positive, no phase cancellation."
+      },
+      {
+        "path": "audio.stereo.balance_db",
+        "description": "-0.2 dB — essentially centered pan."
+      },
+      {
+        "path": "fx_chain",
+        "description": "Empty array — no processing present, so no parameter changes are supported."
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "none",
+    "reason": "No clear problem is supported by this capture: gain staging is healthy, dynamics are natural, headroom is safe, and the stereo image is clean. With the FX chain empty, only a track volume or pan move would be actionable, and neither is justified by the evidence. Returning none rather than fabricating a change.",
+    "target": null,
+    "current_value": null,
+    "proposed_value": null,
+    "goal": null,
+    "expected_direction": [],
+    "rejection_reason": null
+  }
+}

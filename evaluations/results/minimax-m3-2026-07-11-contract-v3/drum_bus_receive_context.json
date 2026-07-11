@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "Drum bus shows healthy dynamics (12 dB crest, 8 LU LRA), reasonable headroom, and a typical low-end-weighted spectrum with no FX loaded; receives from upstream tracks prevent fully establishing bus context.",
+    "probable_cause": "No clear problem is evident. Crest factor and LRA are healthy for a drum sum, true peak leaves headroom, and the spectrum tilts naturally toward 100 Hz (-18 dB) with expected roll-off through 1 kHz (-24 dB) and 4 kHz (-30 dB). No FX exist on the bus to misconfigure.",
+    "confidence": "low",
+    "confidence_reason": "routing.receives[0] shows the bus is fed by upstream sources not measured here, so bus-level context cannot be fully established.",
+    "evidence_refs": [
+      {
+        "path": "audio.crest_factor_db",
+        "description": "12.0 dB crest factor indicates healthy, uncompressed dynamics for a drum bus."
+      },
+      {
+        "path": "audio.loudness_range_lu",
+        "description": "8.0 LU LRA is a normal range for drum content."
+      },
+      {
+        "path": "audio.true_peak_db",
+        "description": "-5.5 dB true peak leaves adequate headroom."
+      },
+      {
+        "path": "audio.integrated_lufs",
+        "description": "-20.0 LUFS integrated level; no obvious gain-stage issue from this number alone."
+      },
+      {
+        "path": "audio.silence_fraction",
+        "description": "0.05 silence fraction means the capture is almost all real audio, so the levels are meaningful."
+      },
+      {
+        "path": "routing.receives[0].source_name",
+        "description": "Kick Feed is one upstream source feeding this bus; other sources/context not measured."
+      },
+      {
+        "path": "fx_chain",
+        "description": "Empty fx_chain means there is no plugin to reconfigure."
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "none",
+    "reason": "No clear problem is supported by this capture: dynamics and levels look healthy, no FX are loaded, and the receive-fed context cannot be fully judged, so no safe move is proposed.",
+    "target": null,
+    "current_value": null,
+    "proposed_value": null,
+    "goal": null,
+    "expected_direction": [],
+    "rejection_reason": null
+  }
+}

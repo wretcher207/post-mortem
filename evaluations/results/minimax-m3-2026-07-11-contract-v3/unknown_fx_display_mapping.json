@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "Track is well-behaved: headroom is healthy (true peak -5.5 dB), dynamics are intact (crest factor 12.0 dB, LRA 8.0 LU), and the capture is largely signal (silence 5%). The spectrum shows a downward tilt from 100 Hz (-18 dB) to 4 kHz (-30 dB), which is a normal low-weighted guitar profile rather than a clear problem. No clear defect is supported by the evidence.",
+    "probable_cause": "No clear defect. The drive stage is set to a moderate 5.0 (normalized 0.5) and the resulting dynamics and headroom are within healthy ranges for a distorted guitar. The spectrum tilt is not extreme enough, nor is it supported by enough data points, to justify an EQ move.",
+    "confidence": "low",
+    "confidence_reason": "Capture isolation is verified and silence is low, so the metrics themselves are reliable. However, only three 1/3-octave points are provided, which is not enough resolution to justify a specific EQ or drive change. No safe single-move diagnosis is supported.",
+    "evidence_refs": [
+      {
+        "path": "audio.sample_peak_db",
+        "description": "Sample peak -6.0 dB — healthy headroom"
+      },
+      {
+        "path": "audio.true_peak_db",
+        "description": "True peak -5.5 dB — safe headroom, not clipping"
+      },
+      {
+        "path": "audio.crest_factor_db",
+        "description": "Crest factor 12.0 dB — dynamics are not crushed"
+      },
+      {
+        "path": "audio.loudness_range_lu",
+        "description": "LRA 8.0 LU — moderate, healthy dynamic range"
+      },
+      {
+        "path": "audio.silence_fraction",
+        "description": "Silence 5% — capture is mostly signal, statistics are reliable"
+      },
+      {
+        "path": "audio.spectrum_third_octave[0].level_db",
+        "description": "100 Hz at -18.0 dB"
+      },
+      {
+        "path": "audio.spectrum_third_octave[2].level_db",
+        "description": "4 kHz at -30.0 dB — 12 dB below 100 Hz, consistent with a low-weighted distorted-guitar tilt, not necessarily a defect"
+      },
+      {
+        "path": "fx_chain[0].parameters[0].normalized_value",
+        "description": "Drive at 0.5 normalized (formatted 5.0) — moderate setting, consistent with the intact crest factor"
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "none",
+    "reason": "No clear problem is supported by this capture. Headroom, dynamics, and drive level are all within healthy ranges, and the spectrum is too sparsely sampled (3 points) to justify a specific EQ or drive change. Honest non-actionable result.",
+    "target": null,
+    "current_value": null,
+    "proposed_value": null,
+    "goal": null,
+    "expected_direction": [],
+    "rejection_reason": null
+  }
+}

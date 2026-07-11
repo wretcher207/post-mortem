@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "Track output is hot against the digital ceiling: true peak reaches +0.8 dB and sample peak +0.2 dB, leaving essentially no headroom before downstream conversion or limiting.",
+    "probable_cause": "The chain has no inserts (fx_chain empty) and the track sits at unity gain (track.volume_db 0.0) with no dynamics processing to control intersample peaks; the signal arrives already near full scale.",
+    "confidence": "medium",
+    "confidence_reason": "True peak and sample peak are directly measured; the causal claim that absence of processing is the cause is inferred because no FX parameters are reported to inspect.",
+    "evidence_refs": [
+      {
+        "path": "audio.true_peak_db",
+        "description": "True peak +0.8 dB, exceeds 0 dBFS."
+      },
+      {
+        "path": "audio.sample_peak_db",
+        "description": "Sample peak +0.2 dB, sitting at the digital ceiling."
+      },
+      {
+        "path": "track.volume_db",
+        "description": "Track volume 0.0 dB, no attenuation at output."
+      },
+      {
+        "path": "fx_chain",
+        "description": "Empty FX chain — no insert processing to manage level."
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "set_track_volume",
+    "reason": "Preview changing track volume from 0.000 dB to -2.000 dB to test whether true_peak_db decreases.",
+    "target": {
+      "track_guid": "{TRACK-LEAD-VOX-01}",
+      "track_name": "Lead Vocal",
+      "fx_guid": null,
+      "fx_index": null,
+      "fx_scope": null,
+      "fx_name": null,
+      "parameter_index": null,
+      "parameter_name": null
+    },
+    "current_value": {
+      "value": 0.0,
+      "unit": "db",
+      "display": "0.0 dB"
+    },
+    "proposed_value": {
+      "value": -2.0,
+      "unit": "db",
+      "display": "-2.0 dB"
+    },
+    "goal": "true_peak_db",
+    "expected_direction": [
+      {
+        "metric": "true_peak_db",
+        "direction": "decrease"
+      },
+      {
+        "metric": "sample_peak_db",
+        "direction": "decrease"
+      }
+    ],
+    "rejection_reason": null
+  }
+}

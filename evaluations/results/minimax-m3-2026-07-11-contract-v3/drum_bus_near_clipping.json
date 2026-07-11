@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "True peak is -0.1 dBFS, leaving essentially no inter-sample headroom on this drum bus. Dynamics look healthy (crest factor 9.0 dB, LRA 8.0 LU, silence_fraction 0.05), so the issue is level placement, not overcompression. Spectrum shape (100 Hz at -18 dB, 1 kHz at -24 dB, 4 kHz at -30 dB) is typical for a drum bus and cannot be acted on without an FX chain, which is empty.",
+    "probable_cause": "Track fader at 0.0 dB places the bus's true peak only 0.1 dB below digital full scale, which is too tight a margin for inter-sample peaks on transient drum content.",
+    "confidence": "high",
+    "confidence_reason": "True peak is directly measured (audio.true_peak_db = -0.1), dynamics measurements confirm level is the issue rather than processing, and routing/parenting show no unmeasured context.",
+    "evidence_refs": [
+      {
+        "path": "audio.true_peak_db",
+        "description": "True peak measured at -0.1 dBFS, ~0.1 dB below ceiling"
+      },
+      {
+        "path": "audio.crest_factor_db",
+        "description": "9.0 dB crest factor indicates healthy dynamics, not overcompression"
+      },
+      {
+        "path": "audio.loudness_range_lu",
+        "description": "8.0 LU LRA is moderate, consistent with healthy dynamics"
+      },
+      {
+        "path": "audio.silence_fraction",
+        "description": "0.05 — measurements are not diluted by silence"
+      },
+      {
+        "path": "track.volume_db",
+        "description": "Fader at 0.0 dB is placing the bus near the ceiling"
+      },
+      {
+        "path": "fx_chain",
+        "description": "Empty FX chain, so no parameter-based intervention is available"
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "set_track_volume",
+    "reason": "Preview changing track volume from 0.000 dB to -0.500 dB to test whether true_peak_db decreases.",
+    "target": {
+      "track_guid": "{TRACK-DRUM-BUS-02}",
+      "track_name": "Parallel Drum Bus",
+      "fx_guid": null,
+      "fx_index": null,
+      "fx_scope": null,
+      "fx_name": null,
+      "parameter_index": null,
+      "parameter_name": null
+    },
+    "current_value": {
+      "value": 0.0,
+      "unit": "db",
+      "display": "0.0 dB"
+    },
+    "proposed_value": {
+      "value": -0.5,
+      "unit": "db",
+      "display": "-0.5 dB"
+    },
+    "goal": "true_peak_db",
+    "expected_direction": [
+      {
+        "metric": "true_peak_db",
+        "direction": "decrease"
+      }
+    ],
+    "rejection_reason": null
+  }
+}

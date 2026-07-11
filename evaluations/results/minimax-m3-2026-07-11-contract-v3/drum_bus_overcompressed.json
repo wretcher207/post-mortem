@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "Drum Bus shows severely squashed dynamics: crest factor 3.2 dB and LRA 2.1 LU are unusually low, consistent with heavy compression on a drum bus. The only FX in the chain is a compressor with a 6:1 ratio.",
+    "probable_cause": "The 6:1 ratio on fx_chain[0] is aggressive for a drum bus and, combined with the 3.2 dB crest factor and 2.1 LU loudness range, points to the compressor as the driver of the reduced dynamics. Other compressor parameters (threshold, attack, release, makeup) are not reported, so the full mechanism is not visible.",
+    "confidence": "medium",
+    "confidence_reason": "Capture is isolated and silence_fraction is low (0.05), so the audio measurements are reliable. Causal mechanism is only partially measured: ratio is visible but threshold, attack, release, and makeup gain are not reported.",
+    "evidence_refs": [
+      {
+        "path": "audio.crest_factor_db",
+        "description": "Crest factor of 3.2 dB is far below typical drum-bus range, indicating heavy compression/limiting."
+      },
+      {
+        "path": "audio.loudness_range_lu",
+        "description": "LRA of 2.1 LU is very low, confirming strongly reduced macro-dynamics on this bus."
+      },
+      {
+        "path": "fx_chain[0].name",
+        "description": "Only one FX present: VST3: Generic Compressor."
+      },
+      {
+        "path": "fx_chain[0].parameters[0].name",
+        "description": "Ratio parameter is the only reported compressor control, set to 6:1."
+      },
+      {
+        "path": "fx_chain[0].parameters[0].normalized_value",
+        "description": "Ratio normalized value 0.72 maps to a displayed 6:1; a single formatted point does not establish a verified display mapping."
+      },
+      {
+        "path": "audio.silence_fraction",
+        "description": "Silence fraction 0.05 means the capture is essentially all signal, so the level and dynamics stats are not diluted."
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "set_fx_param",
+    "reason": "Preview changing VST3: Generic Compressor / Ratio from normalized 0.720 to 0.620 to test whether crest_factor_db increases.",
+    "target": {
+      "track_guid": "{TRACK-DRUM-BUS-01}",
+      "track_name": "Drum Bus",
+      "fx_guid": "{FX-COMP-01}",
+      "fx_index": 0,
+      "fx_scope": "track",
+      "fx_name": "VST3: Generic Compressor",
+      "parameter_index": 4,
+      "parameter_name": "Ratio"
+    },
+    "current_value": {
+      "value": 0.72,
+      "unit": "normalized",
+      "display": "6:1"
+    },
+    "proposed_value": {
+      "value": 0.62,
+      "unit": "normalized",
+      "display": null
+    },
+    "goal": "crest_factor_db",
+    "expected_direction": [
+      {
+        "metric": "crest_factor_db",
+        "direction": "increase"
+      },
+      {
+        "metric": "loudness_range_lu",
+        "direction": "increase"
+      }
+    ],
+    "rejection_reason": null
+  }
+}
