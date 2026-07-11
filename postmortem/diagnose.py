@@ -144,6 +144,21 @@ def _audio_block(stats, capture_data):
     return block
 
 
+def _capture_block(capture_data):
+    """Capture provenance from Reaper Daemon's result.
+
+    Audio metrics are only per-track evidence when the daemon verified the
+    capture was isolated. Preserve the daemon's scope and human explanation in
+    the payload so callers can enforce that boundary rather than losing it in a
+    presentation-only note.
+    """
+    return {
+        "scope": capture_data.get("capture_scope") or "unknown",
+        "isolation_verified": capture_data.get("isolation_verified") is True,
+        "note": capture_data.get("note"),
+    }
+
+
 def _resolve_scan_track(track_scan, target_name):
     """Pick the target track out of a scan_fx result by name, falling back to the
     first entry so a multi-track scan isn't silently reduced to index 0."""
@@ -184,6 +199,7 @@ def build_payload(context, track_scan, routing, capture_data, stats, target_name
             "sends": routing.get("sends", []),
             "receives": routing.get("receives", []),
         },
+        "capture": _capture_block(capture_data),
         "audio": _audio_block(stats, capture_data),
     }
     return payload
@@ -214,6 +230,7 @@ def build_masking_payload(context, per_track, masking):
                     "sends": routing.get("sends", []),
                     "receives": routing.get("receives", []),
                 },
+                "capture": _capture_block(pt["capture_data"]),
                 "audio": _audio_block(pt["stats"], pt["capture_data"]),
             }
         )

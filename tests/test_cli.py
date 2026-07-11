@@ -1,10 +1,14 @@
 """Unit tests for track-name resolution and the wrong-track guard."""
 
+import io
+import json
 import os
 import sys
 import unittest
 from contextlib import redirect_stderr
 from io import StringIO
+from contextlib import redirect_stdout
+from types import SimpleNamespace
 from unittest.mock import patch
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
@@ -99,6 +103,194 @@ class TestSilenceGate(unittest.TestCase):
     def test_quiet_but_present_signal_passes(self):
         # Quiet is not silent: a -45 dBFS pad with steady signal must pass.
         self.assertIsNone(cli.silence_gate(self._stats(rms_db=-45.0, silence_fraction=0.2)))
+
+
+class TestCaptureIsolationGate(unittest.TestCase):
+    def test_full_mix_capture_is_refused(self):
+        message = cli.capture_isolation_gate(
+            {
+                "capture_scope": "full_mix",
+                "isolation_verified": False,
+            }
+        )
+        self.assertIn("full master mix", message)
+        self.assertIn("will not diagnose", message)
+
+    def test_missing_provenance_fails_closed(self):
+        message = cli.capture_isolation_gate({})
+        self.assertIn("could not be verified", message)
+
+    def test_verified_isolated_capture_passes(self):
+        self.assertIsNone(
+            cli.capture_isolation_gate(
+                {
+                    "capture_scope": "isolated_track",
+                    "isolation_verified": True,
+                }
+            )
+        )
+
+    def test_unverified_isolated_scope_is_refused(self):
+        message = cli.capture_isolation_gate(
+            {
+                "capture_scope": "isolated_track",
+                "isolation_verified": False,
+            }
+        )
+        self.assertIn("could not be verified", message)
+
+
+class TestSingleTrackCaptureSafety(unittest.TestCase):
+    def test_non_diagnosable_captures_stop_before_analysis(self):
+        args = SimpleNamespace(seconds=30, payload_only=False, force=False, keep_wav=True)
+        track_scan = {"tracks": [{"name": "Guitar", "guid": "A", "fx": []}]}
+        routing = {"track": {"guid": "A"}}
+        for case, provenance in (
+            ("full_mix", {"capture_scope": "full_mix", "isolation_verified": False}),
+            ("master_output", {"capture_scope": "master_output", "isolation_verified": False}),
+            ("unverified isolated_track", {"capture_scope": "isolated_track", "isolation_verified": False}),
+            ("missing provenance", {}),
+        ):
+            with self.subTest(case=case):
+                capture = {
+                    "track": {"guid": "A"},
+                    **provenance,
+                }
+                with (
+                    patch.object(cli.bridge, "scan_fx", return_value=track_scan),
+                    patch.object(cli.bridge, "get_track_routing", return_value=routing),
+                    patch.object(cli.bridge, "capture_track_audio", return_value=(capture, "/tmp/capture.wav")),
+                    patch.object(cli, "analyze_wav", side_effect=AssertionError("must not analyze unsafe capture")) as analyze,
+                ):
+                    self.assertEqual(cli._run_single(args, {"project_name": "mix.RPP"}, "Guitar"), 4)
+
+                analyze.assert_not_called()
+
+    def test_payload_only_keeps_full_mix_provenance_without_diagnosing(self):
+        from postmortem.analysis import TrackStats
+
+        args = SimpleNamespace(seconds=30, payload_only=True, force=False, keep_wav=True)
+        track_scan = {"tracks": [{"name": "Guitar", "guid": "A", "fx": []}]}
+        routing = {"track": {"guid": "A"}}
+        capture = {
+            "track": {"guid": "A"},
+            "capture_scope": "full_mix",
+            "isolation_verified": False,
+            "note": "CAUTION: full mix fallback.",
+        }
+        stats = TrackStats(30.0, 48000, 2, -1.0, -12.0, 11.0)
+        stdout = io.StringIO()
+
+        with (
+            patch.object(cli.bridge, "scan_fx", return_value=track_scan),
+            patch.object(cli.bridge, "get_track_routing", return_value=routing),
+            patch.object(cli.bridge, "capture_track_audio", return_value=(capture, "/tmp/full-mix.wav")),
+            patch.object(cli, "analyze_wav", return_value=stats),
+            patch.object(cli, "diagnose") as diagnose,
+            redirect_stdout(stdout),
+        ):
+            self.assertEqual(cli._run_single(args, {"project_name": "mix.RPP"}, "Guitar"), 0)
+
+        payload = json.loads(stdout.getvalue())
+        self.assertEqual(payload["capture"]["scope"], "full_mix")
+        self.assertFalse(payload["capture"]["isolation_verified"])
+        diagnose.assert_not_called()
+
+    def test_verified_isolated_capture_reaches_diagnosis(self):
+        from postmortem.analysis import TrackStats
+
+        args = SimpleNamespace(seconds=30, payload_only=False, force=False, keep_wav=True)
+        track_scan = {"tracks": [{"name": "Guitar", "guid": "A", "fx": []}]}
+        routing = {"track": {"guid": "A"}}
+        capture = {
+            "track": {"guid": "A"},
+            "capture_scope": "isolated_track",
+            "isolation_verified": True,
+        }
+        stats = TrackStats(30.0, 48000, 2, -1.0, -12.0, 11.0)
+
+        with (
+            patch.object(cli.bridge, "scan_fx", return_value=track_scan),
+            patch.object(cli.bridge, "get_track_routing", return_value=routing),
+            patch.object(cli.bridge, "capture_track_audio", return_value=(capture, "/tmp/isolated.wav")),
+            patch.object(cli, "analyze_wav", return_value=stats),
+            patch.object(cli, "diagnose", return_value="diagnosis") as diagnose,
+        ):
+            self.assertEqual(cli._run_single(args, {"project_name": "mix.RPP"}, "Guitar"), 0)
+
+        diagnose.assert_called_once()
+
+
+class TestMaskingCaptureSafety(unittest.TestCase):
+    def test_non_diagnosable_captures_stop_before_masking_analysis(self):
+        args = SimpleNamespace(seconds=30, payload_only=False, force=False, keep_wav=True)
+        track_scan = {"tracks": [{"name": "Guitar", "guid": "A", "fx": []}]}
+        routing = {"track": {"guid": "A"}}
+        for case, provenance in (
+            ("full_mix", {"capture_scope": "full_mix", "isolation_verified": False}),
+            ("master_output", {"capture_scope": "master_output", "isolation_verified": False}),
+            ("unverified isolated_track", {"capture_scope": "isolated_track", "isolation_verified": False}),
+            ("missing provenance", {}),
+        ):
+            with self.subTest(case=case):
+                capture = {
+                    "track": {"guid": "A"},
+                    **provenance,
+                }
+                with (
+                    patch.object(cli.bridge, "scan_fx", return_value=track_scan),
+                    patch.object(cli.bridge, "get_track_routing", return_value=routing),
+                    patch.object(cli.bridge, "capture_track_audio", return_value=(capture, "/tmp/capture.wav")),
+                    patch.object(cli, "analyze_wav", side_effect=AssertionError("must not analyze unsafe capture")) as analyze,
+                ):
+                    self.assertEqual(
+                        cli._run_masking(args, {"project_name": "mix.RPP"}, ["Guitar", "Bass"]),
+                        4,
+                    )
+
+                analyze.assert_not_called()
+
+    def test_verified_isolated_captures_reach_masking_diagnosis(self):
+        from postmortem.analysis import TrackStats
+
+        args = SimpleNamespace(seconds=30, payload_only=False, force=False, keep_wav=True)
+        guitar_scan = {"tracks": [{"name": "Guitar", "guid": "A", "fx": []}]}
+        bass_scan = {"tracks": [{"name": "Bass", "guid": "B", "fx": []}]}
+        guitar_routing = {"track": {"guid": "A"}}
+        bass_routing = {"track": {"guid": "B"}}
+        guitar_capture = {
+            "track": {"guid": "A"},
+            "capture_scope": "isolated_track",
+            "isolation_verified": True,
+        }
+        bass_capture = {
+            "track": {"guid": "B"},
+            "capture_scope": "isolated_track",
+            "isolation_verified": True,
+        }
+        guitar_stats = TrackStats(30.0, 48000, 2, -1.0, -12.0, 11.0, [{"freq_hz": 63, "level_db": -6.0}])
+        bass_stats = TrackStats(30.0, 48000, 2, -1.0, -12.0, 11.0, [{"freq_hz": 63, "level_db": -4.0}])
+
+        with (
+            patch.object(cli.bridge, "scan_fx", side_effect=[guitar_scan, bass_scan]),
+            patch.object(cli.bridge, "get_track_routing", side_effect=[guitar_routing, bass_routing]),
+            patch.object(
+                cli.bridge,
+                "capture_track_audio",
+                side_effect=[
+                    (guitar_capture, "/tmp/guitar.wav"),
+                    (bass_capture, "/tmp/bass.wav"),
+                ],
+            ),
+            patch.object(cli, "analyze_wav", side_effect=[guitar_stats, bass_stats]),
+            patch.object(cli, "diagnose", return_value="diagnosis") as diagnose,
+        ):
+            self.assertEqual(
+                cli._run_masking(args, {"project_name": "mix.RPP"}, ["Guitar", "Bass"]),
+                0,
+            )
+
+        diagnose.assert_called_once()
 
 
 class TestCaptureSeconds(unittest.TestCase):
