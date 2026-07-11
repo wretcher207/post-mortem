@@ -7,7 +7,11 @@ from .providers.base import (
     ProviderErrorCategory,
     TextDiagnosisResult,
 )
-from .proposals import SUPPORTED_METRICS, validate_proposal
+from .proposals import (
+    SUPPORTED_METRICS,
+    has_verified_isolated_capture,
+    validate_proposal,
+)
 from .schemas import DiagnosisResult, ProviderDiagnosisResult
 
 _SINGLE_TRACK_HONESTY_CONTRACT = """\
@@ -328,6 +332,33 @@ def diagnose_track(
     profile: ModelProfile | None = None,
 ):
     """Return a validated structured result for one-track Track Check."""
+    if not has_verified_isolated_capture(payload):
+        return DiagnosisResult.model_validate(
+            {
+                "schema_version": 1,
+                "finding": {
+                    "summary": "No track diagnosis is available for this capture.",
+                    "probable_cause": (
+                        "The payload does not prove that the audio came from one "
+                        "isolated track."
+                    ),
+                    "confidence": "low",
+                    "confidence_reason": (
+                        "Isolated-track capture provenance is required before "
+                        "diagnosis."
+                    ),
+                    "evidence_refs": [],
+                },
+                "proposal": {
+                    "operation": "none",
+                    "reason": (
+                        "Unverified capture provenance cannot support a safe change."
+                    ),
+                    "expected_direction": [],
+                    "rejection_reason": "capture_not_isolated",
+                },
+            }
+        )
     provider, profile = _resolve_provider(client, provider, profile)
 
     if profile is None:

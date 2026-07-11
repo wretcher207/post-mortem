@@ -247,7 +247,13 @@ class TestParseRenderStats(unittest.TestCase):
 
 class TestDiagnoseReply(unittest.TestCase):
     def _payload(self):
-        return {"audio": {}}
+        return {
+            "capture": {
+                "scope": "isolated_track",
+                "isolation_verified": True,
+            },
+            "audio": {},
+        }
 
     def test_text_and_structured_prompts_share_one_canonical_honesty_contract(self):
         canonical = diagnose._SINGLE_TRACK_HONESTY_CONTRACT
@@ -323,6 +329,27 @@ class TestDiagnoseReply(unittest.TestCase):
         self.assertEqual(
             result.proposal.rejection_reason, "invalid_structured_response"
         )
+
+    def test_track_check_refuses_unverified_capture_before_provider_call(self):
+        provider = _StructuredProvider()
+
+        result = diagnose.diagnose_track(
+            {
+                "capture": {
+                    "scope": "full_mix",
+                    "isolation_verified": False,
+                },
+                "audio": {"sample_peak_db": -1.0},
+            },
+            provider=provider,
+            profile=diagnose.ModelProfile(model="test", thinking=False),
+        )
+
+        self.assertEqual(provider.calls, [])
+        self.assertEqual(result.finding.confidence, "low")
+        self.assertEqual(result.finding.evidence_refs, [])
+        self.assertEqual(result.proposal.operation, "none")
+        self.assertEqual(result.proposal.rejection_reason, "capture_not_isolated")
 
     def test_track_check_validates_actionable_proposal_against_actual_payload(self):
         result = diagnose.diagnose_track(

@@ -1,6 +1,6 @@
 # Phase 1 Implementation Backlog: Structured Track Check
 
-**Status:** Ready for implementation
+**Status:** Implementation complete; model-selection gate remains open
 **Date:** 2026-07-10
 **Target:** Cross-platform, open-core engine milestone
 **Depends on:** Reaper Daemon `cbff8d5` or later; Post Mortem `3184131` or later

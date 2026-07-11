@@ -89,9 +89,11 @@ Value units are explicit:
 `postmortem.schemas.SupportedMetric`; `postmortem.proposals.SUPPORTED_METRICS`
 is derived from that type so prompt, provider schema, and validator cannot drift.
 
-Verified isolated-track capture provenance is required for an actionable
-proposal. Missing or unverified isolation caps confidence at `low` and rejects
-the action. A `silence_fraction` of `0.75` or greater does the same. A response
+Verified isolated-track capture provenance is required for any track diagnosis.
+Missing or unverified isolation is refused before the provider call and returns
+a safe low-confidence unavailable result with
+`rejection_reason: "capture_not_isolated"`. A `silence_fraction` of `0.75` or
+greater caps confidence at `low` and rejects an actionable proposal. A response
 that introduces a cross-track claim in the single-track path is replaced with a
 safe low-confidence finding and `rejection_reason: "cross_track_claim"`.
 
