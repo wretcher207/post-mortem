@@ -13,6 +13,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+from .proposals import validate_proposal
 from .schemas import DiagnosisResult
 
 
@@ -166,8 +167,16 @@ def validate_corpus(cases: list[CorpusCase]) -> list[str]:
         )
         if assertions["max_confidence"] not in _CONFIDENCE_ORDER:
             failures.append(prefix + "has invalid max_confidence")
-        if case.payload.get("mode") != "track_check":
-            failures.append(prefix + "must be a single-track Track Check payload")
+        expected_payload_keys = {
+            "project",
+            "track",
+            "fx_chain",
+            "routing",
+            "capture",
+            "audio",
+        }
+        if set(case.payload) != expected_payload_keys:
+            failures.append(prefix + "must match the production Track Check payload")
         capture = case.payload.get("capture", {})
         if not (
             capture.get("scope") == "isolated_track"
@@ -201,6 +210,8 @@ def validate_corpus(cases: list[CorpusCase]) -> list[str]:
 
 def _evidence_category(path: str) -> str | None:
     normalized = path.removeprefix("$.")
+    if normalized == "track.parent_track":
+        return "routing"
     if normalized.startswith("fx_chain"):
         return "fx"
     if normalized.startswith("routing"):
@@ -228,8 +239,14 @@ def _evidence_category(path: str) -> str | None:
 def evaluate_case(case: CorpusCase, result: DiagnosisResult | dict) -> list[str]:
     """Evaluate one validated result against assertion-based expectations."""
     diagnosis = DiagnosisResult.model_validate(result)
+    validated = validate_proposal(diagnosis, case.payload)
     assertions = case.assertions
     failures: list[str] = []
+    if validated.proposal.rejection_reason is not None:
+        failures.append(
+            "proposal failed deterministic validation: "
+            + validated.proposal.rejection_reason
+        )
     text = " ".join(
         (
             diagnosis.finding.summary,

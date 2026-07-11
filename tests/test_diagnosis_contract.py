@@ -49,6 +49,25 @@ def test_corpus_has_at_least_twenty_complete_deidentified_cases():
     assert validate_corpus(cases) == []
 
 
+def test_corpus_payloads_use_the_production_track_check_shape():
+    cases = load_corpus(CORPUS_PATH)
+
+    assert all(
+        set(case.payload)
+        == {"project", "track", "fx_chain", "routing", "capture", "audio"}
+        for case in cases
+    )
+    assert all("sample_rate" not in case.payload["project"] for case in cases)
+    assert all("channels" not in case.payload["track"] for case in cases)
+    assert all("duration_seconds" not in case.payload["capture"] for case in cases)
+    assert all("duration_seconds" in case.payload["audio"] for case in cases)
+    assert all("spectrum_note" in case.payload["audio"] for case in cases)
+
+    parent_case = next(case for case in cases if "parent_bus" in case.tags)
+    assert parent_case.payload["track"]["parent_track"] == "Guitar Bus"
+    assert "parent_track" not in parent_case.payload["routing"]
+
+
 def test_corpus_covers_every_required_scenario_family():
     cases = load_corpus(CORPUS_PATH)
     covered = {tag for case in cases for tag in case.tags}
@@ -133,6 +152,26 @@ def test_none_required_case_rejects_an_actionable_result():
     failures = evaluate_case(case, result)
 
     assert any("requires operation none" in failure for failure in failures)
+
+
+def test_result_evaluator_runs_deterministic_proposal_validation():
+    case = load_corpus(CORPUS_PATH)[0]
+    data = _representative_result().model_dump()
+    data["proposal"] = {
+        "operation": "set_track_volume",
+        "reason": "Preview a conservative level reduction.",
+        "target": {"track_guid": "{WRONG-TRACK}"},
+        "current_value": {"value": 0.0, "unit": "db"},
+        "proposed_value": {"value": -1.0, "unit": "db"},
+        "goal": "sample_peak_db",
+        "expected_direction": [
+            {"metric": "sample_peak_db", "direction": "decrease"}
+        ],
+    }
+
+    failures = evaluate_case(case, DiagnosisResult.model_validate(data))
+
+    assert any("deterministic validation" in failure for failure in failures)
 
 
 def test_offline_snapshot_evaluator_uses_pinned_captured_results(tmp_path):

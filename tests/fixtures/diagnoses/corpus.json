@@ -1,25 +1,26 @@
 {
   "schema_version": 1,
   "payload_defaults": {
-    "mode": "track_check",
-    "project": {"tempo": 120.0, "sample_rate": 48000},
+    "project": {"name": "Fixture Project", "tempo": 120.0},
     "track": {
       "guid": "{TRACK-GENERIC}",
       "name": "Generic Source",
-      "channels": 1,
+      "index": 0,
       "volume_db": 0.0,
       "pan": 0.0,
+      "parent_track": null,
       "phase_inverted": false,
       "automation_mode": "trim_read"
     },
     "fx_chain": [],
-    "routing": {"parent_track": null, "sends": [], "receives": []},
+    "routing": {"sends": [], "receives": []},
     "capture": {
       "scope": "isolated_track",
       "isolation_verified": true,
-      "duration_seconds": 10.0
+      "note": "Verified isolated fixture capture."
     },
     "audio": {
+      "duration_seconds": 10.0,
       "sample_peak_db": -6.0,
       "true_peak_db": -5.5,
       "rms_db": -18.0,
@@ -32,7 +33,8 @@
         {"freq_hz": 100, "level_db": -18.0},
         {"freq_hz": 1000, "level_db": -24.0},
         {"freq_hz": 4000, "level_db": -30.0}
-      ]
+      ],
+      "spectrum_note": "1/3-octave band levels in dBFS, channels combined in the power domain (no phase cancellation)"
     }
   },
   "assertion_defaults": {
@@ -89,7 +91,7 @@
       "description": "Stereo drum bus with low crest factor and a verified compressor parameter.",
       "tags": ["drum_bus", "stereo", "overcompression"],
       "payload": {
-        "track": {"guid": "{TRACK-DRUM-BUS-01}", "name": "Drum Bus", "channels": 2},
+        "track": {"guid": "{TRACK-DRUM-BUS-01}", "name": "Drum Bus"},
         "fx_chain": [
           {
             "guid": "{FX-COMP-01}", "index": 0, "scope": "track",
@@ -151,7 +153,7 @@
       "description": "Stereo clean guitar with a measured right-heavy balance.",
       "tags": ["clean_guitar", "stereo", "stereo_imbalance"],
       "payload": {
-        "track": {"guid": "{TRACK-CLEAN-GTR-01}", "name": "Clean Guitar", "channels": 2},
+        "track": {"guid": "{TRACK-CLEAN-GTR-01}", "name": "Clean Guitar"},
         "audio": {"stereo": {"correlation": 0.82, "balance_db": 3.6, "mid_rms_db": -20.0, "side_rms_db": -25.0}}
       },
       "assertions": {
@@ -231,7 +233,7 @@
       "description": "Stereo pad with negative correlation and phase-risk evidence.",
       "tags": ["pad", "stereo", "phase"],
       "payload": {
-        "track": {"guid": "{TRACK-PAD-01}", "name": "Wide Pad", "channels": 2},
+        "track": {"guid": "{TRACK-PAD-01}", "name": "Wide Pad"},
         "audio": {"stereo": {"correlation": -0.42, "balance_db": 0.2, "mid_rms_db": -27.0, "side_rms_db": -15.0}}
       },
       "assertions": {
@@ -264,7 +266,7 @@
       "description": "Stereo pad with a measured left-heavy image but healthy correlation.",
       "tags": ["pad", "stereo", "stereo_imbalance"],
       "payload": {
-        "track": {"guid": "{TRACK-PAD-02}", "name": "Stereo Pad", "channels": 2},
+        "track": {"guid": "{TRACK-PAD-02}", "name": "Stereo Pad"},
         "audio": {"stereo": {"correlation": 0.74, "balance_db": -4.1, "mid_rms_db": -18.0, "side_rms_db": -24.0}}
       },
       "assertions": {
@@ -299,7 +301,7 @@
       "description": "Stereo drum bus with safe dynamics but inadequate peak headroom.",
       "tags": ["drum_bus", "stereo", "near_clipping"],
       "payload": {
-        "track": {"guid": "{TRACK-DRUM-BUS-02}", "name": "Parallel Drum Bus", "channels": 2},
+        "track": {"guid": "{TRACK-DRUM-BUS-02}", "name": "Parallel Drum Bus"},
         "audio": {"sample_peak_db": -0.3, "true_peak_db": -0.1, "crest_factor_db": 9.0}
       },
       "assertions": {
@@ -341,8 +343,7 @@
       "description": "Clean guitar routed through a parent bus whose processing is not measured here.",
       "tags": ["clean_guitar", "mono", "parent_bus", "insufficient_evidence"],
       "payload": {
-        "track": {"guid": "{TRACK-CLEAN-GTR-02}", "name": "Clean Guitar Child"},
-        "routing": {"parent_track": {"guid": "{TRACK-BUS-01}", "name": "Guitar Bus"}}
+        "track": {"guid": "{TRACK-CLEAN-GTR-02}", "name": "Clean Guitar Child", "parent_track": "Guitar Bus"}
       },
       "assertions": {
         "required_concepts": [
@@ -375,7 +376,7 @@
       "description": "Drum bus with receives that make source-level attribution uncertain.",
       "tags": ["drum_bus", "stereo", "receives", "insufficient_evidence"],
       "payload": {
-        "track": {"guid": "{TRACK-DRUM-BUS-03}", "name": "Drum Sum", "channels": 2},
+        "track": {"guid": "{TRACK-DRUM-BUS-03}", "name": "Drum Sum"},
         "routing": {"receives": [{"source_guid": "{TRACK-KICK-02}", "source_name": "Kick Feed", "volume_db": 0.0}]}
       },
       "assertions": {
@@ -392,7 +393,7 @@
       "description": "Stereo synth with negative correlation and direct chorus FX evidence.",
       "tags": ["synth", "stereo", "phase"],
       "payload": {
-        "track": {"guid": "{TRACK-SYNTH-02}", "name": "Wide Synth", "channels": 2},
+        "track": {"guid": "{TRACK-SYNTH-02}", "name": "Wide Synth"},
         "fx_chain": [
           {
             "guid": "{FX-CHORUS-01}", "index": 2, "scope": "track",
@@ -440,7 +441,7 @@
       "description": "Clean guitar has healthy stereo balance, so a pan move is unsupported.",
       "tags": ["clean_guitar", "stereo", "no_problem"],
       "payload": {
-        "track": {"guid": "{TRACK-CLEAN-GTR-03}", "name": "Balanced Clean Guitar", "channels": 2},
+        "track": {"guid": "{TRACK-CLEAN-GTR-03}", "name": "Balanced Clean Guitar"},
         "audio": {"stereo": {"correlation": 0.91, "balance_db": 0.1, "mid_rms_db": -18.0, "side_rms_db": -30.0}}
       },
       "assertions": {
@@ -499,7 +500,7 @@
       "description": "Stereo backing vocal stack with safe levels and stable image.",
       "tags": ["backing_vocal", "stereo", "no_problem"],
       "payload": {
-        "track": {"guid": "{TRACK-BGV-02}", "name": "Backing Vocal Stack", "channels": 2},
+        "track": {"guid": "{TRACK-BGV-02}", "name": "Backing Vocal Stack"},
         "audio": {
           "sample_peak_db": -8.5, "rms_db": -22.0, "crest_factor_db": 13.5,
           "stereo": {"correlation": 0.77, "balance_db": -0.2, "mid_rms_db": -22.0, "side_rms_db": -28.0}
@@ -518,7 +519,7 @@
       "description": "Quiet stereo synth pad with no strong defect and modest capture evidence.",
       "tags": ["synth", "pad", "stereo", "no_problem", "insufficient_evidence"],
       "payload": {
-        "track": {"guid": "{TRACK-PAD-03}", "name": "Soft Synth Pad", "channels": 2},
+        "track": {"guid": "{TRACK-PAD-03}", "name": "Soft Synth Pad"},
         "audio": {
           "sample_peak_db": -16.0, "rms_db": -31.0, "silence_fraction": 0.38,
           "stereo": {"correlation": 0.68, "balance_db": 0.3, "mid_rms_db": -31.0, "side_rms_db": -35.0}
