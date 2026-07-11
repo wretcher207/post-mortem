@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "The kick has limited peak headroom and is close to clipping.",
+    "probable_cause": "The isolated capture shows a hot track output level.",
+    "confidence": "high",
+    "confidence_reason": "The conclusion uses the measured sample and true peaks.",
+    "evidence_refs": [
+      {
+        "path": "audio.sample_peak_db",
+        "description": "Measured sample peak"
+      },
+      {
+        "path": "audio.true_peak_db",
+        "description": "Measured true peak"
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "none",
+    "reason": "The finding is useful without claiming a move has been previewed.",
+    "target": null,
+    "current_value": null,
+    "proposed_value": null,
+    "goal": null,
+    "expected_direction": [],
+    "rejection_reason": null
+  }
+}

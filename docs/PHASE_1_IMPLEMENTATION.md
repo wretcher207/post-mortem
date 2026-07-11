@@ -370,6 +370,7 @@ Acceptance criteria:
 **Repository:** both
 **Priority:** High
 **Depends on:** None
+**Status:** Completed and verified 2026-07-11
 
 Add GitHub Actions matrices:
 
@@ -401,6 +402,7 @@ Acceptance criteria:
 **Repository:** both
 **Priority:** Medium
 **Depends on:** All prior tasks
+**Status:** Completed and verified 2026-07-11
 
 Update:
 
