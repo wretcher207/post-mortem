@@ -1,0 +1,538 @@
+{
+  "schema_version": 1,
+  "payload_defaults": {
+    "project": {"name": "Fixture Project", "tempo": 120.0},
+    "track": {
+      "guid": "{TRACK-GENERIC}",
+      "name": "Generic Source",
+      "index": 0,
+      "volume_db": 0.0,
+      "pan": 0.0,
+      "parent_track": null,
+      "phase_inverted": false,
+      "automation_mode": "trim_read"
+    },
+    "fx_chain": [],
+    "routing": {"sends": [], "receives": []},
+    "capture": {
+      "scope": "isolated_track",
+      "isolation_verified": true,
+      "note": "Verified isolated fixture capture."
+    },
+    "audio": {
+      "duration_seconds": 10.0,
+      "sample_peak_db": -6.0,
+      "true_peak_db": -5.5,
+      "rms_db": -18.0,
+      "crest_factor_db": 12.0,
+      "integrated_lufs": -20.0,
+      "loudness_range_lu": 8.0,
+      "silence_fraction": 0.05,
+      "stereo": null,
+      "spectrum_third_octave": [
+        {"freq_hz": 100, "level_db": -18.0},
+        {"freq_hz": 1000, "level_db": -24.0},
+        {"freq_hz": 4000, "level_db": -30.0}
+      ],
+      "spectrum_note": "1/3-octave band levels in dBFS, channels combined in the power domain (no phase cancellation)"
+    }
+  },
+  "assertion_defaults": {
+    "required_concepts": [],
+    "forbidden_claims": ["masking", "masked by", "competing with the mix"],
+    "allowed_operations": ["none"],
+    "forbidden_operations": [
+      "set_track_volume",
+      "set_track_pan",
+      "set_fx_param",
+      "set_fx_bypass"
+    ],
+    "required_evidence_categories": [],
+    "max_confidence": "medium",
+    "require_none": false
+  },
+  "cases": [
+    {
+      "id": "kick_near_clipping",
+      "description": "Mono kick with measured peak headroom under one decibel.",
+      "tags": ["kick", "mono", "near_clipping", "gain_staging"],
+      "payload": {
+        "track": {"guid": "{TRACK-KICK-01}", "name": "Kick"},
+        "audio": {"sample_peak_db": -0.4, "true_peak_db": -0.1, "rms_db": -10.5}
+      },
+      "assertions": {
+        "required_concepts": [
+          {"name": "limited headroom", "aliases": ["headroom", "peak", "clip"]}
+        ],
+        "allowed_operations": ["none", "set_track_volume"],
+        "forbidden_operations": ["set_track_pan", "set_fx_param", "set_fx_bypass"],
+        "required_evidence_categories": ["level"],
+        "max_confidence": "high"
+      }
+    },
+    {
+      "id": "snare_healthy_transient",
+      "description": "Healthy mono snare with useful transient range and safe level.",
+      "tags": ["snare", "mono", "no_problem"],
+      "payload": {
+        "track": {"guid": "{TRACK-SNARE-01}", "name": "Snare"},
+        "audio": {"sample_peak_db": -7.0, "rms_db": -21.0, "crest_factor_db": 14.0}
+      },
+      "assertions": {
+        "required_concepts": [
+          {"name": "healthy transient", "aliases": ["healthy", "transient", "no clear problem"]}
+        ],
+        "required_evidence_categories": ["dynamics"],
+        "require_none": true
+      }
+    },
+    {
+      "id": "drum_bus_overcompressed",
+      "description": "Stereo drum bus with low crest factor and a verified compressor parameter.",
+      "tags": ["drum_bus", "stereo", "overcompression"],
+      "payload": {
+        "track": {"guid": "{TRACK-DRUM-BUS-01}", "name": "Drum Bus"},
+        "fx_chain": [
+          {
+            "guid": "{FX-COMP-01}", "index": 0, "scope": "track",
+            "name": "VST3: Generic Compressor", "enabled": true,
+            "parameters": [
+              {"index": 4, "name": "Ratio", "normalized_value": 0.72, "formatted_value": "6:1"}
+            ]
+          }
+        ],
+        "audio": {"crest_factor_db": 3.2, "loudness_range_lu": 2.1}
+      },
+      "assertions": {
+        "required_concepts": [
+          {"name": "reduced dynamics", "aliases": ["compressed", "crest factor", "dynamic"]}
+        ],
+        "allowed_operations": ["none", "set_fx_param"],
+        "forbidden_operations": ["set_track_volume", "set_track_pan", "set_fx_bypass"],
+        "required_evidence_categories": ["dynamics", "fx"],
+        "max_confidence": "high"
+      }
+    },
+    {
+      "id": "bass_guitar_hot_output",
+      "description": "Mono bass guitar with suspicious output gain and low headroom.",
+      "tags": ["bass_guitar", "mono", "gain_staging", "near_clipping"],
+      "payload": {
+        "track": {"guid": "{TRACK-BASS-01}", "name": "Bass Guitar", "volume_db": 5.0},
+        "audio": {"sample_peak_db": -0.7, "true_peak_db": -0.3, "rms_db": -8.0}
+      },
+      "assertions": {
+        "required_concepts": [
+          {"name": "hot output", "aliases": ["hot", "headroom", "gain staging"]}
+        ],
+        "allowed_operations": ["none", "set_track_volume"],
+        "forbidden_operations": ["set_track_pan", "set_fx_param", "set_fx_bypass"],
+        "required_evidence_categories": ["level"],
+        "max_confidence": "high"
+      }
+    },
+    {
+      "id": "synth_bass_insufficient_capture",
+      "description": "Synth bass capture with too much silence for a confident move.",
+      "tags": ["synth_bass", "mono", "insufficient_evidence", "mostly_silent"],
+      "payload": {
+        "track": {"guid": "{TRACK-SYNTH-BASS-01}", "name": "Synth Bass"},
+        "audio": {"sample_peak_db": -18.0, "true_peak_db": null, "rms_db": -42.0, "silence_fraction": 0.78}
+      },
+      "assertions": {
+        "required_concepts": [
+          {"name": "insufficient signal", "aliases": ["silence", "insufficient", "low confidence"]}
+        ],
+        "required_evidence_categories": ["silence"],
+        "max_confidence": "low",
+        "require_none": true
+      }
+    },
+    {
+      "id": "clean_guitar_stereo_imbalance",
+      "description": "Stereo clean guitar with a measured right-heavy balance.",
+      "tags": ["clean_guitar", "stereo", "stereo_imbalance"],
+      "payload": {
+        "track": {"guid": "{TRACK-CLEAN-GTR-01}", "name": "Clean Guitar"},
+        "audio": {"stereo": {"correlation": 0.82, "balance_db": 3.6, "mid_rms_db": -20.0, "side_rms_db": -25.0}}
+      },
+      "assertions": {
+        "required_concepts": [
+          {"name": "stereo imbalance", "aliases": ["imbalance", "right-heavy", "balance"]}
+        ],
+        "allowed_operations": ["none", "set_track_pan"],
+        "forbidden_operations": ["set_track_volume", "set_fx_param", "set_fx_bypass"],
+        "required_evidence_categories": ["stereo"],
+        "max_confidence": "high"
+      }
+    },
+    {
+      "id": "distorted_guitar_harsh_band",
+      "description": "Distorted guitar with elevated upper-mid spectrum and verified EQ gain.",
+      "tags": ["distorted_guitar", "mono"],
+      "payload": {
+        "track": {"guid": "{TRACK-DIST-GTR-01}", "name": "Distorted Guitar"},
+        "fx_chain": [
+          {
+            "guid": "{FX-EQ-01}", "index": 1, "scope": "track",
+            "name": "VST3: Generic Equalizer", "enabled": true,
+            "parameters": [
+              {"index": 12, "name": "Upper Mid Gain", "normalized_value": 0.64, "formatted_value": "+3.0 dB"}
+            ]
+          }
+        ],
+        "audio": {"spectrum_third_octave": [{"freq_hz": 3150, "level_db": -9.0}, {"freq_hz": 5000, "level_db": -12.0}]}
+      },
+      "assertions": {
+        "required_concepts": [
+          {"name": "upper-mid excess", "aliases": ["harsh", "upper-mid", "3150"]}
+        ],
+        "allowed_operations": ["none", "set_fx_param"],
+        "forbidden_operations": ["set_track_volume", "set_track_pan", "set_fx_bypass"],
+        "required_evidence_categories": ["spectrum", "fx"],
+        "max_confidence": "high"
+      }
+    },
+    {
+      "id": "lead_vocal_clipping",
+      "description": "Lead vocal with measured sample and true-peak clipping.",
+      "tags": ["lead_vocal", "mono", "clipping", "gain_staging"],
+      "payload": {
+        "track": {"guid": "{TRACK-LEAD-VOX-01}", "name": "Lead Vocal"},
+        "audio": {"sample_peak_db": 0.2, "true_peak_db": 0.8, "rms_db": -11.0}
+      },
+      "assertions": {
+        "required_concepts": [
+          {"name": "clipping", "aliases": ["clip", "over 0", "true peak"]}
+        ],
+        "allowed_operations": ["none", "set_track_volume"],
+        "forbidden_operations": ["set_track_pan", "set_fx_param", "set_fx_bypass"],
+        "required_evidence_categories": ["level"],
+        "max_confidence": "high"
+      }
+    },
+    {
+      "id": "backing_vocal_mostly_silent",
+      "description": "Backing vocal capture dominated by silence.",
+      "tags": ["backing_vocal", "mono", "mostly_silent", "insufficient_evidence"],
+      "payload": {
+        "track": {"guid": "{TRACK-BGV-01}", "name": "Backing Vocal"},
+        "audio": {"sample_peak_db": -22.0, "rms_db": -55.0, "silence_fraction": 0.92}
+      },
+      "assertions": {
+        "required_concepts": [
+          {"name": "mostly silent", "aliases": ["silence", "mostly silent", "insufficient"]}
+        ],
+        "required_evidence_categories": ["silence"],
+        "max_confidence": "low",
+        "require_none": true
+      }
+    },
+    {
+      "id": "pad_negative_correlation",
+      "description": "Stereo pad with negative correlation and phase-risk evidence.",
+      "tags": ["pad", "stereo", "phase"],
+      "payload": {
+        "track": {"guid": "{TRACK-PAD-01}", "name": "Wide Pad"},
+        "audio": {"stereo": {"correlation": -0.42, "balance_db": 0.2, "mid_rms_db": -27.0, "side_rms_db": -15.0}}
+      },
+      "assertions": {
+        "required_concepts": [
+          {"name": "phase risk", "aliases": ["phase", "correlation", "mono compatibility"]}
+        ],
+        "required_evidence_categories": ["stereo"],
+        "max_confidence": "high",
+        "require_none": true
+      }
+    },
+    {
+      "id": "mono_synth_healthy",
+      "description": "Mono synth with balanced spectrum, dynamics, and headroom.",
+      "tags": ["synth", "mono", "no_problem"],
+      "payload": {
+        "track": {"guid": "{TRACK-SYNTH-01}", "name": "Mono Synth"},
+        "audio": {"sample_peak_db": -8.0, "rms_db": -20.0, "crest_factor_db": 12.0}
+      },
+      "assertions": {
+        "required_concepts": [
+          {"name": "no clear problem", "aliases": ["healthy", "balanced", "no clear problem"]}
+        ],
+        "required_evidence_categories": ["level", "dynamics"],
+        "require_none": true
+      }
+    },
+    {
+      "id": "stereo_pad_left_heavy",
+      "description": "Stereo pad with a measured left-heavy image but healthy correlation.",
+      "tags": ["pad", "stereo", "stereo_imbalance"],
+      "payload": {
+        "track": {"guid": "{TRACK-PAD-02}", "name": "Stereo Pad"},
+        "audio": {"stereo": {"correlation": 0.74, "balance_db": -4.1, "mid_rms_db": -18.0, "side_rms_db": -24.0}}
+      },
+      "assertions": {
+        "required_concepts": [
+          {"name": "left-heavy image", "aliases": ["left-heavy", "imbalance", "balance"]}
+        ],
+        "allowed_operations": ["none", "set_track_pan"],
+        "forbidden_operations": ["set_track_volume", "set_fx_param", "set_fx_bypass"],
+        "required_evidence_categories": ["stereo"],
+        "max_confidence": "high"
+      }
+    },
+    {
+      "id": "silent_capture",
+      "description": "Isolated mono capture containing effectively no signal.",
+      "tags": ["silent", "mono", "insufficient_evidence"],
+      "payload": {
+        "track": {"guid": "{TRACK-SILENT-01}", "name": "Silent Source"},
+        "audio": {"sample_peak_db": -120.0, "true_peak_db": null, "rms_db": -120.0, "silence_fraction": 1.0}
+      },
+      "assertions": {
+        "required_concepts": [
+          {"name": "silent capture", "aliases": ["silent", "no signal", "insufficient"]}
+        ],
+        "required_evidence_categories": ["silence"],
+        "max_confidence": "low",
+        "require_none": true
+      }
+    },
+    {
+      "id": "drum_bus_near_clipping",
+      "description": "Stereo drum bus with safe dynamics but inadequate peak headroom.",
+      "tags": ["drum_bus", "stereo", "near_clipping"],
+      "payload": {
+        "track": {"guid": "{TRACK-DRUM-BUS-02}", "name": "Parallel Drum Bus"},
+        "audio": {"sample_peak_db": -0.3, "true_peak_db": -0.1, "crest_factor_db": 9.0}
+      },
+      "assertions": {
+        "required_concepts": [
+          {"name": "low headroom", "aliases": ["headroom", "near clipping", "peak"]}
+        ],
+        "allowed_operations": ["none", "set_track_volume"],
+        "forbidden_operations": ["set_track_pan", "set_fx_param", "set_fx_bypass"],
+        "required_evidence_categories": ["level"],
+        "max_confidence": "high"
+      }
+    },
+    {
+      "id": "bass_compressor_bypass_candidate",
+      "description": "Bass guitar with low crest factor and direct evidence on one compressor FX.",
+      "tags": ["bass_guitar", "mono", "overcompression"],
+      "payload": {
+        "track": {"guid": "{TRACK-BASS-02}", "name": "Compressed Bass"},
+        "fx_chain": [
+          {
+            "guid": "{FX-COMP-02}", "index": 0, "scope": "track",
+            "name": "VST3: Generic Limiter", "enabled": true, "parameters": []
+          }
+        ],
+        "audio": {"crest_factor_db": 2.5, "loudness_range_lu": 1.5}
+      },
+      "assertions": {
+        "required_concepts": [
+          {"name": "overcompression candidate", "aliases": ["compressed", "crest factor", "limiter"]}
+        ],
+        "allowed_operations": ["none", "set_fx_bypass"],
+        "forbidden_operations": ["set_track_volume", "set_track_pan", "set_fx_param"],
+        "required_evidence_categories": ["dynamics", "fx"],
+        "max_confidence": "medium"
+      }
+    },
+    {
+      "id": "parent_bus_context_unknown",
+      "description": "Clean guitar routed through a parent bus whose processing is not measured here.",
+      "tags": ["clean_guitar", "mono", "parent_bus", "insufficient_evidence"],
+      "payload": {
+        "track": {"guid": "{TRACK-CLEAN-GTR-02}", "name": "Clean Guitar Child", "parent_track": "Guitar Bus"}
+      },
+      "assertions": {
+        "required_concepts": [
+          {"name": "parent processing unknown", "aliases": ["parent", "bus", "not measured"]}
+        ],
+        "required_evidence_categories": ["routing"],
+        "max_confidence": "low",
+        "require_none": true
+      }
+    },
+    {
+      "id": "lead_vocal_send_context",
+      "description": "Lead vocal with a hot post-fader send that needs routing-aware advice.",
+      "tags": ["lead_vocal", "mono", "sends", "gain_staging"],
+      "payload": {
+        "track": {"guid": "{TRACK-LEAD-VOX-02}", "name": "Lead Vocal Dry"},
+        "routing": {"sends": [{"target_guid": "{TRACK-FX-RETURN-01}", "target_name": "Vocal Verb", "volume_db": 4.0}]}
+      },
+      "assertions": {
+        "required_concepts": [
+          {"name": "hot send", "aliases": ["send", "routing", "4.0"]}
+        ],
+        "required_evidence_categories": ["routing"],
+        "max_confidence": "medium",
+        "require_none": true
+      }
+    },
+    {
+      "id": "drum_bus_receive_context",
+      "description": "Drum bus with receives that make source-level attribution uncertain.",
+      "tags": ["drum_bus", "stereo", "receives", "insufficient_evidence"],
+      "payload": {
+        "track": {"guid": "{TRACK-DRUM-BUS-03}", "name": "Drum Sum"},
+        "routing": {"receives": [{"source_guid": "{TRACK-KICK-02}", "source_name": "Kick Feed", "volume_db": 0.0}]}
+      },
+      "assertions": {
+        "required_concepts": [
+          {"name": "receive context", "aliases": ["receive", "routing", "source"]}
+        ],
+        "required_evidence_categories": ["routing"],
+        "max_confidence": "low",
+        "require_none": true
+      }
+    },
+    {
+      "id": "synth_chorus_bypass_candidate",
+      "description": "Stereo synth with negative correlation and direct chorus FX evidence.",
+      "tags": ["synth", "stereo", "phase"],
+      "payload": {
+        "track": {"guid": "{TRACK-SYNTH-02}", "name": "Wide Synth"},
+        "fx_chain": [
+          {
+            "guid": "{FX-CHORUS-01}", "index": 2, "scope": "track",
+            "name": "VST3: Generic Chorus", "enabled": true, "parameters": []
+          }
+        ],
+        "audio": {"stereo": {"correlation": -0.25, "balance_db": 0.0, "mid_rms_db": -28.0, "side_rms_db": -14.0}}
+      },
+      "assertions": {
+        "required_concepts": [
+          {"name": "chorus phase candidate", "aliases": ["chorus", "phase", "correlation"]}
+        ],
+        "allowed_operations": ["none", "set_fx_bypass"],
+        "forbidden_operations": ["set_track_volume", "set_track_pan", "set_fx_param"],
+        "required_evidence_categories": ["stereo", "fx"],
+        "max_confidence": "medium"
+      }
+    },
+    {
+      "id": "unknown_fx_display_mapping",
+      "description": "Distorted guitar FX has only one formatted point, not a verified display mapping.",
+      "tags": ["distorted_guitar", "mono", "insufficient_evidence"],
+      "payload": {
+        "track": {"guid": "{TRACK-DIST-GTR-02}", "name": "Distorted Guitar Alt"},
+        "fx_chain": [
+          {
+            "guid": "{FX-DRIVE-01}", "index": 0, "scope": "track",
+            "name": "VST3: Generic Drive", "enabled": true,
+            "parameters": [{"index": 1, "name": "Drive", "normalized_value": 0.5, "formatted_value": "5.0"}]
+          }
+        ]
+      },
+      "assertions": {
+        "required_concepts": [
+          {"name": "mapping unavailable", "aliases": ["mapping", "normalized", "not verified"]}
+        ],
+        "forbidden_operations": ["set_track_volume", "set_track_pan", "set_fx_param", "set_fx_bypass"],
+        "required_evidence_categories": ["fx"],
+        "max_confidence": "low",
+        "require_none": true
+      }
+    },
+    {
+      "id": "pan_change_not_supported",
+      "description": "Clean guitar has healthy stereo balance, so a pan move is unsupported.",
+      "tags": ["clean_guitar", "stereo", "no_problem"],
+      "payload": {
+        "track": {"guid": "{TRACK-CLEAN-GTR-03}", "name": "Balanced Clean Guitar"},
+        "audio": {"stereo": {"correlation": 0.91, "balance_db": 0.1, "mid_rms_db": -18.0, "side_rms_db": -30.0}}
+      },
+      "assertions": {
+        "required_concepts": [
+          {"name": "balanced stereo", "aliases": ["balanced", "centered", "no pan"]}
+        ],
+        "forbidden_operations": ["set_track_volume", "set_track_pan", "set_fx_param", "set_fx_bypass"],
+        "required_evidence_categories": ["stereo"],
+        "require_none": true
+      }
+    },
+    {
+      "id": "volume_change_not_supported",
+      "description": "Mostly silent kick capture cannot support a track-volume move.",
+      "tags": ["kick", "mono", "mostly_silent", "insufficient_evidence"],
+      "payload": {
+        "track": {"guid": "{TRACK-KICK-03}", "name": "Sparse Kick"},
+        "audio": {"sample_peak_db": -9.0, "rms_db": -48.0, "silence_fraction": 0.88}
+      },
+      "assertions": {
+        "required_concepts": [
+          {"name": "silence blocks level move", "aliases": ["silence", "insufficient", "capture"]}
+        ],
+        "forbidden_operations": ["set_track_volume", "set_track_pan", "set_fx_param", "set_fx_bypass"],
+        "required_evidence_categories": ["silence"],
+        "max_confidence": "low",
+        "require_none": true
+      }
+    },
+    {
+      "id": "bypass_without_fx_evidence",
+      "description": "Synth level concern does not directly implicate its enabled delay FX.",
+      "tags": ["synth", "mono", "gain_staging"],
+      "payload": {
+        "track": {"guid": "{TRACK-SYNTH-03}", "name": "Pluck Synth"},
+        "fx_chain": [
+          {
+            "guid": "{FX-DELAY-01}", "index": 1, "scope": "track",
+            "name": "VST3: Generic Delay", "enabled": true, "parameters": []
+          }
+        ],
+        "audio": {"sample_peak_db": -0.8, "true_peak_db": -0.4}
+      },
+      "assertions": {
+        "required_concepts": [
+          {"name": "level evidence only", "aliases": ["level", "peak", "headroom"]}
+        ],
+        "allowed_operations": ["none", "set_track_volume"],
+        "forbidden_operations": ["set_track_pan", "set_fx_param", "set_fx_bypass"],
+        "required_evidence_categories": ["level"],
+        "max_confidence": "medium"
+      }
+    },
+    {
+      "id": "backing_vocal_healthy_stereo",
+      "description": "Stereo backing vocal stack with safe levels and stable image.",
+      "tags": ["backing_vocal", "stereo", "no_problem"],
+      "payload": {
+        "track": {"guid": "{TRACK-BGV-02}", "name": "Backing Vocal Stack"},
+        "audio": {
+          "sample_peak_db": -8.5, "rms_db": -22.0, "crest_factor_db": 13.5,
+          "stereo": {"correlation": 0.77, "balance_db": -0.2, "mid_rms_db": -22.0, "side_rms_db": -28.0}
+        }
+      },
+      "assertions": {
+        "required_concepts": [
+          {"name": "healthy backing stack", "aliases": ["healthy", "stable", "no clear problem"]}
+        ],
+        "required_evidence_categories": ["level", "stereo"],
+        "require_none": true
+      }
+    },
+    {
+      "id": "synth_pad_safe_but_uncertain",
+      "description": "Quiet stereo synth pad with no strong defect and modest capture evidence.",
+      "tags": ["synth", "pad", "stereo", "no_problem", "insufficient_evidence"],
+      "payload": {
+        "track": {"guid": "{TRACK-PAD-03}", "name": "Soft Synth Pad"},
+        "audio": {
+          "sample_peak_db": -16.0, "rms_db": -31.0, "silence_fraction": 0.38,
+          "stereo": {"correlation": 0.68, "balance_db": 0.3, "mid_rms_db": -31.0, "side_rms_db": -35.0}
+        }
+      },
+      "assertions": {
+        "required_concepts": [
+          {"name": "no supported move", "aliases": ["uncertain", "no clear problem", "no safe move"]}
+        ],
+        "required_evidence_categories": ["level"],
+        "max_confidence": "low",
+        "require_none": true
+      }
+    }
+  ]
+}
