@@ -366,6 +366,7 @@ def test_text_renderer_distinguishes_previewable_moves_from_advice_only():
 
     assert "SUGGESTED MOVE: Previewable move." in previewable
     assert "SUGGESTED MOVE: Advice only." in advice_only
+    assert "Preview a 2 dB reduction to create headroom." in advice_only
     assert "unsupported_goal" not in advice_only
 
 

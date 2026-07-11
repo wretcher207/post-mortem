@@ -52,7 +52,7 @@ def _resolve_payload_path(payload, path):
 def _reject(result, reason):
     proposal = Proposal(
         operation="none",
-        reason="The proposed change was rejected by deterministic validation.",
+        reason=result.proposal.reason,
         expected_direction=[],
         rejection_reason=reason,
     )
