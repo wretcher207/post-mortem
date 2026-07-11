@@ -1,6 +1,7 @@
 """Unit tests for track-name resolution and the wrong-track guard."""
 
 import io
+import inspect
 import json
 import os
 import sys
@@ -14,6 +15,7 @@ from unittest.mock import patch
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from postmortem import bridge, cli  # noqa: E402
+from postmortem.constants import DEFAULT_CAPTURE_SECONDS  # noqa: E402
 from postmortem.providers.base import ProviderError, ProviderErrorCategory  # noqa: E402
 from postmortem.schemas import DiagnosisResult  # noqa: E402
 
@@ -388,6 +390,34 @@ class TestMaskingCaptureSafety(unittest.TestCase):
 
 
 class TestCaptureSeconds(unittest.TestCase):
+    def test_shared_default_is_ten_seconds(self):
+        self.assertEqual(DEFAULT_CAPTURE_SECONDS, 10)
+        parameter = inspect.signature(bridge.capture_track_audio).parameters[
+            "duration_seconds"
+        ]
+        self.assertEqual(parameter.default, DEFAULT_CAPTURE_SECONDS)
+
+    def test_cli_uses_shared_default(self):
+        with patch.object(cli, "_run", return_value=0) as run:
+            self.assertEqual(cli.main(["Kick"]), 0)
+
+        self.assertEqual(run.call_args.args[0].seconds, DEFAULT_CAPTURE_SECONDS)
+
+    def test_cli_preserves_an_explicit_duration(self):
+        with patch.object(cli, "_run", return_value=0) as run:
+            self.assertEqual(cli.main(["Kick", "--seconds", "37"]), 0)
+
+        self.assertEqual(run.call_args.args[0].seconds, 37)
+
+    def test_help_reports_the_shared_default(self):
+        stdout = StringIO()
+
+        with self.assertRaises(SystemExit) as raised, redirect_stdout(stdout):
+            cli.main(["--help"])
+
+        self.assertEqual(raised.exception.code, 0)
+        self.assertIn("default 10", stdout.getvalue())
+
     def test_rejects_zero_and_negative(self):
         import argparse
 

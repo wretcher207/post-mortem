@@ -115,7 +115,7 @@ postmortem "Kick"
 That's it. Options:
 
 ```
---seconds N        capture length, default 30, starting at the edit cursor
+--seconds N        capture length, default 10, starting at the edit cursor
 --keep-wav         keep the temp stem instead of deleting it
 --payload-only     print the data payload as JSON and skip the model call
 --format text|json diagnosis output format; JSON is single-track only

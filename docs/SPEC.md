@@ -125,7 +125,7 @@ This kills two problems the earlier solo-based draft had:
    track-level diagnosis wants. The old "temporarily bypass master FX" v1.5
    workaround is unnecessary.
 
-The trade-off is latency: a 30-second capture at 48kHz/24-bit renders in a few
+The trade-off is latency: a 10-second capture at 48kHz/24-bit renders in a few
 seconds. Acceptable for a diagnostic tool, not for real-time monitoring.
 
 **Parent-bus caveat (the remaining coloration source):** a stems render of a
@@ -179,7 +179,7 @@ existing commands.
   "created_at": "2026-07-02T14:30:00-04:00",
   "payload": {
     "target_track_name": "Rhythm L",
-    "duration_seconds": 30,
+    "duration_seconds": 10,
     "start_position": { "type": "cursor" },
     "output_file": "/tmp/reaper-diagnosis/rhythm-l-stem-20260702T143000.wav",
     "format": "wav",
@@ -200,7 +200,7 @@ existing commands.
 4. Set `RENDER_SETTINGS` = 2 (stems only, selected tracks, pre-master).
 5. Set `RENDER_BOUNDSFLAG` = 0 (custom bounds) and `RENDER_STARTPOS` /
    `RENDER_ENDPOS` from `start_position` + `duration_seconds` (default: cursor
-   position + 30 seconds, or the active time selection's range if one exists).
+   position + 10 seconds, or the active time selection's range if one exists).
    Custom bounds mean the user's actual time selection is never touched.
 6. Set `RENDER_FILE` to the temp output path. The filename embeds a timestamp
    (unique per capture) so REAPER never raises an overwrite prompt, which would
@@ -228,7 +228,7 @@ existing commands.
   "data": {
     "track": { "index": 3, "name": "Rhythm L", "guid": "..." },
     "file_path": "/tmp/reaper-diagnosis/rhythm-l-stem.wav",
-    "duration_seconds": 30.0,
+    "duration_seconds": 10.0,
     "sample_rate": 48000,
     "channels": 2,
     "bit_depth": 24,
@@ -388,7 +388,7 @@ not a schema change.
     "receives": []
   },
   "audio": {
-    "duration_seconds": 30.0,
+    "duration_seconds": 10.0,
     "integrated_lufs": -18.3,
     "sample_peak_db": -0.8,
     "rms_db": -13.2,
@@ -422,7 +422,7 @@ not a schema change.
 ```
 You are a mix engineer analyzing a single track inside a REAPER session. You
 receive the track's FX chain (with current parameter values), routing (sends,
-receives, parent bus, phase, automation mode), and a 30-second post-FX audio
+receives, parent bus, phase, automation mode), and a 10-second post-FX audio
 snapshot (sample peak, crest factor, 1/3-octave spectrum, and integrated LUFS
 when available). Some fields may be null; treat null as "not measured".
 
@@ -587,7 +587,7 @@ Goal: produce a diagnosis from real data.
 ## Risks
 
 - **Temp render latency:** a long track captures slowly. Mitigated by defaulting
-  to 30 seconds from the cursor, not the whole track. The user can override.
+  to 10 seconds from the cursor, not the whole track. The user can override.
 - **State corruption on crash:** if the bridge crashes mid-capture, the render
   settings and track selection are left mutated. Much smaller blast radius than
   the earlier solo-based design (render settings and selection are annoying to

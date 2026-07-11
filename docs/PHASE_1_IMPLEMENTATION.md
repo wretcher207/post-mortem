@@ -313,6 +313,7 @@ Acceptance criteria:
 **Repository:** `post-mortem`
 **Priority:** Medium
 **Depends on:** None
+**Status:** Completed and verified 2026-07-11
 
 Add `DEFAULT_CAPTURE_SECONDS = 10` in one shared location and use it for CLI, service, documentation, and tests.
 

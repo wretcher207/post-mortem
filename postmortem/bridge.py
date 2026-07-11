@@ -14,6 +14,7 @@ import uuid
 from datetime import datetime, timezone
 
 from . import config
+from .constants import DEFAULT_CAPTURE_SECONDS
 
 
 class BridgeError(RuntimeError):
@@ -116,7 +117,11 @@ def get_track_routing(track_name):
     return cmd("get_track_routing", {"target_track_name": track_name})
 
 
-def capture_track_audio(track_name, duration_seconds=30, temp_dir=None):
+def capture_track_audio(
+    track_name,
+    duration_seconds=DEFAULT_CAPTURE_SECONDS,
+    temp_dir=None,
+):
     """Post-FX stem capture. Verifies the returned file is real and fresh:
     exists, nonzero size, mtime newer than when we sent the command. A stale
     WAV diagnosed confidently is this tool's worst failure mode."""
