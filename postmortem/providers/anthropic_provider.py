@@ -266,7 +266,18 @@ class AnthropicProvider:
             }
             if model_profile.thinking:
                 repair_request["thinking"] = {"type": "adaptive"}
-            repaired_text = self._request_text(repair_request)
+            try:
+                repaired_text = self._request_text(repair_request)
+            except ProviderError as repair_request_error:
+                if (
+                    repair_request_error.category
+                    is ProviderErrorCategory.INCOMPLETE_RESPONSE
+                ):
+                    raise ProviderError(
+                        ProviderErrorCategory.INVALID_RESPONSE,
+                        "the provider returned content that did not match the target schema",
+                    ) from repair_request_error
+                raise
             try:
                 validated = response_schema.model_validate(
                     _extract_single_json_object(repaired_text)

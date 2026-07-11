@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "The track has ample headroom, safe true-peak levels, typical stereo width, and no obvious tonal or dynamic faults that demand corrective action. No immediate problem detected.",
+    "probable_cause": "No defect present; track appears to have been recorded or rendered cleanly.",
+    "confidence": "medium",
+    "confidence_reason": "Although core level and stereo measurements are comprehensive, the spectrum is limited to three 1/3‑octave bands, so subtle tonal imbalances cannot be fully excluded.",
+    "evidence_refs": [
+      {
+        "path": "audio.sample_peak_db",
+        "description": "-8.5 dBFS peak"
+      },
+      {
+        "path": "audio.true_peak_db",
+        "description": "-5.5 dBTP, comfortably below 0"
+      },
+      {
+        "path": "audio.rms_db",
+        "description": "-22 dBFS RMS"
+      },
+      {
+        "path": "audio.crest_factor_db",
+        "description": "13.5 dB crest"
+      },
+      {
+        "path": "audio.integrated_lufs",
+        "description": "-20 LUFS integrated"
+      },
+      {
+        "path": "audio.loudness_range_lu",
+        "description": "8 LU loudness range"
+      },
+      {
+        "path": "audio.silence_fraction",
+        "description": "0.05 – reliable stats"
+      },
+      {
+        "path": "audio.stereo.correlation",
+        "description": "0.77 phase correlation"
+      },
+      {
+        "path": "audio.stereo.balance_db",
+        "description": "-0.2 dB, near center"
+      },
+      {
+        "path": "audio.stereo.mid_rms_db",
+        "description": "-22 dBFS mid"
+      },
+      {
+        "path": "audio.stereo.side_rms_db",
+        "description": "-28 dBFS side"
+      },
+      {
+        "path": "audio.spectrum_third_octave[0].level_db",
+        "description": "-18 dBFS at 100 Hz"
+      },
+      {
+        "path": "audio.spectrum_third_octave[1].level_db",
+        "description": "-24 dBFS at 1 kHz"
+      },
+      {
+        "path": "audio.spectrum_third_octave[2].level_db",
+        "description": "-30 dBFS at 4 kHz"
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "none",
+    "reason": "No critical issue is evident. The track is not clipping, stereo correlation is good, and dynamics fall within normal ranges for a vocal stack. The limited spectral data prevents a precise EQ recommendation, but no harmful boost or cut is apparent from the three measured bands. No safe, evidence‑based move is justified.",
+    "expected_direction": []
+  }
+}

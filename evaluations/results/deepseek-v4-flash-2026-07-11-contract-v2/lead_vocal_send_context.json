@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "The track has an unusually high send level to the reverb bus (+4 dB) which likely results in an overly wet vocal. Additionally, the spectral analysis shows elevated low-frequency energy (100 Hz at -18 dBFS) compared to mid and high frequencies, suggesting potential muddiness.",
+    "probable_cause": "The send gain was set positively, which is atypical for a reverb send. The low-frequency boost may be due to microphone proximity effect or a lack of high-pass filtering.",
+    "confidence": "high",
+    "confidence_reason": "Direct measurements from the isolated track show the send level and spectral balance clearly; no external context is needed.",
+    "evidence_refs": [
+      {
+        "path": "routing.sends[0].volume_db",
+        "description": "Send volume to Vocal Verb is +4 dB"
+      },
+      {
+        "path": "audio.spectrum_third_octave[0].level_db",
+        "description": "100 Hz band at -18 dBFS vs 1 kHz at -24 dBFS"
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "none",
+    "reason": "No safe and supported operation exists to address the likely issues. The allowed operations (set_track_volume, set_track_pan, set_fx_param, set_fx_bypass) do not include adjusting send levels or adding EQ/dynamics. A volume adjustment would not change the wet/dry ratio, and the track level is already moderate. Therefore, no action is proposed.",
+    "expected_direction": []
+  }
+}

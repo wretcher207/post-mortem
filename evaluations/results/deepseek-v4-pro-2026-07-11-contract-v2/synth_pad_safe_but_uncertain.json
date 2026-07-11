@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "The pad has a high true peak (-5.5 dBTP) relative to its RMS (-31 dB) and integrated loudness (-20 LUFS), indicating large inter-sample peaks that could cause clipping when summed with other tracks or processed further.",
+    "probable_cause": "The empty FX chain means the raw source is unprocessed. The sound source likely contains fast transients or significant high-frequency content that generates inter-sample peaks not visible in the sample-peak measurement.",
+    "confidence": "medium",
+    "confidence_reason": "Isolation is verified and true peak is measured, but the 38% silence fraction dilutes loudness statistics, so the crest factor and perceived dynamics may be under-represented.",
+    "evidence_refs": [
+      {
+        "path": "audio.true_peak_db",
+        "description": "True peak level of -5.5 dBTP, close to 0 dBFS."
+      },
+      {
+        "path": "audio.sample_peak_db",
+        "description": "Sample peak of -16.0 dBFS, much lower than true peak, confirming ISP."
+      },
+      {
+        "path": "audio.rms_db",
+        "description": "Average RMS level of -31.0 dBFS, very low relative to peaks."
+      },
+      {
+        "path": "audio.crest_factor_db",
+        "description": "Crest factor of 12.0 dB (likely based on sample peak), suggesting a somewhat dynamic signal."
+      },
+      {
+        "path": "audio.integrated_lufs",
+        "description": "Integrated LUFS of -20.0, moderate for a pad."
+      },
+      {
+        "path": "audio.silence_fraction",
+        "description": "38% silence, meaning loudness figures are diluted and true sustained loudness is higher."
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "set_track_volume",
+    "reason": "Preview changing track volume from 0.000 dB to -3.000 dB to test whether true_peak_db decreases.",
+    "target": {
+      "track_guid": "{TRACK-PAD-03}",
+      "track_name": "Soft Synth Pad"
+    },
+    "current_value": {
+      "value": 0.0,
+      "unit": "db",
+      "display": "0.0 dB"
+    },
+    "proposed_value": {
+      "value": -3.0,
+      "unit": "db",
+      "display": "-3.0 dB"
+    },
+    "goal": "true_peak_db",
+    "expected_direction": [
+      {
+        "metric": "true_peak_db",
+        "direction": "decrease"
+      },
+      {
+        "metric": "sample_peak_db",
+        "direction": "decrease"
+      },
+      {
+        "metric": "rms_db",
+        "direction": "decrease"
+      },
+      {
+        "metric": "integrated_lufs",
+        "direction": "decrease"
+      }
+    ]
+  }
+}

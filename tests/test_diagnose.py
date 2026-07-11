@@ -11,7 +11,10 @@ from postmortem import config, diagnose  # noqa: E402
 from postmortem.analysis import TrackStats  # noqa: E402
 from postmortem.providers import anthropic_provider  # noqa: E402
 from postmortem.providers.base import ProviderError, ProviderErrorCategory  # noqa: E402
-from postmortem.schemas import DiagnosisResult  # noqa: E402
+from postmortem.schemas import (  # noqa: E402
+    DiagnosisResult,
+    ProviderDiagnosisResult,
+)
 
 
 class _Block:
@@ -287,10 +290,13 @@ class TestDiagnoseReply(unittest.TestCase):
 
         self.assertIsInstance(result, DiagnosisResult)
         self.assertEqual(result.proposal.operation, "none")
-        self.assertIs(provider.calls[0]["response_schema"], DiagnosisResult)
+        self.assertIs(provider.calls[0]["response_schema"], ProviderDiagnosisResult)
         contract = " ".join(provider.calls[0]["system_contract"].lower().split())
         self.assertIn("do not diagnose frequency masking", contract)
         self.assertIn("evidence references", contract)
+        self.assertIn("exact leaf paths", contract)
+        self.assertIn("never cite a null value", contract)
+        self.assertIn("silence_fraction is 0.75 or higher", contract)
         self.assertIn("operation: none", contract)
         self.assertIn("does not remove or delete", contract)
 
@@ -328,6 +334,10 @@ class TestDiagnoseReply(unittest.TestCase):
                     "pan": 0.0,
                 },
                 "fx_chain": [],
+                "capture": {
+                    "scope": "isolated_track",
+                    "isolation_verified": True,
+                },
                 "audio": {"sample_peak_db": -1.0},
             },
             provider=_StaleActionableProvider(),

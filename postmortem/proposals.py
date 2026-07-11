@@ -3,32 +3,16 @@
 from collections.abc import Mapping
 import math
 import re
+from typing import get_args
 
-from .schemas import DiagnosisResult, Proposal
+from .schemas import DiagnosisResult, Proposal, SupportedMetric
 
 
 _MISSING = object()
 _PATH_SEGMENT = re.compile(r"([A-Za-z_][A-Za-z0-9_-]*)(?:\[(\d+)\])?")
 _DB_CURRENT_TOLERANCE = 0.1
 _NORMALIZED_CURRENT_TOLERANCE = 0.001
-SUPPORTED_METRICS = frozenset(
-    {
-        "sample_peak_db",
-        "true_peak_db",
-        "rms_db",
-        "crest_factor_db",
-        "integrated_lufs",
-        "loudness_range_lu",
-        "lufs_momentary_max",
-        "lufs_short_term_max",
-        "silence_fraction",
-        "stereo_correlation",
-        "stereo_balance_db",
-        "mid_rms_db",
-        "side_rms_db",
-        "spectrum_third_octave",
-    }
-)
+SUPPORTED_METRICS = frozenset(get_args(SupportedMetric))
 
 
 def _resolve_payload_path(payload, path):
@@ -49,8 +33,8 @@ def _resolve_payload_path(payload, path):
     return current
 
 
-def _reject(result, reason):
-    proposal_reason = result.proposal.reason
+def _reject(result, reason, proposal_reason=None):
+    proposal_reason = proposal_reason or result.proposal.reason
     if result.proposal.operation == "set_fx_param":
         proposal_reason = (
             "The proposed normalized FX parameter change was rejected by "
@@ -63,6 +47,35 @@ def _reject(result, reason):
         rejection_reason=reason,
     )
     return result.model_copy(update={"proposal": proposal})
+
+
+def _with_low_confidence(result, reason):
+    finding = result.finding.model_copy(
+        update={"confidence": "low", "confidence_reason": reason}
+    )
+    return result.model_copy(update={"finding": finding})
+
+
+def _contains_cross_track_claim(result):
+    model_text = " ".join(
+        filter(
+            None,
+            (
+                result.finding.summary,
+                result.finding.probable_cause,
+                result.finding.confidence_reason,
+                result.proposal.reason,
+                *(
+                    reference.description
+                    for reference in result.finding.evidence_refs
+                ),
+            ),
+        )
+    ).lower()
+    return any(
+        phrase in model_text
+        for phrase in ("masking", "masked by", "competing with the mix")
+    )
 
 
 def _matching_fx(payload, target):
@@ -152,6 +165,60 @@ def validate_proposal(
 ) -> DiagnosisResult:
     """Return the result when its proposal is safe for later preview."""
     actionable = result.proposal.operation != "none"
+    if _contains_cross_track_claim(result):
+        finding = result.finding.model_copy(
+            update={
+                "summary": (
+                    "The provider response exceeded the single-track evidence boundary."
+                ),
+                "probable_cause": (
+                    "A single isolated track cannot establish cross-track relationships."
+                ),
+                "confidence": "low",
+                "confidence_reason": (
+                    "The unsupported cross-track claim was removed by validation."
+                ),
+                "evidence_refs": [],
+            }
+        )
+        result = result.model_copy(update={"finding": finding})
+        return _reject(
+            result,
+            "cross_track_claim",
+            proposal_reason=(
+                "A single-track capture cannot support a cross-track change."
+            ),
+        )
+    capture = payload.get("capture")
+    if not (
+        isinstance(capture, Mapping)
+        and capture.get("scope") == "isolated_track"
+        and capture.get("isolation_verified") is True
+    ):
+        result = _with_low_confidence(
+            result,
+            "Confidence is capped at low because isolated-track capture "
+            "provenance is not verified.",
+        )
+        if actionable:
+            return _reject(result, "capture_not_isolated")
+    audio = payload.get("audio")
+    silence_fraction = (
+        audio.get("silence_fraction") if isinstance(audio, Mapping) else None
+    )
+    if (
+        isinstance(silence_fraction, (int, float))
+        and not isinstance(silence_fraction, bool)
+        and math.isfinite(float(silence_fraction))
+        and silence_fraction >= 0.75
+    ):
+        result = _with_low_confidence(
+            result,
+            "Confidence is capped at low because audio.silence_fraction is "
+            f"{float(silence_fraction):.3f}.",
+        )
+        if actionable:
+            return _reject(result, "insufficient_signal")
     if not result.finding.evidence_refs:
         return _reject(result, "evidence_missing") if actionable else result
     for evidence in result.finding.evidence_refs:

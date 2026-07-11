@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "Frequency spectrum shows a steep roll-off above 100 Hz, with levels at 1 kHz and 4 kHz significantly lower than the low end. This indicates a lack of high-frequency energy that could make the track sound dull or muddy.",
+    "probable_cause": "The track likely consists of drum elements that have strong low end but insufficient high-frequency content, possibly due to lack of processing (e.g., EQ) on this isolated parallel bus.",
+    "confidence": "medium",
+    "confidence_reason": "The spectrum data is limited to only three bands, so the full extent of the imbalance is uncertain, but the trend is clear and consistent with a common drum bus issue.",
+    "evidence_refs": [
+      {
+        "path": "audio.spectrum_third_octave[0].level_db",
+        "description": "100 Hz band at -18 dBFS"
+      },
+      {
+        "path": "audio.spectrum_third_octave[1].level_db",
+        "description": "1 kHz band at -24 dBFS"
+      },
+      {
+        "path": "audio.spectrum_third_octave[2].level_db",
+        "description": "4 kHz band at -30 dBFS"
+      },
+      {
+        "path": "audio.integrated_lufs",
+        "description": "Integrated LUFS is -20, indicating overall level is moderate"
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "none",
+    "reason": "The identified spectral imbalance requires EQ adjustment, but the track has no FX (fx_chain is empty). Available operations (volume, pan, bypass) cannot correct the frequency response. No safe and effective move can be made with the current track configuration.",
+    "expected_direction": []
+  }
+}

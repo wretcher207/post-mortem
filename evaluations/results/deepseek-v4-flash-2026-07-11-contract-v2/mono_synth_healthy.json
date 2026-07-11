@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "The track has a high crest factor (12 dB) indicating wide dynamic range with no compression, and a heavy low-end emphasis (100 Hz at -18 dB vs. 1 kHz at -24 dB and 4 kHz at -30 dB). True peak at -5.5 dBFS is relatively hot, leaving little headroom. No FX or processing is applied.",
+    "probable_cause": "The synth patch likely has a strong fundamental and no dynamic control, resulting in a dynamic, bass-heavy tonal balance.",
+    "confidence": "high",
+    "confidence_reason": "All relevant metrics (crest factor, spectrum levels, true peak) are consistent and from a verified isolated capture with low silence fraction.",
+    "evidence_refs": [
+      {
+        "path": "audio.crest_factor_db",
+        "description": "Crest factor is 12 dB, indicating large dynamic range."
+      },
+      {
+        "path": "audio.true_peak_db",
+        "description": "True peak at -5.5 dBFS is close to 0 dBFS, low headroom."
+      },
+      {
+        "path": "audio.sample_peak_db",
+        "description": "Sample peak at -8 dBFS, lower than true peak suggesting intersample peaks."
+      },
+      {
+        "path": "audio.spectrum_third_octave[0].level_db",
+        "description": "100 Hz band at -18 dB, strong low-frequency content."
+      },
+      {
+        "path": "audio.spectrum_third_octave[1].level_db",
+        "description": "1 kHz band at -24 dB, lower than lows."
+      },
+      {
+        "path": "audio.spectrum_third_octave[2].level_db",
+        "description": "4 kHz band at -30 dB, further reduced upper frequencies."
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "none",
+    "reason": "No FX chain exists to adjust, and track volume/pan are already neutral (0 dB, center). Improvements (compression, EQ) would require adding plugins, which is not supported by available operations (set_track_volume, set_track_pan, set_fx_param, set_fx_bypass). No actionable change can be safely proposed.",
+    "expected_direction": []
+  }
+}

@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "Right-channel stereo imbalance of +3.6 dB on a track that is panned dead-center with an empty FX chain. The asymmetry is in the source recording itself (pan is centered), so it can only be corrected via a track-level pan shift or a future FX insert. Spectrum, crest factor, LRA, and LUFS are all within healthy ranges for a clean guitar; gain staging and dynamics are not concerning, and silence_fraction is low (0.05) so the stats are reliable.",
+    "probable_cause": "Source-level asymmetry: the captured audio has noticeably more energy on the right channel than the left while the track pan is 0.0 and no FX exists to rebalance. Likely caused by stereo mic pair gain mismatch, doubled-take level difference, or an offset stereo print rather than a mix-bus panning decision.",
+    "confidence": "medium",
+    "confidence_reason": "The +3.6 dB balance, +0.82 correlation, and -20/-25 dB mid/side split are all directly measured and consistent with a slightly right-biased stereo source. Confidence is medium (not high) because we have no mix context or session notes; the offset could be artistic intent, in which case a pan nudge would misalign it.",
+    "evidence_refs": [
+      {
+        "path": "audio.stereo.balance_db",
+        "description": "Right-channel bias of +3.6 dB"
+      },
+      {
+        "path": "track.pan",
+        "description": "Track pan is 0.0 (center), so the imbalance is in the source, not in panning"
+      },
+      {
+        "path": "fx_chain",
+        "description": "Empty FX chain — no balance/EQ processor available to correct the source asymmetry"
+      },
+      {
+        "path": "audio.stereo.correlation",
+        "description": "+0.82 — the signal is genuinely stereo and not phase-cancelled, so the balance reading is meaningful"
+      },
+      {
+        "path": "audio.silence_fraction",
+        "description": "0.05 — low silence, so stereo stats are not diluted by dead air"
+      },
+      {
+        "path": "audio.stereo.mid_rms_db",
+        "description": "Mid at -20 dB"
+      },
+      {
+        "path": "audio.stereo.side_rms_db",
+        "description": "Side at -25 dB, 5 dB below mid — confirms a real stereo image, not near-mono"
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "set_track_pan",
+    "reason": "Preview changing track pan from 0.000 to -0.100 to test whether stereo_balance_db decreases.",
+    "target": {
+      "track_guid": "{TRACK-CLEAN-GTR-01}",
+      "track_name": "Clean Guitar",
+      "parameter_name": "Pan"
+    },
+    "current_value": {
+      "value": 0.0,
+      "unit": "normalized_pan",
+      "display": "center (0.0)"
+    },
+    "proposed_value": {
+      "value": -0.1,
+      "unit": "normalized_pan",
+      "display": "slightly left (-0.1)"
+    },
+    "goal": "stereo_balance_db",
+    "expected_direction": [
+      {
+        "metric": "stereo_balance_db",
+        "direction": "decrease"
+      }
+    ]
+  }
+}

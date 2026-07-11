@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "Audio has digital clipping (sample peak 0.2 dBFS) and excessive true peak (0.8 dBTP).",
+    "probable_cause": "Input gain too high during recording; no headroom left.",
+    "confidence": "high",
+    "confidence_reason": "Sample peak above 0 dBFS and true peak 0.8 dBTP are direct measurements of clipping. Silence fraction is low (0.05), so levels are representative.",
+    "evidence_refs": [
+      {
+        "path": "audio.sample_peak_db",
+        "description": "Sample peak is 0.2 dBFS, indicating digital clipping."
+      },
+      {
+        "path": "audio.true_peak_db",
+        "description": "True peak is 0.8 dBTP, exceeding 0 dBTP, confirming intersample overs."
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "set_track_volume",
+    "reason": "Preview changing track volume from 0.000 dB to -3.000 dB to test whether true_peak_db decreases.",
+    "target": {
+      "track_guid": "{TRACK-LEAD-VOX-01}",
+      "track_name": "Lead Vocal"
+    },
+    "current_value": {
+      "value": 0.0,
+      "unit": "db",
+      "display": "0.0 dB"
+    },
+    "proposed_value": {
+      "value": -3.0,
+      "unit": "db",
+      "display": "-3.0 dB"
+    },
+    "goal": "true_peak_db",
+    "expected_direction": [
+      {
+        "metric": "true_peak_db",
+        "direction": "decrease"
+      },
+      {
+        "metric": "sample_peak_db",
+        "direction": "decrease"
+      }
+    ]
+  }
+}

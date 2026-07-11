@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "The track has strong anti-phase stereo content, risking poor mono compatibility and a hollow or phasey sound on stereo systems.",
+    "probable_cause": "The pad sound design uses opposite polarity between left and right channels, likely from a wide stereo recording, a chorus/phaser effect, or a stereo widening process. The side signal is 12 dB louder than the mid, confirming that out-of-phase energy dominates.",
+    "confidence": "high",
+    "confidence_reason": "Verified isolated track capture with low silence fraction (0.05). Stereo correlation is -0.42, side RMS is -15.0 dBFS while mid RMS is -27.0 dBFS, providing unambiguous evidence of strong anti-phase content.",
+    "evidence_refs": [
+      {
+        "path": "audio.stereo.correlation",
+        "description": "Stereo correlation of -0.42 indicates significant out-of-phase relationship."
+      },
+      {
+        "path": "audio.stereo.mid_rms_db",
+        "description": "Mid RMS level is very low (-27.0 dBFS), confirming lack of in-phase common energy."
+      },
+      {
+        "path": "audio.stereo.side_rms_db",
+        "description": "Side RMS level is much louder (-15.0 dBFS) than mid, showing anti-phase energy dominates."
+      },
+      {
+        "path": "audio.silence_fraction",
+        "description": "Low silence fraction (0.05) ensures the measured statistics are representative of the whole audio."
+      },
+      {
+        "path": "capture.isolation_verified",
+        "description": "Isolation verified, so no other track contamination skews the stereo measurements."
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "none",
+    "reason": "No single track-level parameter (volume, pan, phase invert) can correct a fundamentally out-of-phase stereo recording. The fix requires re-recording, re-processing, or adding a stereo field manipulation plugin (e.g., a mid/side imager) – none of which can be performed via the available operations.",
+    "expected_direction": []
+  }
+}

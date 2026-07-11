@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "The clean guitar track exhibits a low-frequency-heavy tonal balance relative to its mid and high frequencies, which may result in a muddy or unclear tone.",
+    "probable_cause": "The track lacks any EQ processing; the recorded signal has a prominent 100 Hz band compared to 1 kHz and 4 kHz bands, suggesting excessive low-end content for a clean guitar part.",
+    "confidence": "medium",
+    "confidence_reason": "The spectrum data is limited to only three 1/3-octave bands, so a full frequency analysis is not possible; however, the relative levels clearly show a significant imbalance that is unusual for a clean guitar.",
+    "evidence_refs": [
+      {
+        "path": "audio.spectrum_third_octave[0].level_db",
+        "description": "100 Hz band at -18 dBFS, relative to 1 kHz at -24 dBFS (6 dB louder)"
+      },
+      {
+        "path": "audio.spectrum_third_octave[1].level_db",
+        "description": "1 kHz band at -24 dBFS"
+      },
+      {
+        "path": "audio.spectrum_third_octave[2].level_db",
+        "description": "4 kHz band at -30 dBFS, which is 6 dB below 1 kHz"
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "none",
+    "reason": "No EQ or other FX are present on the track; the only available adjustments (volume, pan) would not correct the tonal imbalance. A more appropriate move would require adding an EQ plugin, which is not an allowed operation.",
+    "expected_direction": []
+  }
+}

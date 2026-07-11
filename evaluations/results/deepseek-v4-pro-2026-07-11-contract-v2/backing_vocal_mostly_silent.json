@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "The track is heavily dominated by silence (92% dead air) and shows an extreme discrepancy between true peak (-5.5 dBFS) and average levels (RMS -55 dBFS), making any tonal or dynamic diagnosis unreliable.",
+    "probable_cause": "The capture likely contains only short, loud bursts amid long stretches of silence, so level statistics are diluted by the silence and do not represent the track's active content.",
+    "confidence": "low",
+    "confidence_reason": "Confidence is capped at low because audio.silence_fraction is 0.920.",
+    "evidence_refs": [
+      {
+        "path": "audio.silence_fraction",
+        "description": "Fraction of capture that is dead air, 0.92."
+      },
+      {
+        "path": "audio.true_peak_db",
+        "description": "True peak level of -5.5 dBFS."
+      },
+      {
+        "path": "audio.rms_db",
+        "description": "RMS level of -55 dBFS indicates extremely low average level due to silence."
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "none",
+    "reason": "Audio silence fraction is 0.92, far above the acceptable threshold for a safe diagnosis. No reliable move can be proposed.",
+    "expected_direction": []
+  }
+}

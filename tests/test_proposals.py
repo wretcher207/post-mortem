@@ -32,6 +32,10 @@ def _payload():
                 ],
             }
         ],
+        "capture": {
+            "scope": "isolated_track",
+            "isolation_verified": True,
+        },
         "audio": {
             "sample_peak_db": -1.0,
             "true_peak_db": -0.7,
@@ -189,6 +193,48 @@ def test_actionable_proposal_requires_at_least_one_evidence_reference():
 
     assert validated.proposal.operation == "none"
     assert validated.proposal.rejection_reason == "evidence_missing"
+
+
+def test_unverified_capture_rejects_action_and_caps_confidence():
+    payload = _payload()
+    payload["capture"] = {"scope": "unknown", "isolation_verified": False}
+
+    validated = validate_proposal(_track_volume_result(), payload)
+
+    assert validated.finding.confidence == "low"
+    assert "capture provenance" in validated.finding.confidence_reason
+    assert validated.proposal.operation == "none"
+    assert validated.proposal.rejection_reason == "capture_not_isolated"
+
+
+def test_mostly_silent_capture_rejects_action_and_caps_confidence():
+    payload = _payload()
+    payload["audio"]["silence_fraction"] = 0.88
+
+    validated = validate_proposal(_track_volume_result(), payload)
+
+    assert validated.finding.confidence == "low"
+    assert "silence_fraction" in validated.finding.confidence_reason
+    assert validated.proposal.operation == "none"
+    assert validated.proposal.rejection_reason == "insufficient_signal"
+
+
+@pytest.mark.parametrize(
+    "claim",
+    ["The kick is masking the bass.", "The vocal is masked by the guitar."],
+)
+def test_single_track_cross_track_claim_fails_closed(claim):
+    result = _track_volume_result().model_copy(deep=True)
+    result.finding.summary = claim
+
+    validated = validate_proposal(result, _payload())
+
+    rendered = render_diagnosis_text(validated).lower()
+    assert validated.finding.confidence == "low"
+    assert validated.proposal.operation == "none"
+    assert validated.proposal.rejection_reason == "cross_track_claim"
+    assert "masking" not in rendered
+    assert "masked by" not in rendered
 
 
 def test_stale_track_guid_rejects_the_proposal():

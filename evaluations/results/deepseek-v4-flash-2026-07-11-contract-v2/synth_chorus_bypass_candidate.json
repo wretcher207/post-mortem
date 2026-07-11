@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "Severe negative stereo correlation (-0.25) indicates significant out-of-phase content, likely causing mono compatibility issues. Side channel dominates mid channel by 14 dB, suggesting excessive widening from the chorus effect.",
+    "probable_cause": "The Generic Chorus plugin is likely configured with deep modulation or multiple voices creating phase cancellation between left and right channels.",
+    "confidence": "high",
+    "confidence_reason": "Isolation verified, silence fraction low (0.05), strong evidence of negative correlation and side dominance.",
+    "evidence_refs": [
+      {
+        "path": "audio.stereo.correlation",
+        "description": "Measured stereo correlation: -0.25"
+      },
+      {
+        "path": "audio.stereo.side_rms_db",
+        "description": "Side channel RMS: -14.0 dB"
+      },
+      {
+        "path": "audio.stereo.mid_rms_db",
+        "description": "Mid channel RMS: -28.0 dB"
+      },
+      {
+        "path": "fx_chain[0].name",
+        "description": "Active FX: VST3: Generic Chorus"
+      },
+      {
+        "path": "fx_chain[0].enabled",
+        "description": "Chorus is enabled"
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "set_fx_bypass",
+    "reason": "Preview bypassing VST3: Generic Chorus; this does not remove or delete the plugin; to test whether stereo_correlation increases.",
+    "target": {
+      "track_guid": "{TRACK-SYNTH-02}",
+      "track_name": "Wide Synth",
+      "fx_guid": "{FX-CHORUS-01}",
+      "fx_index": 2,
+      "fx_scope": "track",
+      "fx_name": "VST3: Generic Chorus"
+    },
+    "current_value": {
+      "value": false,
+      "unit": "boolean"
+    },
+    "proposed_value": {
+      "value": true,
+      "unit": "boolean",
+      "display": "Bypassed"
+    },
+    "goal": "stereo_correlation",
+    "expected_direction": [
+      {
+        "metric": "stereo_correlation",
+        "direction": "increase"
+      },
+      {
+        "metric": "side_rms_db",
+        "direction": "decrease"
+      },
+      {
+        "metric": "mid_rms_db",
+        "direction": "increase"
+      }
+    ]
+  }
+}

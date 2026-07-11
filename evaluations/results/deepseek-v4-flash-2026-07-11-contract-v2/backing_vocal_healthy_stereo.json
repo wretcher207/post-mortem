@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "Excessive low-frequency energy relative to vocal midrange, likely causing a boomy, muddy tone.",
+    "probable_cause": "Proximity effect from close mic'ing or insufficient high-pass filtering; no EQ or filter present in FX chain to control low-end buildup.",
+    "confidence": "high",
+    "confidence_reason": "Isolation is verified and silence fraction is very low (0.05), so the measured spectrum is reliable. The 100 Hz band is 6 dB louder than the 1 kHz band, which is atypical for a backing vocal stack and indicates excessive low-end content.",
+    "evidence_refs": [
+      {
+        "path": "audio.spectrum_third_octave[0].level_db",
+        "description": "100 Hz band at -18 dBFS"
+      },
+      {
+        "path": "audio.spectrum_third_octave[1].level_db",
+        "description": "1 kHz band at -24 dBFS"
+      },
+      {
+        "path": "audio.spectrum_third_octave[2].level_db",
+        "description": "4 kHz band at -30 dBFS"
+      },
+      {
+        "path": "audio.mid_rms_db",
+        "description": "Mid RMS at -22 dBFS"
+      },
+      {
+        "path": "audio.side_rms_db",
+        "description": "Side RMS at -28 dBFS (6 dB lower than mid)"
+      },
+      {
+        "path": "fx_chain",
+        "description": "Empty FX chain – no high-pass filter or EQ available to address low end"
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "none",
+    "reason": "The track's excessive low-end energy requires a high-pass filter or corrective EQ, but no FX are present in the chain. The supported operations (set_track_volume, set_track_pan, set_fx_param, set_fx_bypass) cannot add a new plugin. A manual addition of a high-pass filter (~80–100 Hz) is recommended to reduce muddiness without compromising vocal clarity.",
+    "expected_direction": [],
+    "rejection_reason": "evidence_path_missing"
+  }
+}

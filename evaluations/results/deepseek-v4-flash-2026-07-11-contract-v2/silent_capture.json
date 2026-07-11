@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "The provider response could not be validated.",
+    "probable_cause": "The initial response and one repair attempt failed the schema.",
+    "confidence": "low",
+    "confidence_reason": "Confidence is capped at low because audio.silence_fraction is 1.000.",
+    "evidence_refs": []
+  },
+  "proposal": {
+    "operation": "none",
+    "reason": "Malformed structured output cannot support a safe change.",
+    "expected_direction": [],
+    "rejection_reason": "invalid_structured_response"
+  }
+}

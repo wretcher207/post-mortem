@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "Track contains 78% silence; all level and loudness metrics are heavily diluted and not representative of the actual signal.",
+    "probable_cause": "The track has long periods of silence (possibly at the beginning/end or rests), making up the majority of the 10-second capture.",
+    "confidence": "low",
+    "confidence_reason": "Confidence is capped at low because audio.silence_fraction is 0.780.",
+    "evidence_refs": [
+      {
+        "path": "audio.silence_fraction",
+        "description": "Measured fraction of the capture that is silent (value 0.78)."
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "none",
+    "reason": "Silence fraction of 0.78 exceeds the 0.75 threshold, making any proposed adjustment unsupported by the available measurements. A re-capture of the track's active audio is needed for reliable diagnosis.",
+    "expected_direction": []
+  }
+}

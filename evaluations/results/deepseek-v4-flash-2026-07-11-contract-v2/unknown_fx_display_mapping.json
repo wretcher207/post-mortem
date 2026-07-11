@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "Spectral imbalance: excessive low-end energy (100 Hz at -18 dB) compared to presence (1 kHz at -24 dB) and air (4 kHz at -30 dB), likely causing muddiness and lack of clarity.",
+    "probable_cause": "The 'Generic Drive' FX with Drive at 5.0 may be over-emphasizing low-mid frequencies and compressing the signal, reducing high-frequency content.",
+    "confidence": "medium",
+    "confidence_reason": "Spectrum data is limited to three bands but clearly shows a steep downward slope; no stereo info; however, the trend is consistent with a common issue in distorted guitar tracks.",
+    "evidence_refs": [
+      {
+        "path": "audio.spectrum_third_octave[0].level_db",
+        "description": "100 Hz band at -18 dB"
+      },
+      {
+        "path": "audio.spectrum_third_octave[1].level_db",
+        "description": "1 kHz band at -24 dB"
+      },
+      {
+        "path": "audio.spectrum_third_octave[2].level_db",
+        "description": "4 kHz band at -30 dB"
+      },
+      {
+        "path": "fx_chain[0].parameters[0].normalized_value",
+        "description": "Drive at 0.5 (5.0)"
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "none",
+    "reason": "The proposed normalized FX parameter change was rejected by deterministic validation.",
+    "expected_direction": [],
+    "rejection_reason": "move_limit_exceeded"
+  }
+}

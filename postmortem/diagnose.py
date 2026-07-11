@@ -8,7 +8,7 @@ from .providers.base import (
     TextDiagnosisResult,
 )
 from .proposals import SUPPORTED_METRICS, validate_proposal
-from .schemas import DiagnosisResult
+from .schemas import DiagnosisResult, ProviderDiagnosisResult
 
 _SINGLE_TRACK_HONESTY_CONTRACT = """\
 You are a mix engineer analyzing a single track inside a REAPER session. You
@@ -51,7 +51,13 @@ Format:
 TRACK_CHECK_SYSTEM_PROMPT = _SINGLE_TRACK_HONESTY_CONTRACT + """
 
 Return the structured diagnosis contract supplied with the request. Evidence
-references must be payload paths that exist in the supplied payload. Supported
+references must be exact leaf paths that exist in the supplied payload, using
+dot notation and zero-based list indexes (for example audio.sample_peak_db or
+fx_chain[0].enabled). Cite the measured leaf value used for the claim, not a
+container. Never cite a null value; null means not measured. If capture
+isolation is not verified, use low confidence and operation: none. If
+audio.silence_fraction is 0.75 or higher, use low confidence and operation:
+none. Supported
 operations are: none, set_track_volume, set_track_pan, set_fx_param, and
 set_fx_bypass. Use operation: none when the evidence cannot support a safe move.
 For an actionable move, copy real track, FX, and parameter identities from the
@@ -330,7 +336,7 @@ def diagnose_track(
         result = provider.generate(
             system_contract=TRACK_CHECK_SYSTEM_PROMPT,
             payload=payload,
-            response_schema=DiagnosisResult,
+            response_schema=ProviderDiagnosisResult,
             model_profile=profile,
             user_instruction="Diagnose this track and return the structured Track Check result:",
         )
@@ -353,23 +359,30 @@ def diagnose_track(
         if fallback is None:
             raise
         summary, probable_cause, reason, rejection_reason = fallback
-        result = {
-            "schema_version": 1,
-            "finding": {
-                "summary": summary,
-                "probable_cause": probable_cause,
-                "confidence": "low",
-                "confidence_reason": "There is no provider diagnosis to evaluate.",
-                "evidence_refs": [],
-            },
-            "proposal": {
-                "operation": "none",
-                "reason": reason,
-                "expected_direction": [],
-                "rejection_reason": rejection_reason,
-            },
-        }
-    return validate_proposal(DiagnosisResult.model_validate(result), payload)
+        public_result = DiagnosisResult.model_validate(
+            {
+                "schema_version": 1,
+                "finding": {
+                    "summary": summary,
+                    "probable_cause": probable_cause,
+                    "confidence": "low",
+                    "confidence_reason": (
+                        "There is no provider diagnosis to evaluate."
+                    ),
+                    "evidence_refs": [],
+                },
+                "proposal": {
+                    "operation": "none",
+                    "reason": reason,
+                    "expected_direction": [],
+                    "rejection_reason": rejection_reason,
+                },
+            }
+        )
+    else:
+        provider_result = ProviderDiagnosisResult.model_validate(result)
+        public_result = DiagnosisResult.model_validate(provider_result.model_dump())
+    return validate_proposal(public_result, payload)
 
 
 def render_diagnosis_text(result: DiagnosisResult) -> str:

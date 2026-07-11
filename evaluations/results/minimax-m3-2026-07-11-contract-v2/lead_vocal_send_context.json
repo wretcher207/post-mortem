@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "Dry lead vocal track shows healthy level metrics: true peak -5.5 dB with 12 dB crest factor and integrated LUFS -20.0 (LRA 8.0 LU). Capture isolation is verified and silence_fraction is low (0.05), so the level statistics are reliable. The available 1/3-octave spectrum has only three points (100, 1000, 4000 Hz); 100 Hz sits 6 dB above the 1 kHz reference, but with no data between or below, a tonal issue cannot be confirmed or ruled out. FX chain is empty (consistent with the 'Dry' label); one send to a Vocal Verb return is active at +4.0 dB.",
+    "probable_cause": "Headroom, dynamics, and loudness are all within normal ranges for an isolated dry lead vocal, so no fault mode is clearly indicated. The 6 dB lift at 100 Hz vs 1 kHz is plausibly the voiced fundamental and chest resonance; with only three spectral samples reported, a proximity-effect low-end build-up cannot be differentiated from a normal vocal tilt. Stereo image data and full-band spectrum are not measured, so further tonal or imaging judgement is unsupported.",
+    "confidence": "low",
+    "confidence_reason": "Capture isolation is verified and silence_fraction is low, but audio.stereo is null and audio.spectrum_third_octave contains only three widely-spaced bands, which is insufficient to characterize tonal balance or imaging. I cannot safely claim a problem nor a fix.",
+    "evidence_refs": [
+      {
+        "path": "audio.true_peak_db",
+        "description": "True peak leaves ~5.5 dB of headroom below 0 dBFS, healthy for downstream processing."
+      },
+      {
+        "path": "audio.crest_factor_db",
+        "description": "Crest factor 12 dB indicates the signal is not over-compressed; dynamics preserved."
+      },
+      {
+        "path": "audio.integrated_lufs",
+        "description": "Integrated loudness -20.0 LUFS is within typical range for an isolated dry lead vocal."
+      },
+      {
+        "path": "audio.loudness_range_lu",
+        "description": "LRA 8.0 LU is plausible for a lead vocal with natural expressive dynamics."
+      },
+      {
+        "path": "audio.silence_fraction",
+        "description": "Low silence fraction confirms the level measurements are not diluted by dead air."
+      },
+      {
+        "path": "audio.spectrum_third_octave[0].level_db",
+        "description": "100 Hz at -18.0 dB, 6 dB above the 1 kHz reference."
+      },
+      {
+        "path": "audio.spectrum_third_octave[1].level_db",
+        "description": "1 kHz at -24.0 dB, used as the tonal reference point."
+      },
+      {
+        "path": "fx_chain",
+        "description": "Empty FX chain — consistent with the 'Dry' track designation."
+      },
+      {
+        "path": "routing.sends[0].volume_db",
+        "description": "Send to 'Vocal Verb' is set relatively hot at +4.0 dB; correctness depends on the verb's return level and the song context, neither of which are measured."
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "none",
+    "reason": "No evidence in the payload safely supports a specific change. Headroom and dynamics are healthy, loudness is appropriate for an isolated dry vocal, and the only full-band tone data point that stands out (100 Hz 6 dB above 1 kHz) cannot be acted on with just three 1/3-octave bands. The send level to the reverb return may feel high in context, but adjusting it requires the reverb's own levels, which are not measured. Marking this as a candidate for a follow-up A/B check (level vs. 0 dB and/or temporarily bypassing the send from this track) rather than a definitive edit.",
+    "expected_direction": []
+  }
+}

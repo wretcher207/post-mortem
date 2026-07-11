@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "Stereo imbalance: left channel is approximately 4.1 dB louder than right on average.",
+    "probable_cause": "The track’s audio signal itself has an inherent left-side bias, likely from the source material, because no panning, FX, or routing is altering the image.",
+    "confidence": "high",
+    "confidence_reason": "Isolation verified, silence fraction low (0.05), no FX chain or complex routing to distort the measurement; the stereo balance metric is a direct average indication.",
+    "evidence_refs": [
+      {
+        "path": "audio.stereo.balance_db",
+        "description": "Stereo balance of -4.1 dB indicates left channel is appreciably louder."
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "set_track_pan",
+    "reason": "Preview changing track pan from 0.000 to 0.100 to test whether stereo_balance_db increases.",
+    "target": {
+      "track_guid": "{TRACK-PAD-02}",
+      "track_name": "Stereo Pad"
+    },
+    "current_value": {
+      "value": 0.0,
+      "unit": "normalized_pan",
+      "display": "center"
+    },
+    "proposed_value": {
+      "value": 0.1,
+      "unit": "normalized_pan",
+      "display": "10% right"
+    },
+    "goal": "stereo_balance_db",
+    "expected_direction": [
+      {
+        "metric": "stereo_balance_db",
+        "direction": "increase"
+      }
+    ]
+  }
+}

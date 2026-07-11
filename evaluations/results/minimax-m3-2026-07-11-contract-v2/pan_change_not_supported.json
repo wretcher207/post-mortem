@@ -1,0 +1,88 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "Single-track metrics are all within healthy ranges for a clean electric guitar: -6.0 dBFS sample peak / -5.5 dB true peak with a 12.0 dB crest factor indicates uncompressed dynamics, integrated LUFS -20.0 with LRA 8.0 LU is consistent with a moderately present track, and the stereo image is well-formed (correlation 0.91, balance +0.1 dB, side RMS 12 dB below mid). The 1/3-octave spectrum shows a smooth, expected low-to-high tilt (100 Hz -18.0, 1 kHz -24.0, 4 kHz -30.0 dB) with no obvious build-up or hole. The track name 'Balanced Clean Guitar' is consistent with what the data shows.",
+    "probable_cause": "The signal has been captured and gain-staged appropriately (track volume at unity, no FX chain interfering, phase not inverted, low silence_fraction of 0.05 means the RMS, crest factor, and LUFS readings are not diluted by dead air). The high stereo correlation (0.91) and side level 12 dB below mid suggest a healthy, mostly-mono guitar with a controlled width contribution, not a phase problem or runaway stereo effect.",
+    "confidence": "medium",
+    "confidence_reason": "Evidence is direct (isolation_verified=true, silence_fraction=0.05) and the level/stereo/dynamics metrics are unambiguous, but the spectrum is only reported at three bands (100 Hz, 1 kHz, 4 kHz), which prevents ruling out a narrow-band resonance or notch between those points. Without an FX chain or mix-bus context, I also cannot judge whether -20.0 LUFS integrated is appropriate for the session.",
+    "evidence_refs": [
+      {
+        "path": "audio.sample_peak_db",
+        "description": "-6.0 dBFS sample peak"
+      },
+      {
+        "path": "audio.true_peak_db",
+        "description": "-5.5 dB true peak; 0.5 dB above sample peak (normal)"
+      },
+      {
+        "path": "audio.rms_db",
+        "description": "RMS -18.0 dB, consistent with the crest factor"
+      },
+      {
+        "path": "audio.crest_factor_db",
+        "description": "12.0 dB crest factor, healthy dynamic range for a clean guitar"
+      },
+      {
+        "path": "audio.integrated_lufs",
+        "description": "-20.0 LUFS integrated"
+      },
+      {
+        "path": "audio.loudness_range_lu",
+        "description": "8.0 LU LRA, moderate dynamics"
+      },
+      {
+        "path": "audio.silence_fraction",
+        "description": "0.05 silence, statistics are reliable"
+      },
+      {
+        "path": "audio.stereo.correlation",
+        "description": "0.91 correlation, good mono compatibility"
+      },
+      {
+        "path": "audio.stereo.balance_db",
+        "description": "+0.1 dB, effectively centered"
+      },
+      {
+        "path": "audio.stereo.mid_rms_db",
+        "description": "-18.0 dB mid RMS"
+      },
+      {
+        "path": "audio.stereo.side_rms_db",
+        "description": "-30.0 dB side RMS, 12 dB below mid (healthy width)"
+      },
+      {
+        "path": "audio.spectrum_third_octave[0].level_db",
+        "description": "100 Hz at -18.0 dB"
+      },
+      {
+        "path": "audio.spectrum_third_octave[1].level_db",
+        "description": "1 kHz at -24.0 dB"
+      },
+      {
+        "path": "audio.spectrum_third_octave[2].level_db",
+        "description": "4 kHz at -30.0 dB; smooth 12 dB low-to-high tilt, no anomaly at the reported bands"
+      },
+      {
+        "path": "track.volume_db",
+        "description": "0.0 dB track volume, unity gain"
+      },
+      {
+        "path": "track.phase_inverted",
+        "description": "false, no phase issue"
+      },
+      {
+        "path": "fx_chain",
+        "description": "empty FX chain, nothing to adjust"
+      },
+      {
+        "path": "capture.isolation_verified",
+        "description": "true"
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "none",
+    "reason": "Every measured single-track metric is in a healthy range and the FX chain is empty, so there is no concrete, verifiable parameter to change. The spectrum tilt and dynamics are consistent with the track's name and role; with only three 1/3-octave bands reported, the data cannot localize a specific problem frequency, so proposing a spectral EQ move would be guessing. No bypass target exists either. Re-evaluate with a fuller spectrum measurement and/or in-mix context before any change is warranted.",
+    "expected_direction": []
+  }
+}

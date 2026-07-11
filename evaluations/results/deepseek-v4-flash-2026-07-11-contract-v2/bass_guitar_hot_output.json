@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "Track level is too high, approaching clipping with true peak at -0.3 dBFS, leaving insufficient headroom for mix integration.",
+    "probable_cause": "Track volume trim set to +5.0 dB, boosting the signal to near full scale. Combined with intersample peaks, this risks audible clipping and limits mix bus headroom.",
+    "confidence": "high",
+    "confidence_reason": "Direct measurement of true peak at -0.3 dBFS from isolated capture, with track volume at +5.0 dB, confirms the level is excessive.",
+    "evidence_refs": [
+      {
+        "path": "audio.true_peak_db",
+        "description": "Current true peak level"
+      },
+      {
+        "path": "audio.sample_peak_db",
+        "description": "Current sample peak level"
+      },
+      {
+        "path": "track.volume_db",
+        "description": "Current track volume trim"
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "set_track_volume",
+    "reason": "Preview changing track volume from 5.000 dB to 2.000 dB to test whether true_peak_db decreases.",
+    "target": {
+      "track_guid": "{TRACK-BASS-01}",
+      "track_name": "Bass Guitar"
+    },
+    "current_value": {
+      "value": 5.0,
+      "unit": "db",
+      "display": "+5.0 dB"
+    },
+    "proposed_value": {
+      "value": 2.0,
+      "unit": "db",
+      "display": "+2.0 dB"
+    },
+    "goal": "true_peak_db",
+    "expected_direction": [
+      {
+        "metric": "true_peak_db",
+        "direction": "decrease"
+      }
+    ]
+  }
+}

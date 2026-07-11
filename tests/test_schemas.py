@@ -5,7 +5,7 @@ import json
 import pytest
 from pydantic import ValidationError
 
-from postmortem.schemas import DiagnosisResult
+from postmortem.schemas import DiagnosisResult, ProviderDiagnosisResult
 
 
 def _advice_only_result():
@@ -88,6 +88,38 @@ def test_advice_only_result_round_trips_deterministically():
 
     assert first == second
     assert DiagnosisResult.model_validate(json.loads(first)) == result
+
+
+def test_provider_contract_excludes_validator_owned_rejection_reason():
+    schema = ProviderDiagnosisResult.model_json_schema()
+
+    proposal_schema = schema["$defs"]["ProviderProposal"]
+    assert "rejection_reason" not in proposal_schema["properties"]
+
+
+def test_provider_contract_enumerates_supported_goal_and_metric_names():
+    schema = ProviderDiagnosisResult.model_json_schema()
+
+    goal_schema = schema["$defs"]["ProviderProposal"]["properties"]["goal"]
+    goal_enum = next(option["enum"] for option in goal_schema["anyOf"] if "enum" in option)
+    metric_enum = schema["$defs"]["ProviderExpectedMetricDirection"]["properties"][
+        "metric"
+    ]["enum"]
+
+    assert "sample_peak_db" in goal_enum
+    assert "sample_peak_db" in metric_enum
+    assert set(goal_enum) == set(metric_enum)
+
+
+def test_provider_contract_describes_exact_evidence_path_syntax():
+    schema = ProviderDiagnosisResult.model_json_schema()
+
+    description = schema["$defs"]["EvidenceRef"]["properties"]["path"][
+        "description"
+    ]
+
+    assert "exact leaf path" in description
+    assert "audio.sample_peak_db" in description
 
 
 def test_none_proposal_rejects_action_fields():

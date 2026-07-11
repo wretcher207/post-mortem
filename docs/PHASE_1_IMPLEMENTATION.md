@@ -457,6 +457,15 @@ threshold for primary findings: MiniMax M3 reached 12/25, DeepSeek V4 Flash
 structured move limits. See `evaluations/results/2026-07-11-model-benchmark.md`;
 Phase 1 model selection remains open.
 
+The first model-contract hardening iteration then separated the model-facing
+schema from public `DiagnosisResult`, reserved rejection state for deterministic
+code, constrained metric names, strengthened evidence-path instructions, and
+added runtime confidence/cross-track guards. A same-corpus rerun improved
+MiniMax M3 to 19/25 useful findings and 15/25 full-contract passes, DeepSeek V4
+Pro to 12/25 and 8/25, and DeepSeek V4 Flash to 11/25 and 8/25. MiniMax remains
+one useful finding short of the selection gate, so the configured default is
+unchanged. See `evaluations/results/2026-07-11-model-contract-v2-benchmark.md`.
+
 ## 7. Recommended pull request sequence
 
 1. **Reaper Daemon:** additive track/FX GUID response fields and tests.

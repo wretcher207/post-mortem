@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "The track has extremely wide stereo with negative phase correlation (-0.25), causing potential mono compatibility issues. Mid channel is 14 dB below side channel, indicating dominance of out-of-phase content.",
+    "probable_cause": "The enabled 'VST3: Generic Chorus' plugin is likely creating overly wide stereo spread, causing phase cancellation between channels.",
+    "confidence": "high",
+    "confidence_reason": "Capture isolation verified, low silence fraction, and stereo correlation measurement is unambiguous.",
+    "evidence_refs": [
+      {
+        "path": "audio.stereo.correlation",
+        "description": "Stereo correlation is -0.25, indicating significant out-of-phase content."
+      },
+      {
+        "path": "audio.stereo.mid_rms_db",
+        "description": "Mid channel RMS is -28.0 dB, very low."
+      },
+      {
+        "path": "audio.stereo.side_rms_db",
+        "description": "Side channel RMS is -14.0 dB, 14 dB higher than mid."
+      },
+      {
+        "path": "fx_chain[0].enabled",
+        "description": "The chorus plugin is currently enabled."
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "set_fx_bypass",
+    "reason": "Preview bypassing VST3: Generic Chorus; this does not remove or delete the plugin; to test whether stereo_correlation increases.",
+    "target": {
+      "track_guid": "{TRACK-SYNTH-02}",
+      "track_name": "Wide Synth",
+      "fx_guid": "{FX-CHORUS-01}",
+      "fx_index": 2,
+      "fx_scope": "track",
+      "fx_name": "VST3: Generic Chorus"
+    },
+    "current_value": {
+      "value": false,
+      "unit": "boolean"
+    },
+    "proposed_value": {
+      "value": true,
+      "unit": "boolean",
+      "display": "Bypassed"
+    },
+    "goal": "stereo_correlation",
+    "expected_direction": [
+      {
+        "metric": "stereo_correlation",
+        "direction": "increase"
+      }
+    ]
+  }
+}

@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "Kick track's true peak level is -0.1 dBFS, leaving negligible headroom and risking clipping on inter-sample peaks and downstream processing.",
+    "probable_cause": "Gain staging is too hot; the track level is driven close to full scale without any reduction in the FX chain or routing.",
+    "confidence": "high",
+    "confidence_reason": "Capture isolation verified, silence fraction is very low (0.05), and true peak measurement is explicit and reliable.",
+    "evidence_refs": [
+      {
+        "path": "audio.true_peak_db",
+        "description": "measured true peak level of -0.1 dBFS, dangerously close to 0 dBFS"
+      },
+      {
+        "path": "audio.sample_peak_db",
+        "description": "sample peak at -0.4 dBFS confirms high amplitude"
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "set_track_volume",
+    "reason": "Preview changing track volume from 0.000 dB to -2.000 dB to test whether true_peak_db decreases.",
+    "target": {
+      "track_guid": "{TRACK-KICK-01}",
+      "track_name": "Kick"
+    },
+    "current_value": {
+      "value": 0.0,
+      "unit": "db",
+      "display": "0.0 dB"
+    },
+    "proposed_value": {
+      "value": -2.0,
+      "unit": "db",
+      "display": "-2.0 dB"
+    },
+    "goal": "true_peak_db",
+    "expected_direction": [
+      {
+        "metric": "true_peak_db",
+        "direction": "decrease"
+      },
+      {
+        "metric": "rms_db",
+        "direction": "decrease"
+      },
+      {
+        "metric": "integrated_lufs",
+        "direction": "decrease"
+      }
+    ]
+  }
+}

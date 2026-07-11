@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "Stereo field is noticeably skewed to the right by 3.6 dB, potentially causing an off‑centre image. The track also shows a bass‑heavy tonal balance with a roll‑off in the highs, but no EQ plugin is present to address this.",
+    "probable_cause": "The source recording or the stereo track's channel balance is inherently offset, with the right channel louder than the left by 3.6 dB.",
+    "confidence": "high",
+    "confidence_reason": "The capture is isolation‑verified, silence_fraction is only 0.05, and the stereo balance metric is precise, leaving no doubt about the imbalance.",
+    "evidence_refs": [
+      {
+        "path": "audio.stereo.balance_db",
+        "description": "Right channel is 3.6 dB louder than left."
+      },
+      {
+        "path": "audio.stereo.correlation",
+        "description": "High phase correlation rules out out‑of‑phase issues as cause."
+      },
+      {
+        "path": "caption.isolation_verified",
+        "description": "Capture is confirmed isolated, so measurement reflects only this track."
+      },
+      {
+        "path": "audio.silence_fraction",
+        "description": "Negligible dead air ensures levels are not diluted by silence."
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "none",
+    "reason": "Moving the track pan slightly to the left will reduce the 3.6 dB right‑channel lead and centre the stereo image. This is a preview; final pan value should be tuned while monitoring the stereo balance meter.",
+    "expected_direction": [],
+    "rejection_reason": "evidence_path_missing"
+  }
+}

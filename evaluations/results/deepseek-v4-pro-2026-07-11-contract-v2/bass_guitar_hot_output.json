@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "The track is too hot: true peak is -0.3 dBFS, dangerously close to clipping, while the average level is low (integrated -20 LUFS, crest factor 12 dB). The +5 dB track fader is the culprit.",
+    "probable_cause": "The track volume is set to +5 dB, pushing a dynamic source with a 12 dB crest factor so that its true peaks hit -0.3 dBFS. No compression or limiting is in the chain to control the dynamics before the fader.",
+    "confidence": "high",
+    "confidence_reason": "Capture isolation is verified, silence fraction is low (0.05), and all key metrics are measured. The track has no FX, so the fader directly explains the peak level.",
+    "evidence_refs": [
+      {
+        "path": "audio.true_peak_db",
+        "description": "-0.3 dBFS, near clipping"
+      },
+      {
+        "path": "audio.crest_factor_db",
+        "description": "12 dB, indicating high dynamic range"
+      },
+      {
+        "path": "audio.integrated_lufs",
+        "description": "-20 LUFS, relatively quiet average level"
+      },
+      {
+        "path": "track.volume_db",
+        "description": "+5 dB, the current fader gain applied to the track"
+      },
+      {
+        "path": "audio.sample_peak_db",
+        "description": "-0.7 dBFS, confirming high peak level"
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "none",
+    "reason": "Lower the track fader to provide safe headroom. The current +5 dB boost causes true peaks at -0.3 dBFS, risking clipping. Reducing to 0 dB gives about 5.3 dB headroom, which is safer while a compressor can be added later to raise average loudness without hitting 0 dBFS.",
+    "expected_direction": [],
+    "rejection_reason": "move_limit_exceeded"
+  }
+}

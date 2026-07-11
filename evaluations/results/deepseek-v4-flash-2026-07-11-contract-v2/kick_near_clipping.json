@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "True peak is at -0.1 dB, leaving virtually no headroom and risking inter-sample clipping during playback or mix summing.",
+    "probable_cause": "The isolated kick track has its peak level set too high; no dynamic processing or gain staging is applied to the raw sample.",
+    "confidence": "high",
+    "confidence_reason": "Capture is verified isolated, silence fraction is negligible (0.05), and true peak measurement is -0.1 dB, a direct indicator of clipping risk.",
+    "evidence_refs": [
+      {
+        "path": "audio.true_peak_db",
+        "description": "Measured true peak of the isolated track at -0.1 dB"
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "set_track_volume",
+    "reason": "Preview changing track volume from 0.000 dB to -3.000 dB to test whether true_peak_db decreases.",
+    "target": {
+      "track_guid": "{TRACK-KICK-01}",
+      "track_name": "Kick"
+    },
+    "current_value": {
+      "value": 0.0,
+      "unit": "db",
+      "display": "0 dB"
+    },
+    "proposed_value": {
+      "value": -3.0,
+      "unit": "db",
+      "display": "-3 dB"
+    },
+    "goal": "true_peak_db",
+    "expected_direction": [
+      {
+        "metric": "true_peak_db",
+        "direction": "decrease"
+      },
+      {
+        "metric": "sample_peak_db",
+        "direction": "decrease"
+      },
+      {
+        "metric": "rms_db",
+        "direction": "decrease"
+      },
+      {
+        "metric": "integrated_lufs",
+        "direction": "decrease"
+      },
+      {
+        "metric": "crest_factor_db",
+        "direction": "unchanged"
+      }
+    ]
+  }
+}

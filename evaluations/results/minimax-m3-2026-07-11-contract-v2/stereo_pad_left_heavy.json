@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "Track is panned to center but the stereo snapshot shows a -4.1 dB L/R asymmetry with a correlation of only 0.74, producing an off-center image on a track named 'Stereo Pad' that should sit behind the listener.",
+    "probable_cause": "The level asymmetry is baked into the source material (an L/R recording mismatch, mid/side imbalance, or intentional layered panning in a stereo pad patch), so the centered pan knob (track.pan = 0.0) cannot recenter it. A 4.1 dB offset between channels at these mid/side levels produces a clearly sideways image while still being mono-compatible (correlation 0.74).",
+    "confidence": "medium",
+    "confidence_reason": "balance_db and correlation are direct measurements, but the sign of balance_db relative to L-vs-R depends on REAPER's convention; I am treating negative as left-louder per typical DAW practice. The origin of the asymmetry (recording vs intentional design) cannot be determined from this snapshot, and a corrective pan shift interacts with an unknown pan law, so the precise compensation is approximate.",
+    "evidence_refs": [
+      {
+        "path": "audio.stereo.balance_db",
+        "description": "-4.1 dB indicates roughly 4 dB level difference between the two channels"
+      },
+      {
+        "path": "audio.stereo.correlation",
+        "description": "0.74 is positive but on the low side, consistent with moderate width and channel-level differences"
+      },
+      {
+        "path": "track.pan",
+        "description": "Pan is 0.0 (center), so the asymmetry originates in the audio itself, not in the pan setting"
+      },
+      {
+        "path": "audio.stereo.mid_rms_db",
+        "description": "Mid energy at -18 dB confirms a mid-dominant (center-weighted) overall signal"
+      },
+      {
+        "path": "audio.stereo.side_rms_db",
+        "description": "Side energy 6 dB below mid is consistent with the observed level asymmetry"
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "none",
+    "reason": "Nudge the track to the right to offset the -4.1 dB L/R asymmetry. Because REAPER's pan law attenuates the louder side and the exact law is unknown, start with a moderate rightward pan and fine-tune by ear to bring stereo_balance_db toward 0 without overshooting; this addresses the only clearly observable issue on a track with no FX, no sends, and a centered current pan.",
+    "expected_direction": [],
+    "rejection_reason": "move_limit_exceeded"
+  }
+}

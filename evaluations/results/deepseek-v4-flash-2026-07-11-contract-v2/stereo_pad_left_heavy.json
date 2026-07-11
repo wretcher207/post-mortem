@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "Stereo pad has a -4.1 dB left-right balance offset (left channel louder).",
+    "probable_cause": "Source recording or inherent channel mismatch; no track pan or FX applied to correct.",
+    "confidence": "high",
+    "confidence_reason": "Direct measurement of stereo balance_db with low silence fraction (0.05) and verified isolated capture.",
+    "evidence_refs": [
+      {
+        "path": "audio.stereo.balance_db",
+        "description": "Measured left-right level difference: -4.1 dB (left louder than right)."
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "none",
+    "reason": "The track has no FX chain; track volume and pan operations cannot independently adjust left/right channel levels to correct a -4.1 dB imbalance. A dedicated stereo balance plugin would be required, but no FX is available. Therefore no actionable move is possible via the supported operations.",
+    "expected_direction": []
+  }
+}

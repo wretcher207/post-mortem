@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "Stereo balance is strongly skewed left by 3.6 dB, causing an off-center image.",
+    "probable_cause": "The source recording likely has a channel-level mismatch. No FX are present, so the imbalance is in the raw audio.",
+    "confidence": "high",
+    "confidence_reason": "silence fraction is very low (0.05) and capture isolation is verified; the balance measurement is reliable.",
+    "evidence_refs": [
+      {
+        "path": "audio.stereo.balance_db",
+        "description": "Measured stereo balance difference, positive indicates left louder."
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "none",
+    "reason": "The intrinsic stereo imbalance of 3.6 dB left-heavy can be compensated by panning slightly right in balance mode. A pan value of +0.258 approximates the required correction to equalize channel levels.",
+    "expected_direction": [],
+    "rejection_reason": "move_limit_exceeded"
+  }
+}
