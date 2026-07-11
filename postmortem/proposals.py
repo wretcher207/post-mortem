@@ -184,6 +184,12 @@ def validate_proposal(
             float(proposed.value) - float(current.value)
         ) > move_limit:
             return _reject(result, "move_limit_exceeded")
+        sanitized = result.proposal.model_copy(deep=True)
+        payload_display = str(parameter.get("formatted_value") or "").strip()
+        if sanitized.current_value.display != payload_display:
+            sanitized.current_value.display = None
+        sanitized.proposed_value.display = None
+        result = result.model_copy(update={"proposal": sanitized})
     if result.proposal.operation == "set_fx_bypass":
         enabled = fx.get("enabled")
         current = result.proposal.current_value
