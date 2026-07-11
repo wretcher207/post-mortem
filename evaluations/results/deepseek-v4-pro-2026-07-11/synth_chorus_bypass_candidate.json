@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "Severe phase cancellation indicated by negative stereo correlation (-0.25) and large disparity between mid (-28 dB) and side (-14 dB) RMS levels. This track will likely suffer from significant level loss and tonal changes when summed to mono, risking poor translation on mono playback systems.",
+    "probable_cause": "The enabled VST3: Generic Chorus effect is a modulation effect that commonly introduces width by creating small time delays and phase offsets, leading to out-of-phase content that cancels in the mid channel and boosts the side channel.",
+    "confidence": "medium",
+    "confidence_reason": "The measured correlation is strongly negative and the mid/side imbalance is extreme, which is characteristic of a wide chorus effect. The silence fraction is very low (0.05) so the statistics are reliable. However, without bypassing the effect we cannot rule out other sources of phase cancellation on the same track. The inference is strong but not certain.",
+    "evidence_refs": [
+      {
+        "path": "audio.stereo.correlation",
+        "description": "Stereo correlation coefficient."
+      },
+      {
+        "path": "audio.stereo.mid_rms_db",
+        "description": "Mid (sum) channel RMS level."
+      },
+      {
+        "path": "audio.stereo.side_rms_db",
+        "description": "Side (difference) channel RMS level."
+      },
+      {
+        "path": "fx_chain[0]",
+        "description": "The lone FX: VST3: Generic Chorus, enabled, no exposed parameters."
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "none",
+    "reason": "Temporarily bypassing the chorus will reveal whether it is the primary cause of the negative correlation and mid/side imbalance. This is a preview step to gather evidence, not a permanent removal. If correlation improves and mid level rises, the chorus needs adjustment (e.g., narrowing, mono-izing low frequencies, or applying a correlation meter) before committing to mix.",
+    "target": null,
+    "current_value": null,
+    "proposed_value": null,
+    "goal": null,
+    "expected_direction": [],
+    "rejection_reason": "unsupported_goal"
+  }
+}

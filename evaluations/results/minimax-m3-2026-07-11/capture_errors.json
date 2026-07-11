@@ -1,0 +1,14 @@
+[
+  {
+    "case_id": "pad_negative_correlation",
+    "attempt": 1,
+    "category": "incomplete_response",
+    "message": "Initial result exceeded the rejection_reason length limit; the single schema-repair response was empty."
+  },
+  {
+    "case_id": "backing_vocal_healthy_stereo",
+    "attempt": 1,
+    "category": "incomplete_response",
+    "message": "Initial result exceeded the rejection_reason length limit; the single schema-repair response was empty."
+  }
+]

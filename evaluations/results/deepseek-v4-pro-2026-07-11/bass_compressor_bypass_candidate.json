@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "The bass track is heavily over-compressed/limited, resulting in almost no dynamic variation. The loudness range (LRA) of 1.5 LU and crest factor of 2.5 dB indicate a signal that is essentially flat in level, which will lack punch and liveliness in a mix.",
+    "probable_cause": "The enabled 'VST3: Generic Limiter' in the FX chain is applying excessive gain reduction, squashing the bass dynamics. The source signal may also have limited dynamics, but the limiter is the primary suspect given the extreme measurements.",
+    "confidence": "high",
+    "confidence_reason": "The combination of an uncharacteristically low crest factor (2.5 dB) for a bass track and a loudness range of only 1.5 LU points almost certainly to heavy dynamics processing. The presence of a limiter as the sole plugin and the otherwise normal spectral balance (strong low end, rolled-off highs) leaves little other explanation.",
+    "evidence_refs": [
+      {
+        "path": "audio.loudness_range_lu",
+        "description": "Loudness range of 1.5 LU indicates almost no variation in loudness over the capture."
+      },
+      {
+        "path": "audio.crest_factor_db",
+        "description": "Crest factor of 2.5 dB is extremely low; a typical bass track exhibits 10–15 dB. This suggests hard limiting."
+      },
+      {
+        "path": "fx_chain.0.enabled",
+        "description": "The sole dynamics processor (a limiter) is enabled, making it the most likely cause of the overdynamically limited signal."
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "none",
+    "reason": "The extremely low dynamic range metrics strongly point to the limiter. Bypassing it will reveal whether the source audio has usable dynamics. This is a non-destructive preview; the plugin is not removed.",
+    "target": null,
+    "current_value": null,
+    "proposed_value": null,
+    "goal": null,
+    "expected_direction": [],
+    "rejection_reason": "evidence_path_missing"
+  }
+}

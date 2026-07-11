@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "Stereo image is skewed right by 3.6 dB even though the track pan is centered, indicating an uncorrected L/R imbalance in the source. Loudness, dynamics (crest factor 12 dB, LRA 8 LU), and the roughly 6 dB/octave descending tonal balance (100 Hz: -18, 1 kHz: -24, 4 kHz: -30 dB) are otherwise healthy for an unprocessed clean guitar. Silence fraction is low (0.05), so level and correlation readings are not diluted by dead air.",
+    "probable_cause": "Likely a recording/mic-placement artifact on the stereo guitar capture (asymmetric DI or mic levels, or off-center source). The track pan sits at 0.0, so the +3.6 dB R>L balance is not being addressed at the pan stage. Correlation 0.82 and side RMS 5 dB below mid RMS show there is genuine stereo content, so the bias is not a near-mono signal. Tonal balance, crest factor, and integrated LUFS (-20) are all in line with a clean, unprocessed electric guitar, so no EQ or dynamics move is justified from this snapshot alone.",
+    "confidence": "medium",
+    "confidence_reason": "The 3.6 dB balance offset is a direct, unambiguous measurement against a centered pan, but the exact corrective pan value depends on the project's pan law (equal-power vs -3/-4.5 dB center), which is not in the payload. The spectrum only has three 1/3-octave points, so tonal claims beyond 100 Hz–4 kHz are not supported.",
+    "evidence_refs": [
+      {
+        "path": "audio.stereo.balance_db",
+        "description": "+3.6 dB R-skewed stereo balance"
+      },
+      {
+        "path": "audio.stereo.correlation",
+        "description": "0.82 correlation, consistent with real stereo content, not a near-mono bias artifact"
+      },
+      {
+        "path": "audio.stereo.mid_rms_db",
+        "description": "Mid RMS -20 dB, side RMS -25 dB, side energy present"
+      },
+      {
+        "path": "track.pan",
+        "description": "Track pan at 0.0, balance not being corrected at the pan stage"
+      },
+      {
+        "path": "audio.silence_fraction",
+        "description": "0.05 silence; levels/correlations not diluted"
+      },
+      {
+        "path": "audio.crest_factor_db",
+        "description": "12 dB crest factor, healthy dynamics for clean guitar"
+      },
+      {
+        "path": "audio.spectrum_third_octave",
+        "description": "Descending 100 Hz -> 4 kHz slope, no anomaly flagged"
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "none",
+    "reason": "The capture is 3.6 dB louder on the right while the track pan is at center; a small left pan recenters the stereo image. Under an equal-power pan law, a normalized pan of roughly -0.25 reduces the right channel by ~3.6 dB relative to the left, which should bring stereo_balance_db back toward 0. Loudness, dynamics, and tone are healthy and do not require a move on this single track.",
+    "target": null,
+    "current_value": null,
+    "proposed_value": null,
+    "goal": null,
+    "expected_direction": [],
+    "rejection_reason": "move_limit_exceeded"
+  }
+}

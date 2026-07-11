@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "True peak exceeds 0 dBFS and spectrum shows excess low-end energy with deficient presence, indicating clipping risk and poor tonal balance.",
+    "probable_cause": "Raw vocal track has no processing; source audio has intersample peaks above 0 dBFS and a spectral tilt favoring low frequencies (100 Hz at –18 dBFS vs 4 kHz at –30 dBFS), likely due to microphone proximity effect or lack of high-frequency content.",
+    "confidence": "high",
+    "confidence_reason": "All measured metrics are from a verified isolated capture with low silence fraction; true_peak_db (0.8 dB) is unambiguous evidence of clipping, and the spectrum shows a 12 dB drop from 100 Hz to 4 kHz, well outside typical vocal balance.",
+    "evidence_refs": [
+      {
+        "path": "audio.true_peak_db",
+        "description": "True peak level of 0.8 dBFS exceeds 0 dBFS, indicating intersample clipping."
+      },
+      {
+        "path": "audio.spectrum_third_octave",
+        "description": "Third-octave levels: 100 Hz at –18 dBFS, 1 kHz at –24 dBFS, 4 kHz at –30 dBFS; low end is 12 dB hotter than high end."
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "none",
+    "reason": "Reducing track volume by 1.5 dB will bring the true peak below 0 dBFS, eliminating intersample clipping. This is a safe, immediate fix while acknowledging that tonal balance still requires EQ processing (not possible via current FX chain).",
+    "target": null,
+    "current_value": null,
+    "proposed_value": null,
+    "goal": null,
+    "expected_direction": [],
+    "rejection_reason": "unsupported_goal"
+  }
+}

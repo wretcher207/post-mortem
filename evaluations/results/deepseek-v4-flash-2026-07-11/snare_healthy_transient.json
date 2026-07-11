@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "Snare track has high crest factor and low integrated loudness relative to typical mixing targets, but without mixing context this may be intentional.",
+    "probable_cause": "The track is very dynamic (crest factor 14 dB) and quiet (integrated LUFS -20). The spectrum shows a strong 100 Hz component compared to 4 kHz, suggesting a dark or low-end heavy snare. No FX are present to shape dynamics or tone.",
+    "confidence": "medium",
+    "confidence_reason": "The evidence shows clear metrics but we cannot determine if these are problems without knowing the intended role of the snare in the mix. The silence fraction is low, so the measurements are not diluted.",
+    "evidence_refs": [
+      {
+        "path": "audio.sample_peak_db",
+        "description": "Peak sample level"
+      },
+      {
+        "path": "audio.true_peak_db",
+        "description": "True peak level"
+      },
+      {
+        "path": "audio.rms_db",
+        "description": "RMS level"
+      },
+      {
+        "path": "audio.crest_factor_db",
+        "description": "Crest factor"
+      },
+      {
+        "path": "audio.integrated_lufs",
+        "description": "Integrated LUFS loudness"
+      },
+      {
+        "path": "audio.spectrum_third_octave",
+        "description": "1/3-octave spectrum (100 Hz, 1 kHz, 4 kHz)"
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "none",
+    "reason": "Available operations (volume, pan) cannot address the dynamic range or tonal balance concerns without risking clipping or altering the intended character. Adding compression or EQ would be needed but cannot be proposed via the allowed operations.",
+    "target": null,
+    "current_value": null,
+    "proposed_value": null,
+    "goal": null,
+    "expected_direction": [
+      {
+        "metric": "integrated_lufs",
+        "direction": "unchanged"
+      },
+      {
+        "metric": "crest_factor_db",
+        "direction": "unchanged"
+      }
+    ],
+    "rejection_reason": null
+  }
+}

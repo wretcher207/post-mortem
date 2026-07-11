@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "Bass guitar track volume is set too high (+5 dB), resulting in near-clipping true peak (-0.3 dB) and insufficient headroom for mixing.",
+    "probable_cause": "Track fader boosted to +5 dB, likely to achieve perceived loudness in isolation without accounting for downstream mix bus headroom.",
+    "confidence": "high",
+    "confidence_reason": "Measured true peak (-0.3 dB) and sample peak (-0.7 dB) are close to 0 dBFS, directly attributable to the +5 dB track fader. Silence fraction is low (0.05), so peaks are not diluted by silence.",
+    "evidence_refs": [
+      {
+        "path": "track.volume_db",
+        "description": "Track fader set to +5 dB, reinforcing all levels."
+      },
+      {
+        "path": "audio.true_peak_db",
+        "description": "True peak at -0.3 dB, critically close to digital clipping."
+      },
+      {
+        "path": "audio.sample_peak_db",
+        "description": "Sample peak at -0.7 dB, also very high."
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "none",
+    "reason": "Reduce track volume to provide at least 3 dB headroom before mixing, preventing intersample clipping and allowing room for processing.",
+    "target": null,
+    "current_value": null,
+    "proposed_value": null,
+    "goal": null,
+    "expected_direction": [],
+    "rejection_reason": "unsupported_goal"
+  }
+}

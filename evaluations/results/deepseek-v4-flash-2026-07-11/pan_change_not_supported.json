@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "Near-mono stereo field and sparse spectrum data limit diagnostic certainty.",
+    "probable_cause": "The track exhibits a very high stereo correlation (0.91) with side RMS 12 dB below mid RMS, indicating the guitar is essentially mono. The spectrum offers only three bands, showing a 6 dB drop from 100 Hz to 1 kHz and another 6 dB drop to 4 kHz, which may suggest a lack of high-frequency content or simply incomplete measurement.",
+    "confidence": "medium",
+    "confidence_reason": "The capture has low silence (5%), so levels are reliable, but the spectrum resolution (3 bands) is too low to definitively judge tonal balance. The stereo image could be intentional (e.g., a centered clean guitar part).",
+    "evidence_refs": [
+      {
+        "path": "audio.stereo.correlation",
+        "description": "Correlation 0.91 indicates very narrow stereo."
+      },
+      {
+        "path": "audio.stereo.side_rms_db",
+        "description": "Side RMS -30 dB, 12 dB below mid RMS, confirming minimal stereo width."
+      },
+      {
+        "path": "audio.spectrum_third_octave",
+        "description": "Only three bands measured; levels suggest a downward slope from lows to highs but insufficient resolution."
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "none",
+    "reason": "No immediate corrective action can be justified: the near-mono field may be intentional for a centered guitar part, and the sparse spectrum does not support a precise tonal adjustment. Volume and pan settings are neutral (0 dB, centered). Adding stereo width or EQ would require inserting plugins, which is not within the allowed set_fx_param or set_fx_bypass operations.",
+    "target": null,
+    "current_value": null,
+    "proposed_value": null,
+    "goal": null,
+    "expected_direction": [
+      {
+        "metric": "stereo_correlation",
+        "direction": "unchanged"
+      }
+    ],
+    "rejection_reason": null
+  }
+}

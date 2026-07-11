@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "The stereo balance is shifted 3.6 dB towards the left channel, causing an off-center image.",
+    "probable_cause": "Input channel mismatch or recording imbalance between left and right.",
+    "confidence": "high",
+    "confidence_reason": "Low silence fraction and clear stereo balance measurement provide direct evidence.",
+    "evidence_refs": [
+      {
+        "path": "audio.stereo.balance_db",
+        "description": "Stereo balance (L-R difference) of 3.6 dB, indicating left channel is louder."
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "none",
+    "reason": "Attenuate the left channel to roughly compensate the 3.6 dB imbalance and center the guitar image.",
+    "target": null,
+    "current_value": null,
+    "proposed_value": null,
+    "goal": null,
+    "expected_direction": [],
+    "rejection_reason": "unsupported_goal"
+  }
+}

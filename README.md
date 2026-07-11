@@ -59,8 +59,8 @@ Real output, run on a kick drum:
 - The [Reaper Daemon](https://github.com/wretcher207/reaper-daemon) bridge,
   installed and running inside REAPER
 - Python 3.10+
-- An API key. A plain Anthropic key is all you need (it defaults to Claude
-  Opus). Any Anthropic-compatible endpoint works too (MiniMax is tested).
+- A provider API key. The recommended explicit configuration uses DeepSeek V4
+  Flash; MiniMax M3 can also be configured through its compatible endpoint.
 
 ## Install
 
@@ -86,18 +86,21 @@ won't be found yet. (No pipx? Install it first with
 `python3 -m pip install --user pipx`, use `python` on Windows, then run the two
 lines above.)
 
-**3. Config.** Create `~/.config/postmortem/config`. The whole file, for a
-plain Anthropic key, is two lines:
+**3. Config.** Create `~/.config/postmortem/config`. For DeepSeek V4 Flash:
 
 ```
-ANTHROPIC_API_KEY=<your key>
+POSTMORTEM_API_KEY=<your DeepSeek key>
+ANTHROPIC_BASE_URL=https://api.deepseek.com/anthropic
+POSTMORTEM_MODEL=deepseek-v4-flash
 REAPER_DAEMON_ROOT=/path/to/your/reaper-daemon/clone
 ```
 
-That's it. It defaults to Claude Opus. To use an Anthropic-compatible
-endpoint instead (MiniMax, etc.), add two more lines:
+The `ANTHROPIC_BASE_URL` name describes the compatible wire protocol used by
+the current transport; it does not mean the request goes to Anthropic. To use
+MiniMax M3 instead:
 
 ```
+POSTMORTEM_API_KEY=<your MiniMax key>
 ANTHROPIC_BASE_URL=https://api.minimax.io/anthropic
 POSTMORTEM_MODEL=MiniMax-M3
 ```
@@ -130,7 +133,11 @@ postmortem "Kick" --format json
 
 The validated diagnosis is the only content written to stdout. Progress and
 warnings remain on stderr. `--format json` cannot be combined with
-`--payload-only`; cross-track masking remains text-only in Phase 1.
+`--payload-only`; cross-track masking remains text-only in Phase 1. The JSON
+contract is currently `schema_version: 1`; see
+[`docs/STRUCTURED_RESULTS.md`](docs/STRUCTURED_RESULTS.md) before building a
+consumer. Existing scripts that scrape the human-readable headings should
+migrate to JSON using [`docs/MIGRATING_TEXT_CONSUMERS.md`](docs/MIGRATING_TEXT_CONSUMERS.md).
 
 `--force` only overrides the silence gate. It never overrides capture
 isolation, because full-mix audio is not safe evidence for a track diagnosis.
@@ -163,10 +170,32 @@ output.
 
 ## What it won't do (yet)
 
-No real-time monitoring, no automatic fix application, no fancy panel.
-Console output, one diagnosis,
-you apply the move with your own hands and ears. If the free version earns
-it, the batch and cross-track stuff is the natural next step.
+No real-time monitoring, no automatic fix application, and no preview panel.
+Phase 1 can describe a validated, policy-checked proposal, but it cannot execute
+or audition that proposal. Console output gives you one diagnosis; you apply
+the move with your own hands and ears.
+
+## Open-core boundary
+
+I'm keeping the Phase 1 engine open: capture and measurement, the CLI and MCP
+payloads, the versioned schemas, provider adapters, deterministic proposal
+validation, and offline evaluation fixtures. Reaper Daemon stays a separate
+MIT-licensed local bridge. Hosted credits, account features, history/sync, and
+the future docked preview/application experience may become the paid side. The
+current CLI still cannot apply a change to REAPER.
+
+## Develop and extend
+
+- [`docs/DEVELOPING.md`](docs/DEVELOPING.md) — install test dependencies, run
+  the cross-platform checks, and produce a fixture-backed JSON diagnosis.
+- [`docs/STRUCTURED_RESULTS.md`](docs/STRUCTURED_RESULTS.md) — schema fields,
+  operations, generated JSON Schema, and compatibility rules.
+- [`docs/PROVIDER_ADAPTERS.md`](docs/PROVIDER_ADAPTERS.md) — implement and test
+  another model provider without coupling the engine to its SDK.
+- [`docs/MIGRATING_TEXT_CONSUMERS.md`](docs/MIGRATING_TEXT_CONSUMERS.md) — move
+  scripts from presentation text to the versioned JSON contract.
+- [`evaluations/results/2026-07-11-model-benchmark.md`](evaluations/results/2026-07-11-model-benchmark.md)
+  — first full model comparison and the failed selection decision.
 
 ## Known rough edge
 

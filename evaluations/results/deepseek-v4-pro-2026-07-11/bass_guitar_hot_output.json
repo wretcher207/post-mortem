@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "Track is at risk of clipping: true peak is -0.3 dBTP, only 0.3 dB below full scale.",
+    "probable_cause": "The track volume is boosted by +5.0 dB, pushing a signal that already peaks at −5.3 dBTP (pre‑fader) dangerously close to 0 dBFS.",
+    "confidence": "high",
+    "confidence_reason": "The true peak measured is −0.3 dBTP, and the only gain change applied is the +5.0 dB track fader. Silence fraction is only 0.05, so the measurement is reliable.",
+    "evidence_refs": [
+      {
+        "path": "capture.audio.true_peak_db",
+        "description": "True peak level of the full‑scale audio is −0.3 dBTP."
+      },
+      {
+        "path": "track.volume_db",
+        "description": "Track volume fader is set to +5.0 dB."
+      },
+      {
+        "path": "capture.audio.sample_peak_db",
+        "description": "Sample peak is −0.7 dBFS, confirming true peak overshoot and near‑clipping condition."
+      },
+      {
+        "path": "capture.audio.silence_fraction",
+        "description": "Low silence fraction (0.05) indicates the measurement covers active material, not dead air."
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "none",
+    "reason": "The +5.0 dB boost causes the true peak to hit −0.3 dBTP. Lowering the fader to 0 dB reduces the true peak to approximately −5.3 dBTP, providing safe headroom without altering the internal signal dynamics.",
+    "target": null,
+    "current_value": null,
+    "proposed_value": null,
+    "goal": null,
+    "expected_direction": [],
+    "rejection_reason": "evidence_path_missing"
+  }
+}

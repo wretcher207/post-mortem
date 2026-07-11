@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "Sparse bass track with very high silence fraction (0.78); audible portions are at moderate loudness (integrated LUFS -20.0) with a bass-heavy spectrum, but no clear problem exists.",
+    "probable_cause": "The track contains intentional rests, so most of the capture is dead air. Peak level is low (-18 dBFS) but loudness measurement isolates the active audio to a reasonable level.",
+    "confidence": "low",
+    "confidence_reason": "High silence fraction dilutes peak and RMS statistics, making the overall picture uncertain. Without mix context, we cannot judge whether the track needs a level adjustment.",
+    "evidence_refs": [
+      {
+        "path": "audio.sample_peak_db",
+        "description": "Sample peak is -18.0 dBFS, but high silence fraction weakens its relevance."
+      },
+      {
+        "path": "audio.rms_db",
+        "description": "RMS is -42.0 dBFS, severely depressed by silence."
+      },
+      {
+        "path": "audio.integrated_lufs",
+        "description": "Integrated LUFS is -20.0, indicating the gated loudness of active audio segments."
+      },
+      {
+        "path": "audio.silence_fraction",
+        "description": "Silence fraction is 0.78, meaning most of the capture is dead air."
+      },
+      {
+        "path": "audio.spectrum_third_octave",
+        "description": "Spectrum shows a bass fundamental at 100 Hz (-18 dB) with falling higher frequencies, consistent with a synth bass."
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "none",
+    "reason": "High silence fraction (0.78) means most of the capture is dead air; statistics are diluted and confidence is low. The audible portions register an integrated LUFS of -20.0, which is within a typical range for a source track. Without context, raising the track volume could cause unintended level jumps when the bass plays. No clear actionable improvement is evident.",
+    "target": null,
+    "current_value": null,
+    "proposed_value": null,
+    "goal": null,
+    "expected_direction": [],
+    "rejection_reason": "Insufficient evidence to propose a safe change."
+  }
+}

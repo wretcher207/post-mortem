@@ -130,13 +130,17 @@ def _fx_bypass_result():
     return DiagnosisResult.model_validate(result.model_dump())
 
 
-def test_valid_conservative_track_volume_proposal_survives_unchanged():
+def test_valid_conservative_track_volume_proposal_remains_previewable():
     result = _track_volume_result()
 
     validated = validate_proposal(result, _payload())
 
-    assert validated == result
     assert validated.proposal.operation == "set_track_volume"
+    assert validated.finding == result.finding
+    assert validated.proposal.reason == (
+        "Preview changing track volume from -3.000 dB to -5.000 dB to test "
+        "whether sample_peak_db decreases."
+    )
 
 
 @pytest.mark.parametrize(
@@ -217,6 +221,22 @@ def test_track_volume_move_over_three_db_is_rejected():
     assert validated.proposal.rejection_reason == "move_limit_exceeded"
 
 
+def test_track_volume_reason_cannot_smuggle_a_larger_second_move():
+    result = _track_volume_result().model_copy(deep=True)
+    result.proposal.reason = (
+        "Preview -2 dB now, then reduce another 6 dB if the peak still looks hot."
+    )
+
+    validated = validate_proposal(result, _payload())
+
+    assert validated.proposal.operation == "set_track_volume"
+    assert validated.proposal.reason == (
+        "Preview changing track volume from -3.000 dB to -5.000 dB to test "
+        "whether sample_peak_db decreases."
+    )
+    assert "another 6 dB" not in render_diagnosis_text(validated)
+
+
 def test_track_pan_current_value_must_match_payload():
     result = _track_pan_result().model_copy(deep=True)
     result.proposal.current_value.value = 0.1
@@ -235,6 +255,22 @@ def test_track_pan_move_over_point_two_is_rejected():
 
     assert validated.proposal.operation == "none"
     assert validated.proposal.rejection_reason == "move_limit_exceeded"
+
+
+def test_track_pan_reason_cannot_smuggle_a_larger_second_move():
+    result = _track_pan_result().model_copy(deep=True)
+    result.proposal.reason = (
+        "Preview -0.15 now, then keep moving to -0.35 if it still feels narrow."
+    )
+
+    validated = validate_proposal(result, _payload())
+
+    assert validated.proposal.operation == "set_track_pan"
+    assert validated.proposal.reason == (
+        "Preview changing track pan from 0.000 to -0.150 to test whether "
+        "stereo_balance_db decreases."
+    )
+    assert "-0.35" not in render_diagnosis_text(validated)
 
 
 @pytest.mark.parametrize(
@@ -304,7 +340,10 @@ def test_fx_parameter_displays_are_limited_to_payload_verified_text():
     assert validated.proposal.current_value.display is None
     assert validated.proposal.proposed_value.display is None
     assert "-900 dB" not in validated.proposal.reason
-    assert "normalized 0.500 to 0.420" in validated.proposal.reason
+    assert validated.proposal.reason == (
+        "Preview changing VST3: Pro-Q 4 / Band 3 Gain from normalized 0.500 "
+        "to 0.420 to test whether spectrum_third_octave decreases."
+    )
 
 
 def test_fx_parameter_move_over_point_one_is_rejected_without_display_mapping():
@@ -357,6 +396,38 @@ def test_fx_bypass_must_explicitly_be_a_preview_not_a_deletion():
 
     assert validated.proposal.operation == "none"
     assert validated.proposal.rejection_reason == "fx_bypass_not_preview"
+
+
+def test_fx_bypass_reason_is_reduced_to_the_validated_preview():
+    result = _fx_bypass_result().model_copy(deep=True)
+    result.proposal.reason = (
+        "Preview bypassing this FX without deleting it, then lower the track 8 dB."
+    )
+
+    validated = validate_proposal(result, _payload())
+
+    assert validated.proposal.operation == "set_fx_bypass"
+    assert validated.proposal.reason == (
+        "Preview bypassing VST3: Pro-Q 4; this does not remove or delete the "
+        "plugin; to test whether sample_peak_db decreases."
+    )
+    assert "8 dB" not in render_diagnosis_text(validated)
+
+
+def test_fx_bypass_reason_names_the_reverse_enable_direction():
+    payload = _payload()
+    payload["fx_chain"][0]["enabled"] = False
+    result = _fx_bypass_result().model_copy(deep=True)
+    result.proposal.current_value.value = True
+    result.proposal.proposed_value.value = False
+
+    validated = validate_proposal(result, payload)
+
+    assert validated.proposal.operation == "set_fx_bypass"
+    assert validated.proposal.reason == (
+        "Preview enabling VST3: Pro-Q 4; this does not remove or delete the "
+        "plugin; to test whether sample_peak_db decreases."
+    )
 
 
 def test_unknown_goal_metric_rejects_the_proposal():

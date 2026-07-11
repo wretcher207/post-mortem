@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "Significant left-right level imbalance and overly bass-heavy tonal balance.",
+    "probable_cause": "The left channel is 4.1 dB louder than the right (balance_db: -4.1). The spectrum shows -18 dB at 100 Hz, -24 dB at 1 kHz, -30 dB at 4 kHz, indicating a strong low-frequency emphasis and weak highs, which may sound muddy.",
+    "confidence": "medium",
+    "confidence_reason": "Balance_db is a direct measurement; silence fraction is low (0.05) so measurement is reliable. Spectrum has only three bands; full picture unclear but indicates substantial roll-off and possible lack of clarity.",
+    "evidence_refs": [
+      {
+        "path": "audio.sample_peak_db",
+        "description": "Sample peak of -6.0 dBFS"
+      },
+      {
+        "path": "audio.true_peak_db",
+        "description": "True peak of -5.5 dBTP"
+      },
+      {
+        "path": "audio.rms_db",
+        "description": "Overall RMS of -18.0 dBFS"
+      },
+      {
+        "path": "audio.stereo.balance_db",
+        "description": "Balance is -4.1 dB (left channel louder)"
+      },
+      {
+        "path": "audio.stereo.correlation",
+        "description": "Correlation of 0.74 (moderate, not phase cancellation)"
+      },
+      {
+        "path": "audio.spectrum_third_octave",
+        "description": "Only three bands: 100 Hz at -18 dB, 1 kHz at -24 dB, 4 kHz at -30 dB"
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "none",
+    "reason": "Compensate for the left-heavy imbalance. Adjusting pan to the right will reduce left channel level relative to right, bringing the stereo balance closer to zero.",
+    "target": null,
+    "current_value": null,
+    "proposed_value": null,
+    "goal": null,
+    "expected_direction": [],
+    "rejection_reason": "unsupported_goal"
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "Left channel is 3.6 dB louder than right channel, creating an off-center stereo image.",
+    "probable_cause": "Uneven gain between left and right input channels during recording.",
+    "confidence": "high",
+    "confidence_reason": "Direct measurement of stereo balance shows a 3.6 dB left-right imbalance. The high correlation (0.82) suggests the source is essentially mono, so the imbalance is a gain mismatch rather than a deliberate stereo effect.",
+    "evidence_refs": [
+      {
+        "path": "audio.stereo.balance_db",
+        "description": "Measured left-right level difference: 3.6 dB (left louder)"
+      },
+      {
+        "path": "audio.stereo.correlation",
+        "description": "High correlation (0.82) confirms the channels are very similar, supporting a gain mismatch diagnosis"
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "none",
+    "reason": "Correct the left-right level imbalance by panning the stereo track slightly to the right, which attenuates the left channel relative to the right in REAPER's balance mode.",
+    "target": null,
+    "current_value": null,
+    "proposed_value": null,
+    "goal": null,
+    "expected_direction": [],
+    "rejection_reason": "unsupported_goal"
+  }
+}

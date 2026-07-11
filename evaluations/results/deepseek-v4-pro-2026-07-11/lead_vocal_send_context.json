@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "The vocal track has a dark tonal balance with a high-frequency roll-off, lacking presence and air.",
+    "probable_cause": "Microphone placement, distance, or the natural voice timbre, combined with no corrective EQ.",
+    "confidence": "medium",
+    "confidence_reason": "Only three 1/3-octave bands are available, but they show a monotonic level decrease from 100 Hz (-18 dBFS) to 4 kHz (-30 dBFS). The silence fraction is low (0.05), so the spectral capture is representative of the signal.",
+    "evidence_refs": [
+      {
+        "path": "audio.spectrum_third_octave",
+        "description": "Levels at 100 Hz, 1 kHz, and 4 kHz showing a 12 dB drop."
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "none",
+    "reason": "No EQ plugin is present on the track to correct the tonal balance. The only available operations (track volume, pan) are already at neutral settings (0 dB, center). The send level to the reverb is high (+4 dB) but cannot be adjusted through the available proposal operations, and the spectral issue is unrelated to reverb send level.",
+    "target": null,
+    "current_value": null,
+    "proposed_value": null,
+    "goal": "Improve clarity and presence by boosting high frequencies above 2 kHz.",
+    "expected_direction": [
+      {
+        "metric": "spectrum_third_octave",
+        "direction": "increase"
+      }
+    ],
+    "rejection_reason": null
+  }
+}

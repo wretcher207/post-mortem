@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "High silence fraction (0.78) dilutes all loudness measurements; the bass is present but very quiet on average, peaking at only -18 dBFS.",
+    "probable_cause": "The track's volume fader is at 0 dB but the source material contains extended silences (78% dead air), and the non‑silent portions are at a relatively low level.",
+    "confidence": "medium",
+    "confidence_reason": "The high silence fraction makes it hard to gauge the true loudness of the bass content; the measured integrated LUFS (-20) and RMS (-42) are pulled down by silence, so the actual bass notes might be louder than they appear.",
+    "evidence_refs": [
+      {
+        "path": "audio.silence_fraction",
+        "description": "Fraction of the capture that is silence (0.78)"
+      },
+      {
+        "path": "audio.integrated_lufs",
+        "description": "Integrated LUFS = -20 (diluted by silence)"
+      },
+      {
+        "path": "audio.rms_db",
+        "description": "RMS = -42 dB (very low, partly due to silence)"
+      },
+      {
+        "path": "audio.sample_peak_db",
+        "description": "Sample peak = -18 dB (moderate level for the non‑silent parts)"
+      },
+      {
+        "path": "audio.spectrum_third_octave",
+        "description": "Strong 100 Hz band (-18 dB), weaker highs - typical synth bass"
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "none",
+    "reason": "Increasing the track volume by 6 dB will raise the level of the bass notes, making the track more present and competitive in a mix, while leaving the silence fraction unchanged.",
+    "target": null,
+    "current_value": null,
+    "proposed_value": null,
+    "goal": null,
+    "expected_direction": [],
+    "rejection_reason": "unsupported_goal"
+  }
+}

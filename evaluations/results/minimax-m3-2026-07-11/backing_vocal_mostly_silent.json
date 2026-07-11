@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "Empty FX chain on a backing-vocal track whose capture is 92% silent; every level and spectral statistic is therefore heavily silence-diluted and only weakly actionable. True_peak_db (-5.5) sits 16.5 dB above sample_peak_db (-22.0), an unusually large true-peak/sample-peak gap that the single-track payload cannot explain. No FX, sends, receives, or parent bus exist, so the typical BGV processing path (HPF, compression, de-esser, delay/reverb) is entirely absent, but the supported operation set does not cover adding plugins.",
+    "probable_cause": "Active BGV content is present for only ~0.8 s of the 10 s capture (silence_fraction=0.92), so rms_db, integrated_lufs, and the 1/3-octave spectrum are averages driven mostly by the noise floor of the silent stretches; the in-active gain staging is unmeasurable from this buffer. The 16.5 dB true-peak vs sample-peak gap is far larger than typical inter-sample-peak headroom (~0–3 dB), which suggests either that the active transients carry heavy clipping/limiting upstream of this track or that the two metrics were taken at different points in the chain — neither can be confirmed from this payload. With fx_chain empty and routing empty, there is no inherent evidence of an EQ or level issue that an in-place operation could resolve.",
+    "confidence": "low",
+    "confidence_reason": "silence_fraction=0.92 renders numeric level/spectral evidence weak; fx_chain is empty so no FX-param move is available; stereo is null so balance/widening moves are unsupported; the unusual true_peak/sample_peak divergence is unresolved.",
+    "evidence_refs": [
+      {
+        "path": "audio.silence_fraction",
+        "description": "0.92 — dominates the capture with dead air, diluting every numeric level and spectral statistic"
+      },
+      {
+        "path": "audio.true_peak_db",
+        "description": "-5.5 dBTP — close to 0 dBFS during brief active moments and anomalously high for an unprocessed BGV track"
+      },
+      {
+        "path": "audio.sample_peak_db",
+        "description": "-22.0 dBFS — 16.5 dB below true peak, a gap far wider than typical inter-sample peaking"
+      },
+      {
+        "path": "audio.rms_db",
+        "description": "-55.0 dB — consistent with a silence-padded buffer; not a reliable indicator of active signal level"
+      },
+      {
+        "path": "audio.integrated_lufs",
+        "description": "-20.0 LUFS — heavily weighted by the 92% silence; not a reliable indicator of perceived BGV loudness"
+      },
+      {
+        "path": "audio.loudness_range_lu",
+        "description": "8.0 LU — within normal BGV range but confidence is low given silence dilution"
+      },
+      {
+        "path": "audio.crest_factor_db",
+        "description": "12.0 dB — typical for vocal but measured over a silence-padded buffer"
+      },
+      {
+        "path": "audio.spectrum_third_octave",
+        "description": "Sparse three-band readout (100 Hz -18, 1 kHz -24, 4 kHz -30 dB); the 100 Hz dominance is atypical for BGV and unreliable with silence_fraction=0.92"
+      },
+      {
+        "path": "audio.stereo",
+        "description": "null — no phase correlation, M/S, or L/R balance available"
+      },
+      {
+        "path": "fx_chain",
+        "description": "Empty array — no HPF, compressor, de-esser, or any other BGV processing is configured"
+      },
+      {
+        "path": "routing.sends",
+        "description": "Empty — no delay/reverb returns or bus sends defined"
+      },
+      {
+        "path": "track.volume_db",
+        "description": "0.0 dB — unity fader; no trim applied"
+      },
+      {
+        "path": "track.pan",
+        "description": "0.0 — centered"
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "none",
+    "reason": "No supported operation is safely grounded in the evidence. A set_track_volume move cannot be defended because rms_db and integrated_lufs are silence-diluted and the true_peak/sample_peak discrepancy would make any fader change a guess. set_track_pan lacks stereo data (audio.stereo is null). set_fx_param and set_fx_bypass have no target because fx_chain is empty. Returning none rather than fabricating a move.",
+    "target": null,
+    "current_value": null,
+    "proposed_value": null,
+    "goal": null,
+    "expected_direction": [],
+    "rejection_reason": "evidence_value_null"
+  }
+}

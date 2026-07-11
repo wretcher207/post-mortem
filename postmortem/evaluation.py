@@ -51,6 +51,12 @@ REQUIRED_SCENARIO_TAGS = frozenset(
     }
 )
 _CONFIDENCE_ORDER = {"low": 0, "medium": 1, "high": 2}
+_FINDING_FAILURE_PREFIXES = (
+    "missing required concept:",
+    "contains forbidden claim:",
+    "missing required evidence category:",
+    "confidence ",
+)
 _SENSITIVE_FRAGMENTS = (
     "/users/",
     "c:\\users\\",
@@ -311,21 +317,37 @@ def evaluate_snapshot(
 
     case_results = []
     passed = 0
+    finding_passed = 0
     for case in cases:
         result_path = directory / f"{case.case_id}.json"
         diagnosis = DiagnosisResult.model_validate_json(
             result_path.read_text(encoding="utf-8")
         )
         failures = evaluate_case(case, diagnosis)
+        finding_failures = [
+            failure
+            for failure in failures
+            if failure.startswith(_FINDING_FAILURE_PREFIXES)
+        ]
         if not failures:
             passed += 1
-        case_results.append({"case_id": case.case_id, "failures": failures})
+        if not finding_failures:
+            finding_passed += 1
+        case_results.append(
+            {
+                "case_id": case.case_id,
+                "finding_failures": finding_failures,
+                "failures": failures,
+            }
+        )
     return {
         "provider": manifest["provider"],
         "model": manifest["model"],
         "model_revision": manifest["model_revision"],
         "captured_at": manifest["captured_at"],
         "total": len(cases),
+        "finding_passed": finding_passed,
+        "finding_failed": len(cases) - finding_passed,
         "passed": passed,
         "failed": len(cases) - passed,
         "cases": case_results,

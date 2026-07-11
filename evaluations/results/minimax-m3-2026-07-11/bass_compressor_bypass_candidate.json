@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "Bass track is heavily over-limited. Crest factor is 2.5 dB and loudness range is only 1.5 LU — both far below the 6–10 dB crest and 3–6 LU range typical for a bass instrument — producing a flat, squashed tone. The track-level 'VST3: Generic Limiter' is the obvious culprit. Low silence_fraction (0.05) means these dynamics measurements are not diluted by dead air, so the diagnosis is reliable. Spectrum tilt (100 Hz at -18 dB, 1 kHz at -24 dB, 4 kHz at -30 dB) looks like a normal bass contour and is not the issue.",
+    "probable_cause": "The single FX on the chain is a limiter with no parameters reported in the payload, and its effect is consistent with an aggressive ceiling/low-threshold setting (or a fixed preset) that is collapsing transients and dynamic range on the bass. Integrated loudness (-20 LUFS) is moderate for a bass, but the tiny LRA and 2.5 dB crest factor indicate the limiter is catching essentially every transient.",
+    "confidence": "high",
+    "confidence_reason": "Crest factor, LRA, and the presence of a limiter on the FX chain all corroborate the diagnosis. silence_fraction=0.05 means the dynamics statistics are trustworthy, not averaged across silence.",
+    "evidence_refs": [
+      {
+        "path": "audio.crest_factor_db",
+        "description": "2.5 dB — abnormally low for a bass track."
+      },
+      {
+        "path": "audio.loudness_range_lu",
+        "description": "1.5 LU — extremely compressed dynamic range."
+      },
+      {
+        "path": "fx_chain",
+        "description": "Only one plugin: VST3: Generic Limiter, track-scope, enabled."
+      },
+      {
+        "path": "audio.silence_fraction",
+        "description": "0.05 — statistics are not diluted by silence."
+      },
+      {
+        "path": "audio.spectrum_third_octave",
+        "description": "Tonal balance is bass-tilted and unremarkable; not a spectral problem."
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "none",
+    "reason": "Bypass the limiter as a temporary preview to A/B whether restoring dynamics improves the bass. This does NOT delete or remove the plugin — it only toggles bypass so the original state can be restored instantly. After preview, the limiter should be re-engaged with a higher threshold / lower ratio (or replaced) so true peaks stay controlled while crest factor and LRA return to healthier values.",
+    "target": null,
+    "current_value": null,
+    "proposed_value": null,
+    "goal": null,
+    "expected_direction": [],
+    "rejection_reason": "unsupported_goal"
+  }
+}

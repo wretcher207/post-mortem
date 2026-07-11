@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "Stereo pad plays back with a -4.1 dB L/R imbalance despite a centered pan control; this is content-level asymmetry, not a routing problem. The three reported 1/3-octave bands show a steady ~6 dB/oct rolloff from 100 Hz to 4 kHz (dark tilt), but the spectrum snapshot is too sparse to act on. Loudness (-20 LUFS), true peak (-5.5 dBTP), crest factor (12 dB) and LRA (8 LU) are all healthy for a pad; no FX chain is loaded.",
+    "probable_cause": "The pad's underlying audio has built-in L/R asymmetry (typical of layered or stereo-widened pad patches where two sources are not perfectly level-matched). The track pan is at 0.0 so REAPER reproduces the imbalance faithfully. The dark tilt in the three measured bands could be source-patch voicing, but with bands below 100 Hz and above 4 kHz unreported, it is not safe to call the overall tonal balance dark.",
+    "confidence": "medium",
+    "confidence_reason": "Stereo balance is a direct, unambiguous measurement. Correlation 0.74 with side RMS 6 dB below mid is consistent with a moderately wide but still center-dominant pad, supporting the 'imbalance is baked into the content' reading. Tonal diagnosis is low confidence because only three 1/3-octave points are reported; everything outside 100 Hz–4 kHz is unknown.",
+    "evidence_refs": [
+      {
+        "path": "audio.stereo.balance_db",
+        "description": "-4.1 dB — L is louder than R"
+      },
+      {
+        "path": "track.pan",
+        "description": "0.0 — pan control is centered, so the bias is in the source, not the routing"
+      },
+      {
+        "path": "audio.stereo.correlation",
+        "description": "0.74 — moderately correlated, pad is still center-dominant"
+      },
+      {
+        "path": "audio.stereo.mid_rms_db",
+        "description": "-18.0 dB"
+      },
+      {
+        "path": "audio.stereo.side_rms_db",
+        "description": "-24.0 dB (side 6 dB below mid)"
+      },
+      {
+        "path": "audio.spectrum_third_octave",
+        "description": "Only 100 Hz / 1 kHz / 4 kHz reported at -18 / -24 / -30 dB; insufficient for an EQ recommendation"
+      },
+      {
+        "path": "audio.silence_fraction",
+        "description": "0.05 — measurements are not diluted by silence"
+      },
+      {
+        "path": "fx_chain",
+        "description": "Empty — no corrective M/S or EQ processor available"
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "set_track_pan",
+    "reason": "Pan slightly right to compensate for the -4.1 dB L-bias in the source. Exact amount depends on the project's stereo pan law (not reported in the payload): with REAPER's default -3 dB-center equal-power law a small right pan yields ~1–2 dB of recentering, while a 0 dB-center linear law moves more for the same value. +0.20 is a conservative starting point — verify by re-measuring audio.stereo.balance_db and nudge further toward +0.25…+0.35 if needed. A pan move cannot perfectly reconstruct center if the source asymmetry is non-gain-only (e.g. different material L vs R), but for a steady pad it will perceptually recenter the image. Cannot verify improvement without a before/after re-measurement.",
+    "target": {
+      "track_guid": "{TRACK-PAD-02}",
+      "track_name": "Stereo Pad",
+      "fx_guid": null,
+      "fx_index": null,
+      "fx_scope": null,
+      "fx_name": null,
+      "parameter_index": null,
+      "parameter_name": "pan"
+    },
+    "current_value": {
+      "value": 0.0,
+      "unit": "normalized_pan",
+      "display": "0.00 (C)"
+    },
+    "proposed_value": {
+      "value": 0.2,
+      "unit": "normalized_pan",
+      "display": "+0.20 (≈20% R)"
+    },
+    "goal": "stereo_balance_db",
+    "expected_direction": [
+      {
+        "metric": "stereo_balance_db",
+        "direction": "increase"
+      }
+    ],
+    "rejection_reason": null
+  }
+}

@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "Backing Vocal Stack is a clean, uncompressed stereo bus at unity fader with healthy headroom and reasonable mid/side balance. Two passive observations: (1) the spectrum is progressively dark — 4 kHz sits 12 dB below 100 Hz and 6 dB below 1 kHz, indicating a rolled-off top end; (2) the true peak is 3 dB above the sample peak, which is a notable inter-sample peak margin. The empty FX chain means neither can be addressed from within this track.",
+    "probable_cause": "The dark tilt (100 Hz at -18 dB, 1 kHz at -24 dB, 4 kHz at -30 dB) is a spectral shape consistent with a stacked-vocal bus that has either source material lacking air or a pre-existing low-pass somewhere upstream — but no FX exist on this track to confirm. The 3 dB sample-to-true-peak gap (sample_peak_db -8.5 vs true_peak_db -5.5) is larger than the typical ~1 dB ISP margin on a clean signal; on a vocal stack this often points to steep high-frequency content or pre-emphasis in the source, but with no limiter/EQ on the chain I cannot isolate it from here. Crest factor of 13.5 dB and LRA of 8 LU confirm the bus is uncompressed and dynamic. Stereo correlation 0.77 with side 6 dB below mid is a healthy, not phasey, image.",
+    "confidence": "medium",
+    "confidence_reason": "Silence fraction is 0.05, so the level and spectrum statistics are not diluted and can be trusted. Confidence is medium rather than high because the FX chain is empty — there is no way to verify whether the dark tilt or the ISP margin is being shaped by upstream processing on the source recordings themselves.",
+    "evidence_refs": [
+      {
+        "path": "audio.spectrum_third_octave",
+        "description": "100 Hz -18, 1 kHz -24, 4 kHz -30 dB — progressive 12 dB tilt from low to high"
+      },
+      {
+        "path": "audio.sample_peak_db",
+        "description": "-8.5 dBFS sample peak"
+      },
+      {
+        "path": "audio.true_peak_db",
+        "description": "-5.5 dB true peak, 3 dB above sample peak"
+      },
+      {
+        "path": "audio.crest_factor_db",
+        "description": "13.5 dB crest factor — uncompressed, dynamic material"
+      },
+      {
+        "path": "audio.loudness_range_lu",
+        "description": "8 LU LRA — moderate dynamics"
+      },
+      {
+        "path": "audio.stereo.correlation",
+        "description": "0.77 — healthy stereo image, not phasey"
+      },
+      {
+        "path": "audio.stereo.side_rms_db",
+        "description": "-28 dB, 6 dB below mid — reasonable width for a vocal stack"
+      },
+      {
+        "path": "audio.silence_fraction",
+        "description": "0.05 — capture is essentially active, statistics are reliable"
+      },
+      {
+        "path": "fx_chain",
+        "description": "Empty FX chain — no EQ, no limiter, no compressor available to act on"
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "none",
+    "reason": "The two observations worth addressing (dark spectral tilt and a 3 dB inter-sample peak margin) both require an EQ and/or a limiter to act on, but the FX chain is empty and the schema does not permit adding plugins — only adjusting existing ones. Track volume at 0.0 dB and pan at 0.0 are appropriate given -20 LUFS integrated, -22 dB RMS, and a near-zero balance; changing them without an explicit goal would be a guess. No safe move is supported by the current payload.",
+    "target": null,
+    "current_value": null,
+    "proposed_value": null,
+    "goal": null,
+    "expected_direction": [],
+    "rejection_reason": "No FX present; volume/pan already defensible. EQ/limiter moves not executable."
+  }
+}

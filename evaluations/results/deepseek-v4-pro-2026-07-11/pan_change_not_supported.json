@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "Track appears well-recorded with healthy levels, good dynamic range, and no visible defects.",
+    "probable_cause": "No issues detected; the raw guitar track is clean, properly gain-staged, and spectrally typical for a clean electric guitar.",
+    "confidence": "high",
+    "confidence_reason": "All key metrics fall within normal, usable ranges: modest crest factor, sufficient headroom, low silence fraction, and near-mono stereo field with excellent correlation. No processing artifacts or overloads are present.",
+    "evidence_refs": [
+      {
+        "path": "audio.true_peak_db",
+        "description": "True peak level of -5.5 dBFS indicates safe headroom."
+      },
+      {
+        "path": "audio.sample_peak_db",
+        "description": "Sample peak of -6.0 dBFS confirms no digital clips."
+      },
+      {
+        "path": "audio.rms_db",
+        "description": "RMS level of -18 dBFS reflects average loudness."
+      },
+      {
+        "path": "audio.crest_factor_db",
+        "description": "Crest factor 12 dB is moderate and preserves transient detail."
+      },
+      {
+        "path": "audio.integrated_lufs",
+        "description": "Integrated LUFS of -20.0 is reasonable for a raw track."
+      },
+      {
+        "path": "audio.stereo.correlation",
+        "description": "Correlation 0.91 confirms a strong, in-phase mono source."
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "none",
+    "reason": "No corrective action is warranted. All measured attributes are consistent with a well-recorded clean guitar track. No FX are present, and the signal does not need gain, pan, or spectral adjustments based on single-track evidence.",
+    "target": null,
+    "current_value": null,
+    "proposed_value": null,
+    "goal": null,
+    "expected_direction": [],
+    "rejection_reason": null
+  }
+}

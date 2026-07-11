@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "The track is 92% silence, making integrated loudness (-20 LUFS) and RMS (-55 dBFS) unreliable indicators of vocal level. Active content true peak is -5.5 dBTP, but the track spends most of its time silent.",
+    "probable_cause": "Source audio contains long pauses or was edited to silence between phrases; no gating plugin is present in the empty FX chain.",
+    "confidence": "high",
+    "confidence_reason": "silence_fraction is a direct objective measurement from the isolated capture.",
+    "evidence_refs": [
+      {
+        "path": "audio.silence_fraction",
+        "description": "92% dead air dilutes all level statistics"
+      },
+      {
+        "path": "audio.rms_db",
+        "description": "-55 dBFS RMS reflects silence dominance"
+      },
+      {
+        "path": "audio.integrated_lufs",
+        "description": "-20 LUFS integrated, but biased by silence"
+      },
+      {
+        "path": "audio.spectrum_third_octave",
+        "description": "1/3-octave bands show low levels due to averaging over silence"
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "none",
+    "reason": "No FX, routing, or track parameter adjustments can address a 92% silence fraction. This requires waveform editing outside the allowed operations (set volume/pan/FX).",
+    "target": null,
+    "current_value": null,
+    "proposed_value": null,
+    "goal": null,
+    "expected_direction": [],
+    "rejection_reason": null
+  }
+}

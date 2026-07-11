@@ -127,6 +127,25 @@ def _states_preview_not_deletion(reason):
     return "preview" in text and non_destructive
 
 
+def _expected_metric_reason(proposal):
+    expected = next(
+        (
+            item
+            for item in proposal.expected_direction
+            if item.metric == proposal.goal
+        ),
+        proposal.expected_direction[0],
+    )
+    predicate = {
+        "increase": "increases",
+        "decrease": "decreases",
+        "not_increase": "does not increase",
+        "not_decrease": "does not decrease",
+        "unchanged": "stays unchanged",
+    }[expected.direction]
+    return f"to test whether {expected.metric} {predicate}"
+
+
 def validate_proposal(
     result: DiagnosisResult,
     payload: Mapping,
@@ -198,7 +217,7 @@ def validate_proposal(
         sanitized.reason = (
             f"Preview changing {target.fx_name} / {target.parameter_name} from "
             f"normalized {float(current.value):.3f} to "
-            f"{float(proposed.value):.3f}."
+            f"{float(proposed.value):.3f} {_expected_metric_reason(sanitized)}."
         )
         result = result.model_copy(update={"proposal": sanitized})
     if result.proposal.operation == "set_fx_bypass":
@@ -217,6 +236,13 @@ def validate_proposal(
             return _reject(result, "fx_bypass_evidence_missing")
         if not _states_preview_not_deletion(result.proposal.reason):
             return _reject(result, "fx_bypass_not_preview")
+        sanitized = result.proposal.model_copy(deep=True)
+        action = "bypassing" if proposed.value else "enabling"
+        sanitized.reason = (
+            f"Preview {action} {target.fx_name}; this does not remove or delete "
+            f"the plugin; {_expected_metric_reason(sanitized)}."
+        )
+        result = result.model_copy(update={"proposal": sanitized})
     if result.proposal.operation == "set_track_volume":
         actual = track.get("volume_db")
         current = result.proposal.current_value
@@ -236,6 +262,13 @@ def validate_proposal(
             float(proposed.value) - float(current.value)
         ) > 3.0:
             return _reject(result, "move_limit_exceeded")
+        sanitized = result.proposal.model_copy(deep=True)
+        sanitized.reason = (
+            "Preview changing track volume from "
+            f"{float(current.value):.3f} dB to {float(proposed.value):.3f} dB "
+            f"{_expected_metric_reason(sanitized)}."
+        )
+        result = result.model_copy(update={"proposal": sanitized})
     if result.proposal.operation == "set_track_pan":
         actual = track.get("pan")
         current = result.proposal.current_value
@@ -255,4 +288,11 @@ def validate_proposal(
             float(proposed.value) - float(current.value)
         ) > 0.20:
             return _reject(result, "move_limit_exceeded")
+        sanitized = result.proposal.model_copy(deep=True)
+        sanitized.reason = (
+            "Preview changing track pan from "
+            f"{float(current.value):.3f} to {float(proposed.value):.3f} "
+            f"{_expected_metric_reason(sanitized)}."
+        )
+        result = result.model_copy(update={"proposal": sanitized})
     return result

@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "True peak is significantly higher than sample peak, indicating potential intersample peaks or very short transients that could cause clipping when summed with other tracks.",
+    "probable_cause": "High crest factor (12 dB) combined with a silence fraction of 0.38 suggests that the non‑silent portions are much louder than the averaged levels, and the true peak reaches -5.5 dBFS, leaving little headroom.",
+    "confidence": "low",
+    "confidence_reason": "The 38% silence dilutes all level measurements; the actual signal levels during active portions may be even higher than reported, but we cannot be certain without segmenting the capture.",
+    "evidence_refs": [
+      {
+        "path": "audio.true_peak_db",
+        "description": "True peak at -5.5 dBFS, very close to 0 dBFS."
+      },
+      {
+        "path": "audio.sample_peak_db",
+        "description": "Sample peak at -16 dBFS, much lower than true peak."
+      },
+      {
+        "path": "audio.crest_factor_db",
+        "description": "Crest factor of 12 dB indicates high dynamic range, typical of a pad but with potential for peaks."
+      },
+      {
+        "path": "audio.silence_fraction",
+        "description": "38% silence suggests measured RMS and LUFS are diluted; true peak may be more representative of loudest moments."
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "none",
+    "reason": "Reducing track volume by 6 dB provides 6 dB more headroom below 0 dBFS, lowering the true peak from -5.5 dBFS to approximately -11.5 dBFS, reducing clipping risk during mixdown. The track currently has no FX chain so volume is the only available adjustment.",
+    "target": null,
+    "current_value": null,
+    "proposed_value": null,
+    "goal": null,
+    "expected_direction": [],
+    "rejection_reason": "unsupported_goal"
+  }
+}

@@ -1,0 +1,101 @@
+# Structured Track Check result
+
+`postmortem "Kick" --format json` writes one validated `DiagnosisResult` to
+stdout. Progress and warnings go to stderr. This contract applies only to the
+single-track Track Check; Phase 1 cross-track masking output remains text.
+
+The executable contract is `postmortem/schemas.py`. Generate standards-based
+JSON Schema from the installed package when another language or service needs
+it:
+
+```bash
+python -c "import json; from postmortem.schemas import DiagnosisResult; print(json.dumps(DiagnosisResult.model_json_schema(), indent=2))" > diagnosis-result-v1.schema.json
+```
+
+## Version 1 shape
+
+Every object rejects unknown fields. User-facing strings and collections have
+bounded lengths, numeric values must be finite, and invalid conditional fields
+fail validation.
+
+```json
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "The measured peak leaves very little headroom.",
+    "probable_cause": "The track output level is close to clipping.",
+    "confidence": "high",
+    "confidence_reason": "The verified isolated capture has a measured peak.",
+    "evidence_refs": [
+      {"path": "audio.sample_peak_db", "description": "Measured sample peak"}
+    ]
+  },
+  "proposal": {
+    "operation": "none",
+    "reason": "Keep this as advice until a safe move is supported.",
+    "target": null,
+    "current_value": null,
+    "proposed_value": null,
+    "goal": null,
+    "expected_direction": [],
+    "rejection_reason": null
+  }
+}
+```
+
+`finding.evidence_refs[].path` is a path into the exact Track Check payload sent
+to the provider. Post Mortem verifies that referenced values exist and are not
+null before it exposes an actionable proposal.
+
+`proposal.operation` is one of:
+
+- `none`
+- `set_track_volume`
+- `set_track_pan`
+- `set_fx_param`
+- `set_fx_bypass`
+
+An actionable proposal requires a target, current and proposed values, a goal,
+and at least one expected metric direction. FX operations also require the real
+track GUID plus the FX GUID, zero-based index within its scope, scope, and
+verified name. Parameter moves add the verified parameter index and name.
+Names are descriptive checks; GUIDs are stable identity. The deterministic
+validator can replace an unsafe action with `operation: "none"` while preserving
+the finding and recording `rejection_reason` for machines.
+
+For an accepted actionable proposal, Post Mortem rewrites `proposal.reason`
+from the validated structured values and expected metric direction. Provider
+prose cannot add a second move or describe a value beyond the conservative
+limits, while the rendered move still says why the change is being previewed.
+
+Value units are explicit:
+
+- track volume: `db`
+- track pan: `normalized_pan`, from `-1.0` to `1.0`
+- FX parameter: `normalized`, from `0.0` to `1.0`
+- FX bypass: `boolean`
+
+`expected_direction[].direction` is `increase`, `decrease`, `not_increase`,
+`not_decrease`, or `unchanged`. Supported metric names live in
+`postmortem.proposals.SUPPORTED_METRICS` and are validated after the provider
+response.
+
+## Compatibility policy
+
+Consumers must inspect `schema_version` before reading the rest of the object.
+Version `1` is the only accepted version today.
+
+- Version 1 is a closed shape: unknown fields are rejected. New fields, removed
+  fields, changes in requiredness, and enum additions require a new integer
+  schema version.
+- Existing field meaning, units, and enum values will not change within
+  version 1.
+- A breaking shape or semantic change requires a new integer version and a
+  documented migration. The current runtime will fail closed on an unsupported
+  version instead of guessing.
+- Preserve the original JSON if forwarding it. Do not reconstruct identities
+  from display names or mutable indices.
+
+The schema describes a proposal, not permission to mutate REAPER. Phase 1 has no
+preview or application path; consumers must not treat an actionable operation
+as already auditioned, approved, or applied.

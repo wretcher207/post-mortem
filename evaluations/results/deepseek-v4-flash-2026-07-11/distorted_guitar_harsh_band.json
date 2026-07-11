@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "Track level is too low; integrated loudness is -20 LUFS, which is well below typical mix levels for a distorted guitar. This will likely cause the track to lack impact and presence in a full mix.",
+    "probable_cause": "No makeup gain or volume adjustment applied; the track's output is at the raw level of the recorded signal without any additional gain staging.",
+    "confidence": "high",
+    "confidence_reason": "Integrated LUFS, RMS, sample peak, and true peak all consistently indicate significant headroom. The track is a distorted guitar, which is typically a foreground element, so raising its level is a justified corrective action.",
+    "evidence_refs": [
+      {
+        "path": "audio.integrated_lufs",
+        "description": "Integrated LUFS = -20.0, well below typical target of -14 LUFS"
+      },
+      {
+        "path": "audio.rms_db",
+        "description": "RMS = -18.0 dB, low for a distorted guitar"
+      },
+      {
+        "path": "audio.sample_peak_db",
+        "description": "Sample peak = -6.0 dB, indicating available headroom"
+      },
+      {
+        "path": "audio.true_peak_db",
+        "description": "True peak = -5.5 dB, further headroom"
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "none",
+    "reason": "Increasing track volume by 6 dB will bring integrated loudness closer to -14 LUFS, making the distorted guitar more appropriately leveled for a mix without altering its tone or dynamics.",
+    "target": null,
+    "current_value": null,
+    "proposed_value": null,
+    "goal": null,
+    "expected_direction": [],
+    "rejection_reason": "unsupported_goal"
+  }
+}

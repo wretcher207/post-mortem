@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "Track contains no audible content; all level metrics indicate silence (sample peak -120 dBFS, RMS -120 dBFS, silence fraction 1.0).",
+    "probable_cause": "No media item present or media item contains only silence. The track is effectively dead air.",
+    "confidence": "high",
+    "confidence_reason": "Silence fraction is 1.0 and both sample peak and RMS are at the noise floor (-120 dBFS), confirming absence of audio.",
+    "evidence_refs": [
+      {
+        "path": "capture.note",
+        "description": "Indicates verified isolated fixture capture, but no signal present."
+      },
+      {
+        "path": "audio.sample_peak_db",
+        "description": "Sample peak at -120 dBFS, effectively silence."
+      },
+      {
+        "path": "audio.rms_db",
+        "description": "RMS level at -120 dBFS, effectively silence."
+      },
+      {
+        "path": "audio.silence_fraction",
+        "description": "Fraction of dead air is 1.0, confirming full silence."
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "none",
+    "reason": "Track is silent; no corrective action can be recommended without additional context (e.g., intended silence placeholder or missing source).",
+    "target": null,
+    "current_value": null,
+    "proposed_value": null,
+    "goal": null,
+    "expected_direction": [
+      {
+        "metric": "silence_fraction",
+        "direction": "unchanged"
+      }
+    ],
+    "rejection_reason": null
+  }
+}

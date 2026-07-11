@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "Tonal balance is excessively dark; strong low end at 100 Hz with significant roll-off above, making the clean guitar sound muddy and lacking presence.",
+    "probable_cause": "The recorded source likely has limited high-frequency content, and no EQ is applied to brighten the tone.",
+    "confidence": "high",
+    "confidence_reason": "The spectrum shows a clear 6 dB drop per octave upward from 100 Hz to 4 kHz, which is consistent with a dark tone; silence fraction is low so measurements are reliable.",
+    "evidence_refs": [
+      {
+        "path": "audio.spectrum_third_octave[0].level_db",
+        "description": "100 Hz band at -18 dBFS"
+      },
+      {
+        "path": "audio.spectrum_third_octave[1].level_db",
+        "description": "1 kHz band at -24 dBFS (6 dB below 100 Hz)"
+      },
+      {
+        "path": "audio.spectrum_third_octave[2].level_db",
+        "description": "4 kHz band at -30 dBFS (12 dB below 100 Hz)"
+      },
+      {
+        "path": "audio.crest_factor_db",
+        "description": "Crest factor 12 dB indicates moderate dynamics, not overcompressed"
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "none",
+    "reason": "No EQ or other tonal-shaping FX in the chain; the only supported operations (volume, pan) cannot address the spectral imbalance.",
+    "target": null,
+    "current_value": null,
+    "proposed_value": null,
+    "goal": null,
+    "expected_direction": [],
+    "rejection_reason": null
+  }
+}

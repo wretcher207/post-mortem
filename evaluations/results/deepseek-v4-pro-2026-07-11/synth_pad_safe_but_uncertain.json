@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "The track exhibits excessive inter-sample peaks (true peak -5.5 dBFS vs sample peak -16 dBFS) due to the source material, with 38% silence diluting RMS and loudness measurements.",
+    "probable_cause": "Natural dynamic content or harmonic distortion in the pad sound causing overshoot; no processing present to mitigate.",
+    "confidence": "medium",
+    "confidence_reason": "True peak and sample peak are directly measured; silence fraction reduces confidence that RMS and loudness metrics fully reflect active signal but does not affect peak detection.",
+    "evidence_refs": [
+      {
+        "path": "audio.sample_peak_db",
+        "description": "Sample peak -16 dBFS"
+      },
+      {
+        "path": "audio.true_peak_db",
+        "description": "True peak -5.5 dBFS"
+      },
+      {
+        "path": "audio.silence_fraction",
+        "description": "Silence fraction 0.38"
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "none",
+    "reason": "True peak is -5.5 dBFS while sample peak is -16 dBFS, indicating 10.5 dB of inter-sample overshoot that risks digital clipping; reducing track volume by 3 dB provides a safety margin without significantly affecting loudness.",
+    "target": null,
+    "current_value": null,
+    "proposed_value": null,
+    "goal": null,
+    "expected_direction": [],
+    "rejection_reason": "unsupported_goal"
+  }
+}

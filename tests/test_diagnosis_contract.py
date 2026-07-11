@@ -193,6 +193,8 @@ def test_offline_snapshot_evaluator_uses_pinned_captured_results(tmp_path):
     assert summary["model_revision"] == manifest["model_revision"]
     assert summary["passed"] == 1
     assert summary["failed"] == 0
+    assert summary["finding_passed"] == 1
+    assert summary["finding_failed"] == 0
 
 
 def test_offline_snapshot_requires_a_pinned_model_revision(tmp_path):

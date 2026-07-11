@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "The track has a strong low-frequency emphasis with a significant high-frequency roll-off, and the stereo image is noticeably biased to the left.",
+    "probable_cause": "The source sound is inherently warm and bass-heavy, with subdued treble. The stereo imbalance likely exists in the played audio or from an upstream panning stage, not from track settings.",
+    "confidence": "high",
+    "confidence_reason": "Low silence fraction (0.05) ensures reliable level statistics. The spectral tilt and stereo balance are directly measured with clear numeric evidence.",
+    "evidence_refs": [
+      {
+        "path": "audio.spectrum_third_octave",
+        "description": "100 Hz at -18 dBFS, 1 kHz at -24 dBFS, 4 kHz at -30 dBFS – a 12 dB drop, indicating dullness."
+      },
+      {
+        "path": "audio.stereo.balance_db",
+        "description": "Stereo balance of -4.1 dB means left channel is louder than right."
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "none",
+    "reason": "The -4.1 dB left-heavy balance can be corrected by panning slightly to the right, recentering the stereo image.",
+    "target": null,
+    "current_value": null,
+    "proposed_value": null,
+    "goal": null,
+    "expected_direction": [],
+    "rejection_reason": "unsupported_goal"
+  }
+}
