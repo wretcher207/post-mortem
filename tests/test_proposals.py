@@ -282,9 +282,9 @@ def test_fx_parameter_current_value_must_match_payload():
     assert validated.proposal.rejection_reason == "current_value_mismatch"
 
 
-def test_fx_parameter_move_over_point_two_is_rejected_when_display_is_known():
+def test_formatted_value_does_not_count_as_a_verified_display_mapping():
     result = _fx_parameter_result().model_copy(deep=True)
-    result.proposal.proposed_value.value = 0.71
+    result.proposal.proposed_value.value = 0.61
 
     validated = validate_proposal(result, _payload())
 
@@ -312,6 +312,16 @@ def test_fx_bypass_current_state_must_match_payload_enabled_state():
 
     assert validated.proposal.operation == "none"
     assert validated.proposal.rejection_reason == "current_value_mismatch"
+
+
+def test_fx_bypass_must_change_the_current_bypass_state():
+    result = _fx_bypass_result().model_copy(deep=True)
+    result.proposal.proposed_value.value = False
+
+    validated = validate_proposal(result, _payload())
+
+    assert validated.proposal.operation == "none"
+    assert validated.proposal.rejection_reason == "proposed_value_unchanged"
 
 
 def test_fx_bypass_requires_evidence_that_directly_cites_the_fx():

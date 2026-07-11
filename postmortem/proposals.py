@@ -175,8 +175,10 @@ def validate_proposal(
             )
         ):
             return _reject(result, "current_value_mismatch")
-        display_known = bool(str(parameter.get("formatted_value") or "").strip())
-        move_limit = 0.20 if display_known else 0.10
+        # A current formatted value is only one point, not a verified mapping
+        # between normalized and displayed values. The payload has no mapping
+        # metadata yet, so all Phase 1 FX parameter moves use the strict default.
+        move_limit = 0.10
         proposed = result.proposal.proposed_value
         if proposed is None or abs(
             float(proposed.value) - float(current.value)
@@ -185,12 +187,15 @@ def validate_proposal(
     if result.proposal.operation == "set_fx_bypass":
         enabled = fx.get("enabled")
         current = result.proposal.current_value
+        proposed = result.proposal.proposed_value
         if (
             not isinstance(enabled, bool)
             or current is None
             or current.value is not (not enabled)
         ):
             return _reject(result, "current_value_mismatch")
+        if proposed is None or proposed.value is current.value:
+            return _reject(result, "proposed_value_unchanged")
         if not _evidence_cites_fx(result, payload, fx):
             return _reject(result, "fx_bypass_evidence_missing")
         if not _states_preview_not_deletion(result.proposal.reason):
