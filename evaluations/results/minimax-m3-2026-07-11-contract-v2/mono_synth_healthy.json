@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "Dynamics and gain staging are healthy: -8.0 dB sample peak with -5.5 dB true peak (about 2.5 dB of reconstruction overshoot), -20.0 dB RMS matching -20.0 LUFS integrated, and a 12.0 dB crest factor that is neither crushed nor overly dynamic. Capture is verified isolated with only 0.05 silence_fraction, so the measurements are trustworthy. The 1/3-octave spectrum is dark — 100 Hz at -18.0 dB, 1 kHz at -24.0 dB, 4 kHz at -30.0 dB — a roughly 12 dB downward tilt from low to high. The fx_chain is empty, so this is the raw synth output with no EQ or dynamics processing in line.",
+    "probable_cause": "The dark tilt is consistent with the raw voicing of a mono synth patch (likely a saw/square waveform with some sub or LP-filter resonance) rather than a problem. With no EQ insert and no reference target — neither a tonal curve nor cross-track context — there is no defensible way to confirm whether the tilt is intentional or excessive, and no FX in the chain to act on.",
+    "confidence": "medium",
+    "confidence_reason": "audio.silence_fraction is 0.05 and capture.isolation_verified is true, so levels and spectrum are reliable. Confidence drops from high to medium because the only actionable question (is the dark tilt correct?) cannot be answered from a single track: there is no EQ to address it and no tonal reference to compare against.",
+    "evidence_refs": [
+      {
+        "path": "audio.sample_peak_db",
+        "description": "Sample peak at -8.0 dB leaves substantial headroom above the -5.5 dB true peak."
+      },
+      {
+        "path": "audio.true_peak_db",
+        "description": "True peak -5.5 dB confirms ~2.5 dB of inter-sample overshoot above sample peak."
+      },
+      {
+        "path": "audio.rms_db",
+        "description": "RMS at -20.0 dB matches integrated LUFS, indicating a typical synth RMS level at unity."
+      },
+      {
+        "path": "audio.crest_factor_db",
+        "description": "12.0 dB crest factor is healthy — not over-limited, not unusually dynamic."
+      },
+      {
+        "path": "audio.integrated_lufs",
+        "description": "Integrated loudness -20.0 LUFS, consistent with RMS."
+      },
+      {
+        "path": "audio.loudness_range_lu",
+        "description": "8.0 LU LRA — moderate dynamic variation, no aggressive compression evident at this stage."
+      },
+      {
+        "path": "audio.silence_fraction",
+        "description": "0.05 silence means the capture is essentially continuous audio; level statistics are not diluted by silence."
+      },
+      {
+        "path": "audio.spectrum_third_octave[0].level_db",
+        "description": "100 Hz band at -18.0 dB — strongest of the three reported bands."
+      },
+      {
+        "path": "audio.spectrum_third_octave[1].level_db",
+        "description": "1 kHz band at -24.0 dB, ~6 dB below the 100 Hz band."
+      },
+      {
+        "path": "audio.spectrum_third_octave[2].level_db",
+        "description": "4 kHz band at -30.0 dB, ~12 dB below the 100 Hz band — established dark tilt."
+      },
+      {
+        "path": "fx_chain",
+        "description": "Empty FX chain — no EQ, compressor, limiter, or other insert available to shape tone or dynamics."
+      },
+      {
+        "path": "capture.isolation_verified",
+        "description": "Capture is verified isolated, so measured levels and spectrum reflect only this track."
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "none",
+    "reason": "Nothing in the single-track evidence supports a safe action. The track is gain-staged well: 12.0 dB crest factor and -8.0 dB sample peak (-5.5 dB true peak) leave headroom without indicating clipping, and -20.0 dB RMS / -20.0 LUFS integrated is a normal synth level at the unity 0.0 dB fader. set_track_volume is supported but there is no reference target — solo, bus, or master loudness — to justify a specific change. The dark 1/3-octave tilt (100 Hz at -18.0 dB vs 4 kHz at -30.0 dB) is the main candidate observation, but the only operation that could address it is set_fx_param on an EQ, and fx_chain is empty. Without an EQ insert and without a tonal reference or cross-track context, any EQ or volume move would be speculation. Honest non-action is preferable to a fabricated change.",
+    "expected_direction": []
+  }
+}

@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "Bass Guitar runs hot with true peak at -0.3 dBFS and sample peak at -0.7 dBFS while track volume is boosted +5.0 dB. Dynamics (12.0 dB crest factor) and spectral balance (smooth rolloff 100 Hz → 4 kHz, each band progressively 6 dB lower) are healthy, and integrated loudness (-20.0 LUFS) is appropriate for a bass in a mix context. The FX chain is empty, so no limiter or compressor is in place to catch transients or intersample peaks before downstream summing.",
+    "probable_cause": "Track volume is boosted +5.0 dB without any downstream protection on the insert chain; the 0.3 dB margin between true peak and 0 dBFS leaves insufficient headroom for intersample peaks that can arise on downstream bus summing, ADC, or lossy codecs.",
+    "confidence": "medium",
+    "confidence_reason": "Isolation is verified and silence_fraction is low (0.05), so the audio measurements are not diluted by dead air. However, the correct amount of headroom depends on downstream bus/master processing which is outside this single-track view, so the magnitude of the trim is a judgment call.",
+    "evidence_refs": [
+      {
+        "path": "audio.true_peak_db",
+        "description": "True peak at -0.3 dBFS leaves only 0.3 dB of headroom"
+      },
+      {
+        "path": "audio.sample_peak_db",
+        "description": "Sample peak at -0.7 dBFS"
+      },
+      {
+        "path": "track.volume_db",
+        "description": "Track volume boosted to +5.0 dB"
+      },
+      {
+        "path": "audio.crest_factor_db",
+        "description": "Crest factor 12.0 dB — healthy, uncompressed dynamics"
+      },
+      {
+        "path": "audio.integrated_lufs",
+        "description": "-20.0 LUFS is appropriate for a bass track"
+      },
+      {
+        "path": "audio.silence_fraction",
+        "description": "0.05 — audio measurements are not diluted by silence"
+      },
+      {
+        "path": "spectrum_third_octave[0].level_db",
+        "description": "100 Hz at -18.0 dB, fundamental bass region"
+      },
+      {
+        "path": "spectrum_third_octave[1].level_db",
+        "description": "1000 Hz at -24.0 dB, 6 dB below fundamental"
+      },
+      {
+        "path": "spectrum_third_octave[2].level_db",
+        "description": "4000 Hz at -30.0 dB, 12 dB below fundamental — clean high-end rolloff"
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "none",
+    "reason": "Reduce track volume to create safer true-peak headroom; with no limiter or compressor in the empty FX chain, the current 0.3 dB margin to 0 dBFS is risky for downstream processing and codec conversion.",
+    "expected_direction": [],
+    "rejection_reason": "evidence_path_missing"
+  }
+}

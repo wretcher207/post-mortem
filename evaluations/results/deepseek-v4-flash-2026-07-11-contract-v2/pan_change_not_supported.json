@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "Track is well-recorded with no FX chain; tonal balance appears natural but spectrum data is sparse, limiting diagnostic confidence.",
+    "probable_cause": "No processing applied; natural tonal balance of a clean guitar recording.",
+    "confidence": "medium",
+    "confidence_reason": "Isolation is verified, silence fraction negligible, and all measured levels are within typical ranges for a clean guitar. However, only three 1/3-octave bands are available, restricting spectral analysis.",
+    "evidence_refs": [
+      {
+        "path": "audio.sample_peak_db",
+        "description": "Peak headroom of 6 dB below full scale, safe for mixing."
+      },
+      {
+        "path": "audio.true_peak_db",
+        "description": "True peak at -5.5 dB, no intersample peaks."
+      },
+      {
+        "path": "audio.rms_db",
+        "description": "RMS -18 dB, healthy dynamic range."
+      },
+      {
+        "path": "audio.crest_factor_db",
+        "description": "Crest factor 12 dB, moderate for a clean guitar."
+      },
+      {
+        "path": "audio.integrated_lufs",
+        "description": "Integrated LUFS -20, suitable for raw tracks."
+      },
+      {
+        "path": "audio.loudness_range_lu",
+        "description": "LRA 8 LU, natural dynamic variation."
+      },
+      {
+        "path": "audio.stereo.correlation",
+        "description": "Correlation 0.91, high mono compatibility."
+      },
+      {
+        "path": "audio.stereo.balance_db",
+        "description": "Balance 0.1 dB, effectively centered."
+      },
+      {
+        "path": "audio.stereo.mid_rms_db",
+        "description": "Mid RMS -18 dB, strong center image."
+      },
+      {
+        "path": "audio.stereo.side_rms_db",
+        "description": "Side RMS -30 dB, 12 dB below mid, typical for a centered instrument."
+      },
+      {
+        "path": "audio.spectrum_third_octave[0].level_db",
+        "description": "100 Hz at -18 dB, slight low-end emphasis."
+      },
+      {
+        "path": "audio.spectrum_third_octave[1].level_db",
+        "description": "1 kHz at -24 dB, moderate."
+      },
+      {
+        "path": "audio.spectrum_third_octave[2].level_db",
+        "description": "4 kHz at -30 dB, rolled-off presence."
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "none",
+    "reason": "No actionable issue is supported by the available data; track is clean and requires no immediate adjustment. Further spectral detail would be needed to justify EQ or other moves.",
+    "expected_direction": []
+  }
+}

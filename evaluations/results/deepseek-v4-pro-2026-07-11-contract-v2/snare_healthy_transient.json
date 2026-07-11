@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "The snare track is a clean raw capture with wide dynamic range and ample headroom. The spectral balance shows a pronounced low-frequency presence around 100 Hz, which is characteristic of a snare drum. No technical faults are evident.",
+    "probable_cause": "The track is an unprocessed recording. The observed dynamics and tonal balance are inherent to the source material.",
+    "confidence": "medium",
+    "confidence_reason": "Capture isolation is verified, silence fraction is very low, but only three 1/3-octave bands are available, limiting full spectral assessment.",
+    "evidence_refs": [
+      {
+        "path": "capture.isolation_verified",
+        "description": "Capture isolation confirmed, ruling out bleed."
+      },
+      {
+        "path": "audio.silence_fraction",
+        "description": "0.05 silence fraction indicates very little dead air, so level statistics are reliable."
+      },
+      {
+        "path": "audio.true_peak_db",
+        "description": "True peak -5.5 dBFS provides at least 5.5 dB of headroom before clipping."
+      },
+      {
+        "path": "audio.crest_factor_db",
+        "description": "14 dB crest factor reflects a highly dynamic snare signal, normal for raw recordings."
+      },
+      {
+        "path": "audio.spectrum_third_octave[0].level_db",
+        "description": "100 Hz band at -18 dBFS indicates typical low-frequency punch of a snare."
+      },
+      {
+        "path": "audio.spectrum_third_octave[1].level_db",
+        "description": "1 kHz band at -24 dBFS, and 4 kHz at -30 dBFS, showing a natural roll-off in higher frequencies."
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "none",
+    "reason": "The track appears technically sound with no issues that demand correction from the available evidence. Increasing the track volume might raise peak levels too close to 0 dBFS without context of the mix bus headroom. No processing is required at this stage.",
+    "expected_direction": []
+  }
+}

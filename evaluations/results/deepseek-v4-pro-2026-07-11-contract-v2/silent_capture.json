@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "The track is completely silent; no usable audio to diagnose.",
+    "probable_cause": "The source audio file may be silent or no media is loaded on the track. All measurements reflect dead air.",
+    "confidence": "low",
+    "confidence_reason": "Confidence is capped at low because audio.silence_fraction is 1.000.",
+    "evidence_refs": [
+      {
+        "path": "audio.silence_fraction",
+        "description": "100% of the capture is dead air"
+      },
+      {
+        "path": "audio.sample_peak_db",
+        "description": "Extremely low sample peak consistent with silence"
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "none",
+    "reason": "The track is silent; no corrective move can be diagnosed. No further analysis is reliable.",
+    "expected_direction": []
+  }
+}

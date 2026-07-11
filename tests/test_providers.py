@@ -226,6 +226,28 @@ def test_structured_adapter_stops_after_one_failed_repair():
     assert len(client.calls) == 2
 
 
+def test_structured_adapter_maps_empty_repair_to_invalid_response():
+    client = _SequenceAnthropicClient(
+        [
+            _Response([_Block('{"wrong":"first"}')]),
+            _Response([]),
+        ]
+    )
+    provider = AnthropicProvider(client)
+
+    with pytest.raises(ProviderError) as caught:
+        provider.generate(
+            system_contract="contract",
+            payload={},
+            response_schema=_StructuredResult,
+            model_profile=ModelProfile(model="test", thinking=False),
+            user_instruction="Diagnose:",
+        )
+
+    assert caught.value.category is ProviderErrorCategory.INVALID_RESPONSE
+    assert len(client.calls) == 2
+
+
 def test_structured_adapter_never_chooses_between_multiple_json_objects():
     provider = AnthropicProvider(
         _FakeAnthropicClient(

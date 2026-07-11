@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "Track capture is entirely silent (silence_fraction = 1.0). Sample peak, RMS, and integrated LUFS all sit at the noise floor, so every level-based statistic is diluted by silence and not interpretable. The non-zero spectrum band levels (-18 to -30 dB) are inconsistent with the -120 dB sample peak and cannot be reconciled from a single isolated capture.",
+    "probable_cause": "No audio content is reaching the track: the source may be muted, disconnected, routed elsewhere, or the capture window contains no material (dead air). The mismatched spectrum readings likely reflect analyzer noise-floor or capture-window artifacts rather than real signal.",
+    "confidence": "low",
+    "confidence_reason": "Confidence is capped at low because audio.silence_fraction is 1.000.",
+    "evidence_refs": [
+      {
+        "path": "audio.silence_fraction",
+        "description": "100% of the capture window is silence, disqualifying level-based diagnosis."
+      },
+      {
+        "path": "audio.sample_peak_db",
+        "description": "Sample peak at the noise floor; no real signal present."
+      },
+      {
+        "path": "audio.rms_db",
+        "description": "RMS at the noise floor, consistent with silence."
+      },
+      {
+        "path": "audio.integrated_lufs",
+        "description": "Integrated loudness is meaningless when the window is entirely silent."
+      },
+      {
+        "path": "audio.crest_factor_db",
+        "description": "Crest factor of 12 dB on silence is an artifact, not a usable dynamic metric."
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "none",
+    "reason": "audio.silence_fraction is 1.0, which exceeds the 0.75 confidence floor. With no verified signal, no single-track parameter change can be justified. Recommend verifying that the source is unmuted, routed to this track, and that the capture window actually contains audio before re-measuring.",
+    "expected_direction": []
+  }
+}

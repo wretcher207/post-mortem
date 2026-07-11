@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "Track is predominantly silent; audio statistics are unreliable.",
+    "probable_cause": "92% of the capture is silence, diluting all measured levels and dynamics.",
+    "confidence": "low",
+    "confidence_reason": "Confidence is capped at low because audio.silence_fraction is 0.920.",
+    "evidence_refs": [
+      {
+        "path": "audio.silence_fraction",
+        "description": "Fraction of capture that is silent"
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "none",
+    "reason": "High silence fraction (0.92) invalidates the reliability of all audio measurements. No actionable move can be proposed from this data.",
+    "expected_direction": []
+  }
+}

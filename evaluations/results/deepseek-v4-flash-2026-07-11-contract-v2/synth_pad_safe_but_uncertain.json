@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "Severe intersample overshoots: true peak (-5.5 dBTP) is 10.5 dB higher than sample peak (-16.0 dBFS). This indicates a waveform with high intersample peaks, risking distortion on DA conversion or after nonlinear processing.",
+    "probable_cause": "The synth generates a waveform with sharp transitions or internal clipping, leading to large intersample peaks that are not captured by sample-peak metering.",
+    "confidence": "medium",
+    "confidence_reason": "Verified isolated capture but the 10.5 dB gap between true and sample peaks is unusually large and warrants cautious gain staging.",
+    "evidence_refs": [
+      {
+        "path": "audio.true_peak_db",
+        "description": "True peak level measured at -5.5 dBTP"
+      },
+      {
+        "path": "audio.sample_peak_db",
+        "description": "Sample peak level at -16.0 dBFS"
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "none",
+    "reason": "Reduce intersample peak level to prevent potential distortion in subsequent processing or DA conversion. Lowering the track volume by 6 dB brings the true peak to -11.5 dBTP, a safer margin.",
+    "expected_direction": [],
+    "rejection_reason": "move_limit_exceeded"
+  }
+}

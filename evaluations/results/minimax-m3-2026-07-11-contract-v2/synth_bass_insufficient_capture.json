@@ -1,0 +1,80 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "The captured region is 78% silence, so every level/LUFS statistic is heavily diluted by dead air. In the remaining ~22% of the capture the synth bass reaches a sample peak of -18.0 dBFS, an RMS of -42.0 dBFS, a crest factor of 12.0 dB, integrated LUFS of -20.0, and an LRA of 8.0 LU. The 1/3-octave snapshot shows the expected bass tilt (100 Hz at -18.0 dB, 1 kHz at -24.0 dB, 4 kHz at -30.0 dB). The track has no FX chain loaded, no sends, no receives, no parent bus, phase not inverted, panned center, fader at 0.0 dB, trim/read automation.",
+    "probable_cause": "The material itself is sparse — sustained synth bass notes with long rests between phrases is typical for this kind of part — and/or the captured region includes pre-roll or a non-playing section. With 78% silence, the RMS, integrated LUFS, and LRA reflect mostly the noise floor between notes rather than the bass notes themselves, so a 'quiet' reading here is not necessarily a gain-staging problem.",
+    "confidence": "low",
+    "confidence_reason": "Confidence is capped at low because audio.silence_fraction is 0.780.",
+    "evidence_refs": [
+      {
+        "path": "audio.silence_fraction",
+        "description": "0.78 — ≥ 0.75 threshold that gates confidence and prevents any actionable proposal"
+      },
+      {
+        "path": "audio.duration_seconds",
+        "description": "10.0 s capture window"
+      },
+      {
+        "path": "audio.sample_peak_db",
+        "description": "-18.0 dBFS peak (diluted by 78% silence)"
+      },
+      {
+        "path": "audio.rms_db",
+        "description": "-42.0 dBFS RMS (diluted by 78% silence)"
+      },
+      {
+        "path": "audio.crest_factor_db",
+        "description": "12.0 dB crest factor"
+      },
+      {
+        "path": "audio.integrated_lufs",
+        "description": "-20.0 LUFS integrated (diluted by 78% silence)"
+      },
+      {
+        "path": "audio.loudness_range_lu",
+        "description": "8.0 LU LRA"
+      },
+      {
+        "path": "audio.spectrum_third_octave[0].level_db",
+        "description": "-18.0 dB at 100 Hz — expected bass weight"
+      },
+      {
+        "path": "audio.spectrum_third_octave[1].level_db",
+        "description": "-24.0 dB at 1 kHz"
+      },
+      {
+        "path": "audio.spectrum_third_octave[2].level_db",
+        "description": "-30.0 dB at 4 kHz"
+      },
+      {
+        "path": "fx_chain",
+        "description": "Empty FX chain"
+      },
+      {
+        "path": "track.volume_db",
+        "description": "0.0 dB fader"
+      },
+      {
+        "path": "track.pan",
+        "description": "0.0 (center)"
+      },
+      {
+        "path": "track.phase_inverted",
+        "description": "false"
+      },
+      {
+        "path": "routing.sends",
+        "description": "No sends"
+      },
+      {
+        "path": "routing.receives",
+        "description": "No receives"
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "none",
+    "reason": "audio.silence_fraction is 0.78 (≥ 0.75), so per protocol no actionable move can be supported from these diluted level statistics. The low RMS/LUFS readings may simply reflect the part's rest-heavy performance rather than a gain-staging problem, and the tonal balance (100 Hz dominant, falling -6 dB to 1 kHz and -6 dB again to 4 kHz) looks bass-appropriate. Without a capture of the active passages, raising the fader, adding an EQ, or bus-routing the track would all be guesses. Recommend re-capturing a region that actually contains the bass lines, then re-running the check.",
+    "expected_direction": []
+  }
+}

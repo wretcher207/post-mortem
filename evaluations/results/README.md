@@ -29,3 +29,9 @@ The first complete benchmark is recorded in
 DeepSeek V4 Pro, and MiniMax M3. It is a failed selection gate: none reached the
 required usefulness threshold, so the results do not authorize a default-model
 change.
+
+The hardened provider-contract rerun is recorded in
+`2026-07-11-model-contract-v2-benchmark.md`. MiniMax M3 improved to 19/25 useful
+findings and 15/25 full-contract passes without an operational retry, but remains
+one useful finding short of the selection gate. The baseline and v2 snapshots
+are both retained for direct comparison.

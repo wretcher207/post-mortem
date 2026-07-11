@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "The track is severely over-limited: crest factor of 2.5 dB and loudness range of 1.5 LU indicate that almost all dynamic variation has been removed, with a Generic Limiter at the end of the chain catching peaks aggressively. For a bass track this leaves no transient punch.",
+    "probable_cause": "The VST3: Generic Limiter at fx_chain[0] is engaged with no reported parameter values, and the resulting post-FX measurements (audio.crest_factor_db = 2.5, audio.loudness_range_lu = 1.5, true peak only 0.5 dB above sample peak) are consistent with a limiter whose ceiling and/or release is squashing the bass to near-brick-wall behavior.",
+    "confidence": "high",
+    "confidence_reason": "Three independent dynamics measurements (crest factor, LRA, and the small true-peak-to-sample-peak delta) all agree that the signal is heavily limited. Capture isolation is verified and audio.silence_fraction is 0.05, so silence dilution is negligible.",
+    "evidence_refs": [
+      {
+        "path": "audio.crest_factor_db",
+        "description": "Crest factor of 2.5 dB indicates almost no peak-to-RMS separation."
+      },
+      {
+        "path": "audio.loudness_range_lu",
+        "description": "LRA of 1.5 LU confirms near-zero dynamic range across the capture."
+      },
+      {
+        "path": "audio.true_peak_db",
+        "description": "True peak -5.5 dB, only 0.5 dB above sample peak, consistent with active peak limiting."
+      },
+      {
+        "path": "audio.sample_peak_db",
+        "description": "Sample peak -6.0 dB sits at the limiter's ceiling region."
+      },
+      {
+        "path": "fx_chain[0].name",
+        "description": "Generic Limiter present and enabled at end of chain."
+      },
+      {
+        "path": "fx_chain[0].enabled",
+        "description": "Limiter is active."
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "set_fx_bypass",
+    "reason": "Preview bypassing VST3: Generic Limiter; this does not remove or delete the plugin; to test whether crest_factor_db increases.",
+    "target": {
+      "track_guid": "{TRACK-BASS-02}",
+      "track_name": "Compressed Bass",
+      "fx_guid": "{FX-COMP-02}",
+      "fx_index": 0,
+      "fx_scope": "track",
+      "fx_name": "VST3: Generic Limiter"
+    },
+    "current_value": {
+      "value": false,
+      "unit": "boolean",
+      "display": "enabled (not bypassed)"
+    },
+    "proposed_value": {
+      "value": true,
+      "unit": "boolean",
+      "display": "bypassed (preview only, plugin remains in chain)"
+    },
+    "goal": "crest_factor_db",
+    "expected_direction": [
+      {
+        "metric": "crest_factor_db",
+        "direction": "increase"
+      },
+      {
+        "metric": "loudness_range_lu",
+        "direction": "increase"
+      },
+      {
+        "metric": "rms_db",
+        "direction": "decrease"
+      }
+    ]
+  }
+}

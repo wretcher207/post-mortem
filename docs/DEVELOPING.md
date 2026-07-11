@@ -58,12 +58,22 @@ python -m postmortem.evaluation \
 The evaluator only reads captured files and cannot spend provider credits.
 Review snapshots for de-identification before committing them.
 
+When iterating on the model-facing contract, write new snapshots under a new
+directory name and retain the baseline unchanged. Provider calls must validate
+against `ProviderDiagnosisResult`; only the converted and deterministically
+validated public `DiagnosisResult` belongs in the snapshot.
+
 Phase 1 closeout requires intentional snapshots against the same corpus. The
 2026-07-11 baseline covers DeepSeek V4 Flash, DeepSeek V4 Pro, and MiniMax M3;
 see `evaluations/results/2026-07-11-model-benchmark.md`. None reached the 80%
 useful-primary-finding threshold, and their stricter full-contract scores were
 lower still. The offline fixture example above does not satisfy that external
 model-evaluation gate on its own.
+
+The provider-contract v2 rerun is documented in
+`evaluations/results/2026-07-11-model-contract-v2-benchmark.md`. MiniMax M3 led
+at 19/25 useful findings and 15/25 full-contract passes, still below the 20/25
+selection gate.
 
 ## Contract changes
 

@@ -28,6 +28,22 @@ MetricDirection: TypeAlias = Literal[
     "unchanged",
 ]
 ValueUnit: TypeAlias = Literal["db", "normalized_pan", "normalized", "boolean"]
+SupportedMetric: TypeAlias = Literal[
+    "sample_peak_db",
+    "true_peak_db",
+    "rms_db",
+    "crest_factor_db",
+    "integrated_lufs",
+    "loudness_range_lu",
+    "lufs_momentary_max",
+    "lufs_short_term_max",
+    "silence_fraction",
+    "stereo_correlation",
+    "stereo_balance_db",
+    "mid_rms_db",
+    "side_rms_db",
+    "spectrum_third_octave",
+]
 StrictFiniteFloat: TypeAlias = Annotated[
     float, Field(strict=True, allow_inf_nan=False)
 ]
@@ -38,7 +54,15 @@ class _ContractModel(BaseModel):
 
 
 class EvidenceRef(_ContractModel):
-    path: str = Field(min_length=1, max_length=256)
+    path: str = Field(
+        min_length=1,
+        max_length=256,
+        description=(
+            "An exact leaf path from the supplied payload, such as "
+            "audio.sample_peak_db or fx_chain[0].enabled; the referenced value "
+            "must exist and must not be null."
+        ),
+    )
     description: str | None = Field(default=None, max_length=500)
 
 
@@ -86,7 +110,7 @@ class ProposalValue(_ContractModel):
         return self
 
 
-class Proposal(_ContractModel):
+class _ProposalCore(_ContractModel):
     operation: ProposalOperation
     reason: str = Field(min_length=1, max_length=1_000)
     target: ProposalTarget | None = None
@@ -94,7 +118,6 @@ class Proposal(_ContractModel):
     proposed_value: ProposalValue | None = None
     goal: str | None = Field(default=None, max_length=100)
     expected_direction: list[ExpectedMetricDirection] = Field(max_length=10)
-    rejection_reason: str | None = Field(default=None, max_length=100)
 
     @model_validator(mode="after")
     def validate_operation_shape(self):
@@ -156,7 +179,32 @@ class Proposal(_ContractModel):
         return self
 
 
+class ProviderExpectedMetricDirection(ExpectedMetricDirection):
+    """Metric direction accepted directly from a model provider."""
+
+    metric: SupportedMetric
+
+
+class ProviderProposal(_ProposalCore):
+    """Model-authored proposal fields; rejection state belongs to validators."""
+
+    goal: SupportedMetric | None = None
+    expected_direction: list[ProviderExpectedMetricDirection] = Field(max_length=10)
+
+
+class Proposal(_ProposalCore):
+    rejection_reason: str | None = Field(default=None, max_length=100)
+
+
 class DiagnosisResult(_ContractModel):
     schema_version: StrictInt = Field(ge=1, le=1)
     finding: Finding
     proposal: Proposal
+
+
+class ProviderDiagnosisResult(_ContractModel):
+    """Strict model-facing result converted into the public diagnosis contract."""
+
+    schema_version: StrictInt = Field(ge=1, le=1)
+    finding: Finding
+    proposal: ProviderProposal

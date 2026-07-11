@@ -1,0 +1,76 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "Stereo correlation is -0.25 with side energy 14 dB above mid energy (side -14 dB, mid -28 dB), indicating an aggressively widened image that will likely collapse poorly in mono. The single enabled FX is a chorus with no parameter values reported, and a chorus on a track named 'Wide Synth' is the most plausible driver of this decorrelation.",
+    "probable_cause": "The enabled VST3: Generic Chorus (fx_chain[0]) is modulating/detuning L and R to produce the extreme side-to-mid imbalance (audio.stereo.side_rms_db vs audio.stereo.mid_rms_db) and the negative correlation (audio.stereo.correlation). With no chorus parameters available to dial back, the only reversible test from this payload is a bypass preview.",
+    "confidence": "medium",
+    "confidence_reason": "audio.silence_fraction is low (0.05), so the level statistics are not diluted by silence, and audio.capture.isolation_verified is true. However, the track is named 'Wide Synth', so extreme width may be partially intentional; we cannot separate artistic intent from a genuine phase risk without a before/after comparison.",
+    "evidence_refs": [
+      {
+        "path": "audio.stereo.correlation",
+        "description": "Negative correlation (-0.25) places the image in the phase-caution zone."
+      },
+      {
+        "path": "audio.stereo.side_rms_db",
+        "description": "Side RMS at -14 dB, well above mid."
+      },
+      {
+        "path": "audio.stereo.mid_rms_db",
+        "description": "Mid RMS at -28 dB, 14 dB below side."
+      },
+      {
+        "path": "fx_chain[0].name",
+        "description": "Only active FX is a chorus, a known stereo-widening processor."
+      },
+      {
+        "path": "fx_chain[0].enabled",
+        "description": "Chorus is currently active."
+      },
+      {
+        "path": "track.name",
+        "description": "Track name suggests width is desired, limiting confidence."
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "set_fx_bypass",
+    "reason": "Preview bypassing VST3: Generic Chorus; this does not remove or delete the plugin; to test whether stereo_correlation increases.",
+    "target": {
+      "track_guid": "{TRACK-SYNTH-02}",
+      "track_name": "Wide Synth",
+      "fx_guid": "{FX-CHORUS-01}",
+      "fx_index": 2,
+      "fx_scope": "track",
+      "fx_name": "VST3: Generic Chorus"
+    },
+    "current_value": {
+      "value": false,
+      "unit": "boolean",
+      "display": "not bypassed"
+    },
+    "proposed_value": {
+      "value": true,
+      "unit": "boolean",
+      "display": "bypassed"
+    },
+    "goal": "stereo_correlation",
+    "expected_direction": [
+      {
+        "metric": "stereo_correlation",
+        "direction": "increase"
+      },
+      {
+        "metric": "side_rms_db",
+        "direction": "decrease"
+      },
+      {
+        "metric": "mid_rms_db",
+        "direction": "not_decrease"
+      },
+      {
+        "metric": "sample_peak_db",
+        "direction": "not_increase"
+      }
+    ]
+  }
+}

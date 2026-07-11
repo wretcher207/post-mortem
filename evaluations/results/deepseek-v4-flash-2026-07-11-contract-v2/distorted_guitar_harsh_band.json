@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "Limited spectral data prevents conclusive diagnosis. The EQ applies +3 dB upper mid boost, which may contribute to the moderately high crest factor (12 dB) and integrated LUFS of -20, but no frequency content below 3150 Hz is available to assess low-end balance or potential muddiness.",
+    "probable_cause": "Insufficient spectral information from measurement (only two high-frequency bands provided).",
+    "confidence": "low",
+    "confidence_reason": "Only two 1/3-octave bands (3150 Hz and 5000 Hz) are present, none below 3 kHz; critical low-mid and bass information is missing. The isolated capture is verified, but the data is too sparse for a reliable tonal diagnosis.",
+    "evidence_refs": [
+      {
+        "path": "audio.spectrum_third_octave[0].level_db",
+        "description": "Level at 3150 Hz is -9 dB"
+      },
+      {
+        "path": "audio.spectrum_third_octave[1].level_db",
+        "description": "Level at 5000 Hz is -12 dB"
+      },
+      {
+        "path": "fx_chain[0].parameters[0].normalized_value",
+        "description": "Upper Mid Gain set to 0.64 normalized (+3 dB)"
+      },
+      {
+        "path": "audio.crest_factor_db",
+        "description": "Crest factor 12 dB"
+      },
+      {
+        "path": "audio.integrated_lufs",
+        "description": "Integrated LUFS -20"
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "none",
+    "reason": "Insufficient evidence to recommend a safe, evidence-based adjustment. The only adjustable parameter is the Upper Mid Gain, but its effect on the overall tone cannot be evaluated without broader spectral data. No change proposed.",
+    "expected_direction": []
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "The drum sum track appears properly gain-staged and free of obvious tonal or dynamic problems.",
+    "probable_cause": "No processing is applied, and the incoming kick feed arrives at unity gain, resulting in conservative peak levels, moderate RMS, and a balanced crest factor.",
+    "confidence": "medium",
+    "confidence_reason": "The capture is verified isolated with a low silence fraction, so all level metrics are representative. However, the provided spectral snapshot is coarse, limiting tonal assessment.",
+    "evidence_refs": [
+      {
+        "path": "audio.sample_peak_db",
+        "description": "-6 dBFS peak headroom."
+      },
+      {
+        "path": "audio.rms_db",
+        "description": "-18 dBFS average level, typical for a drum bus."
+      },
+      {
+        "path": "audio.crest_factor_db",
+        "description": "12 dB crest factor indicates healthy dynamics without excessive transients."
+      },
+      {
+        "path": "audio.integrated_lufs",
+        "description": "-20 LUFS integrated loudness, on the quiet side but not problematic for a submix."
+      },
+      {
+        "path": "audio.silence_fraction",
+        "description": "0.05 silence fraction confirms the reading is not diluted by dead air."
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "none",
+    "reason": "No corrective action is necessary based on the provided evidence.",
+    "expected_direction": []
+  }
+}

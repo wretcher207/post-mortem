@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "True peak measures -0.1 dBFS, leaving almost no headroom for inter-sample peaks; on a parallel drum bus that will typically be summed with the dry drum signal downstream, this is a real clipping risk. Sample peak is similarly hot at -0.3 dBFS. The track has no FX chain (fx_chain is empty) and no clip protection/limiter in place, and track volume is unity (0.0 dB).",
+    "probable_cause": "Track volume at 0.0 dB combined with hot source material and no limiting or safety processing in the FX chain (fx_chain is empty). For a parallel drum bus intended to be summed with a dry signal, this leaves insufficient headroom for the sum and risks inter-sample clipping downstream.",
+    "confidence": "medium",
+    "confidence_reason": "true_peak_db is a measured, non-null value directly indicating the issue. Downstream summing topology (master bus limiter, parallel summing gain) is not visible from this single-track payload, so the practical impact depends on context not shown here.",
+    "evidence_refs": [
+      {
+        "path": "audio.true_peak_db",
+        "description": "Measured true peak of -0.1 dBFS, within 0.1 dB of digital full scale"
+      },
+      {
+        "path": "audio.sample_peak_db",
+        "description": "Sample peak of -0.3 dBFS, consistent with a hot signal"
+      },
+      {
+        "path": "track.volume_db",
+        "description": "Track fader at 0.0 dB, contributing to the hot output level"
+      },
+      {
+        "path": "fx_chain",
+        "description": "Empty FX chain means no limiter/clip protection is inserted"
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "set_track_volume",
+    "reason": "Preview changing track volume from 0.000 dB to -1.000 dB to test whether true_peak_db decreases.",
+    "target": {
+      "track_guid": "{TRACK-DRUM-BUS-02}",
+      "track_name": "Parallel Drum Bus"
+    },
+    "current_value": {
+      "value": 0.0,
+      "unit": "db",
+      "display": "0.0 dB"
+    },
+    "proposed_value": {
+      "value": -1.0,
+      "unit": "db",
+      "display": "-1.0 dB"
+    },
+    "goal": "true_peak_db",
+    "expected_direction": [
+      {
+        "metric": "true_peak_db",
+        "direction": "decrease"
+      }
+    ]
+  }
+}

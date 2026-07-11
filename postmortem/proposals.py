@@ -3,31 +3,71 @@
 from collections.abc import Mapping
 import math
 import re
+from typing import get_args
 
-from .schemas import DiagnosisResult, Proposal
+from .schemas import DiagnosisResult, Proposal, SupportedMetric
 
 
 _MISSING = object()
 _PATH_SEGMENT = re.compile(r"([A-Za-z_][A-Za-z0-9_-]*)(?:\[(\d+)\])?")
 _DB_CURRENT_TOLERANCE = 0.1
 _NORMALIZED_CURRENT_TOLERANCE = 0.001
-SUPPORTED_METRICS = frozenset(
-    {
-        "sample_peak_db",
-        "true_peak_db",
-        "rms_db",
-        "crest_factor_db",
-        "integrated_lufs",
-        "loudness_range_lu",
-        "lufs_momentary_max",
-        "lufs_short_term_max",
-        "silence_fraction",
-        "stereo_correlation",
-        "stereo_balance_db",
-        "mid_rms_db",
-        "side_rms_db",
-        "spectrum_third_octave",
-    }
+SUPPORTED_METRICS = frozenset(get_args(SupportedMetric))
+_CROSS_TRACK_DISCLAIMER_PATTERNS = (
+    re.compile(
+        r"\b(?:cannot|can't|could not|unable to|do not|don't)\s+"
+        r"(?:infer|diagnose|establish|verify|conclude)\b[^.!?;]{0,60}"
+        r"\b(?:mask(?:s|ed|ing)?|cross-track)\b",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"\b(?:cannot|can't|could not|unable to|impossible to|not possible to)\b"
+        r"[^.!?;]{0,40}\b(?:determine|assess|know|tell)\s+"
+        r"(?:whether|if)\b[^.!?;]{0,60}"
+        r"\b(?:mask(?:s|ed|ing)?|cross-track)\b",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"\b(?:no|insufficient|not enough)\s+"
+        r"(?:evidence|data|context|information)\s+"
+        r"(?:of|for|to\s+support|that\s+supports)\b[^.!?;]{0,40}"
+        r"\b(?:mask(?:s|ed|ing)?|cross-track)\b",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"\b(?:mask(?:s|ed|ing)?|cross-track\s+(?:relationship|claim))\b"
+        r"[^.!?;]{0,60}\b(?:(?:is|are)\s+not\s+"
+        r"(?:supported|established|verified|knowable)|"
+        r"(?:cannot|can't)\s+be\s+"
+        r"(?:inferred|determined|diagnosed|established|verified))\b",
+        re.IGNORECASE,
+    ),
+)
+_CROSS_TRACK_CLAIM_PATTERNS = (
+    re.compile(r"\bmask(?:s|ed|ing)?\b", re.IGNORECASE),
+    re.compile(
+        r"\b(?:clash(?:es|ed|ing)?|compet(?:e|es|ed|ing)|"
+        r"fight(?:s|ing)?|conflict(?:s|ed|ing)?|collid(?:e|es|ed|ing)|"
+        r"interfer(?:e|es|ed|ing)|overlap(?:s|ped|ping)?)\s+with\b",
+        re.IGNORECASE,
+    ),
+    re.compile(r"\bbur(?:y|ies|ied)\s+(?:beneath|under)\b", re.IGNORECASE),
+    re.compile(
+        r"\b(?:bur(?:y|ies|ied)|obscur(?:e|es|ed|ing)|cover(?:s|ed|ing)?|"
+        r"drown(?:s|ed|ing)?|"
+        r"overpower(?:s|ed|ing)?|dominat(?:e|es|ed|ing)|"
+        r"smother(?:s|ed|ing)?)\b",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"\b(?:crowds?\s+out|steps?\s+on|sits?\s+against|"
+        r"gets?\s+lost\s+(?:behind|under))\b",
+        re.IGNORECASE,
+    ),
+)
+_CLAUSE_BOUNDARY = re.compile(
+    r"[.!?;,]|\b(?:and|but|however|yet|although|nevertheless|or)\b",
+    re.IGNORECASE,
 )
 
 
@@ -49,8 +89,8 @@ def _resolve_payload_path(payload, path):
     return current
 
 
-def _reject(result, reason):
-    proposal_reason = result.proposal.reason
+def _reject(result, reason, proposal_reason=None):
+    proposal_reason = proposal_reason or result.proposal.reason
     if result.proposal.operation == "set_fx_param":
         proposal_reason = (
             "The proposed normalized FX parameter change was rejected by "
@@ -63,6 +103,81 @@ def _reject(result, reason):
         rejection_reason=reason,
     )
     return result.model_copy(update={"proposal": proposal})
+
+
+def _with_low_confidence(result, reason):
+    finding = result.finding.model_copy(
+        update={"confidence": "low", "confidence_reason": reason}
+    )
+    return result.model_copy(update={"finding": finding})
+
+
+def _contains_cross_track_claim(result):
+    model_fields = filter(
+        None,
+        (
+            result.finding.summary,
+            result.finding.probable_cause,
+            result.finding.confidence_reason,
+            result.proposal.reason,
+            *(reference.description for reference in result.finding.evidence_refs),
+        ),
+    )
+    for model_field in model_fields:
+        for clause in _CLAUSE_BOUNDARY.split(model_field):
+            claim_matches = [
+                match
+                for pattern in _CROSS_TRACK_CLAIM_PATTERNS
+                if (match := pattern.search(clause)) is not None
+            ]
+            for claim in claim_matches:
+                disclaimer_matches = (
+                    match
+                    for pattern in _CROSS_TRACK_DISCLAIMER_PATTERNS
+                    if (match := pattern.search(clause)) is not None
+                )
+                if any(
+                    disclaimer.start() <= claim.start()
+                    and disclaimer.end() >= claim.end()
+                    for disclaimer in disclaimer_matches
+                ):
+                    continue
+                return True
+    return False
+
+
+def has_verified_isolated_capture(payload: Mapping) -> bool:
+    """Return whether payload provenance can support a track diagnosis."""
+    capture = payload.get("capture")
+    return bool(
+        isinstance(capture, Mapping)
+        and capture.get("scope") == "isolated_track"
+        and capture.get("isolation_verified") is True
+    )
+
+
+def _reject_unverified_capture(result):
+    finding = result.finding.model_copy(
+        update={
+            "summary": "No track diagnosis is available for this capture.",
+            "probable_cause": (
+                "The payload does not prove that the audio came from one "
+                "isolated track."
+            ),
+            "confidence": "low",
+            "confidence_reason": (
+                "Isolated-track capture provenance is required before diagnosis."
+            ),
+            "evidence_refs": [],
+        }
+    )
+    proposal = Proposal(
+        operation="none",
+        reason="Unverified capture provenance cannot support a safe change.",
+        expected_direction=[],
+        rejection_reason="capture_not_isolated",
+    )
+    return result.model_copy(update={"finding": finding, "proposal": proposal})
 
 
 def _matching_fx(payload, target):
@@ -152,6 +267,49 @@ def validate_proposal(
 ) -> DiagnosisResult:
     """Return the result when its proposal is safe for later preview."""
     actionable = result.proposal.operation != "none"
+    if not has_verified_isolated_capture(payload):
+        return _reject_unverified_capture(result)
+    if _contains_cross_track_claim(result):
+        finding = result.finding.model_copy(
+            update={
+                "summary": (
+                    "The provider response exceeded the single-track evidence boundary."
+                ),
+                "probable_cause": (
+                    "A single isolated track cannot establish cross-track relationships."
+                ),
+                "confidence": "low",
+                "confidence_reason": (
+                    "The unsupported cross-track claim was removed by validation."
+                ),
+                "evidence_refs": [],
+            }
+        )
+        result = result.model_copy(update={"finding": finding})
+        return _reject(
+            result,
+            "cross_track_claim",
+            proposal_reason=(
+                "A single-track capture cannot support a cross-track change."
+            ),
+        )
+    audio = payload.get("audio")
+    silence_fraction = (
+        audio.get("silence_fraction") if isinstance(audio, Mapping) else None
+    )
+    if (
+        isinstance(silence_fraction, (int, float))
+        and not isinstance(silence_fraction, bool)
+        and math.isfinite(float(silence_fraction))
+        and silence_fraction >= 0.75
+    ):
+        result = _with_low_confidence(
+            result,
+            "Confidence is capped at low because audio.silence_fraction is "
+            f"{float(silence_fraction):.3f}.",
+        )
+        if actionable:
+            return _reject(result, "insufficient_signal")
     if not result.finding.evidence_refs:
         return _reject(result, "evidence_missing") if actionable else result
     for evidence in result.finding.evidence_refs:

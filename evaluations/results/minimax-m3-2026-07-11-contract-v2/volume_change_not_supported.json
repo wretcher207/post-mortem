@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "The 10-second capture is 88% silent, so every reported level (sample peak -9.0 dB, true peak -5.5 dB, RMS -48.0 dB, integrated LUFS -20.0, crest factor 12.0 dB, LRA 8.0 LU) is heavily diluted by dead air and cannot be trusted as a description of the kick's actual loudness, dynamics, or frequency balance. The sparse-kick designation and the absence of any FX processing are consistent with a track whose transients are real but sparse. The 1/3-octave spectrum favors 100 Hz (-18.0 dB) over 1 kHz (-24.0 dB) and 4 kHz (-30.0 dB), which is the expected shape for a kick-only capture, but those numbers are also averaged across long silent stretches and should not be acted on without a denser capture.",
+    "probable_cause": "Sparse kick hits separated by long silent gaps produce a very high silence_fraction (0.88), which drags RMS and LUFS toward silence and makes crest factor, peak, and spectrum readings unreliable indicators of the transient itself.",
+    "confidence": "low",
+    "confidence_reason": "Confidence is capped at low because audio.silence_fraction is 0.880.",
+    "evidence_refs": [
+      {
+        "path": "audio.silence_fraction",
+        "description": "88% of the 10-second capture is dead air, exceeding the 0.75 confidence floor."
+      },
+      {
+        "path": "audio.rms_db",
+        "description": "RMS of -48.0 dB is depressed by the silent majority of the capture."
+      },
+      {
+        "path": "audio.integrated_lufs",
+        "description": "Integrated LUFS of -20.0 is averaged over mostly silence and does not reflect kick loudness."
+      },
+      {
+        "path": "audio.crest_factor_db",
+        "description": "Crest factor of 12.0 dB is computed over a buffer dominated by silence."
+      },
+      {
+        "path": "audio.true_peak_db",
+        "description": "True peak -5.5 dB reflects only the brief transient events."
+      },
+      {
+        "path": "spectrum_third_octave[0].level_db",
+        "description": "100 Hz band at -18.0 dB; tilted low-end shape but diluted by silence."
+      },
+      {
+        "path": "audio.duration_seconds",
+        "description": "10.0 s window over which silence_fraction was measured."
+      },
+      {
+        "path": "track.name",
+        "description": "Track name 'Sparse Kick' corroborates a low-density signal consistent with high silence_fraction."
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "none",
+    "reason": "audio.silence_fraction is 0.88, which is above the 0.75 threshold; per protocol, the evidence cannot support a safe, verified single-track move and no parameter change should be issued from this capture.",
+    "expected_direction": [],
+    "rejection_reason": "evidence_path_missing"
+  }
+}

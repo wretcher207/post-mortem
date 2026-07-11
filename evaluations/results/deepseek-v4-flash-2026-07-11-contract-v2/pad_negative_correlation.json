@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "Severe negative stereo correlation (-0.42) indicates significant out-of-phase content, which will cause cancellation in mono and may reduce impact.",
+    "probable_cause": "Excessive stereo widening or phase inversion in the source or processing; the side-channel level (-15.0 dB RMS) dominates the mid-channel (-27.0 dB RMS) by 12 dB, producing an anti-phased stereo field.",
+    "confidence": "high",
+    "confidence_reason": "Track isolation is verified, silence_fraction is low (0.05), and the correlation value is far from normal (0 to +1), making the diagnosis robust.",
+    "evidence_refs": [
+      {
+        "path": "audio.stereo.correlation",
+        "description": "Measured stereo correlation of -0.42, indicating out-of-phase content."
+      },
+      {
+        "path": "audio.stereo.mid_rms_db",
+        "description": "Mid RMS level is -27.0 dB."
+      },
+      {
+        "path": "audio.stereo.side_rms_db",
+        "description": "Side RMS level is -15.0 dB, 12 dB higher than mid, causing negative correlation."
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "none",
+    "reason": "No FX chain is available to correct the stereo correlation; the track requires a mono-compatible stereo widener or polarity alignment plugin before further processing.",
+    "expected_direction": []
+  }
+}

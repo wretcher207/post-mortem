@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "Drum bus is over-compressed, resulting in a very low crest factor and limited dynamic range, atypical for drum tracks.",
+    "probable_cause": "The compressor ratio is set to 6:1, which is overly aggressive and squashes transients, reducing punch and dynamic contrast.",
+    "confidence": "high",
+    "confidence_reason": "All measured dynamic metrics (crest factor 3.2 dB, LRA 2.1 LU) are far below typical drum bus values, and the compressor ratio is directly observed at 6:1.",
+    "evidence_refs": [
+      {
+        "path": "audio.crest_factor_db",
+        "description": "Crest factor measured at 3.2 dB, indicating very low dynamic range."
+      },
+      {
+        "path": "audio.loudness_range_lu",
+        "description": "Loudness range is 2.1 LU, typical of heavily compressed material."
+      },
+      {
+        "path": "fx_chain[0].parameters[0].normalized_value",
+        "description": "Compressor ratio normalized to 0.72, corresponding to the displayed 6:1 ratio."
+      },
+      {
+        "path": "fx_chain[0].parameters[0].formatted_value",
+        "description": "Formatted ratio value '6:1' confirms aggressive compression setting."
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "none",
+    "reason": "The proposed normalized FX parameter change was rejected by deterministic validation.",
+    "expected_direction": [],
+    "rejection_reason": "parameter_identity_mismatch"
+  }
+}

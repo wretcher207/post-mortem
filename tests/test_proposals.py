@@ -32,6 +32,10 @@ def _payload():
                 ],
             }
         ],
+        "capture": {
+            "scope": "isolated_track",
+            "isolation_verified": True,
+        },
         "audio": {
             "sample_peak_db": -1.0,
             "true_peak_db": -0.7,
@@ -189,6 +193,138 @@ def test_actionable_proposal_requires_at_least_one_evidence_reference():
 
     assert validated.proposal.operation == "none"
     assert validated.proposal.rejection_reason == "evidence_missing"
+
+
+def test_unverified_capture_rejects_action_and_caps_confidence():
+    payload = _payload()
+    payload["capture"] = {"scope": "unknown", "isolation_verified": False}
+
+    validated = validate_proposal(_track_volume_result(), payload)
+
+    assert validated.finding.confidence == "low"
+    assert "capture provenance" in validated.finding.confidence_reason
+    assert validated.proposal.operation == "none"
+    assert validated.proposal.rejection_reason == "capture_not_isolated"
+
+
+def test_unverified_capture_removes_non_actionable_diagnosis_too():
+    payload = _payload()
+    payload["capture"] = {"scope": "full_mix", "isolation_verified": False}
+    result = _track_volume_result().model_copy(deep=True)
+    result.proposal = Proposal(
+        operation="none",
+        reason="The bass masks the kick, but no safe move is available.",
+        expected_direction=[],
+    )
+
+    validated = validate_proposal(result, payload)
+
+    rendered = render_diagnosis_text(validated).lower()
+    assert validated.finding.confidence == "low"
+    assert validated.finding.evidence_refs == []
+    assert validated.proposal.operation == "none"
+    assert validated.proposal.rejection_reason == "capture_not_isolated"
+    assert "masks the kick" not in rendered
+
+
+def test_mostly_silent_capture_rejects_action_and_caps_confidence():
+    payload = _payload()
+    payload["audio"]["silence_fraction"] = 0.88
+
+    validated = validate_proposal(_track_volume_result(), payload)
+
+    assert validated.finding.confidence == "low"
+    assert "silence_fraction" in validated.finding.confidence_reason
+    assert validated.proposal.operation == "none"
+    assert validated.proposal.rejection_reason == "insufficient_signal"
+
+
+@pytest.mark.parametrize(
+    "claim",
+    [
+        "The kick is masking the bass.",
+        "The vocal is masked by the guitar.",
+        "The guitar clashes with the vocal.",
+        "The bass competes with the kick.",
+        "The vocal is buried under the guitars.",
+        "The snare fights with the guitars.",
+        "The synth obscures the vocal.",
+        "The guitar steps on the vocal.",
+        "The kick gets lost behind the bass.",
+        "The pad overlaps with the lead vocal.",
+    ],
+)
+def test_single_track_cross_track_claim_fails_closed(claim):
+    result = _track_volume_result().model_copy(deep=True)
+    result.finding.summary = claim
+
+    validated = validate_proposal(result, _payload())
+
+    rendered = render_diagnosis_text(validated).lower()
+    assert validated.finding.confidence == "low"
+    assert validated.proposal.operation == "none"
+    assert validated.proposal.rejection_reason == "cross_track_claim"
+    assert "masking" not in rendered
+    assert "masked by" not in rendered
+
+
+@pytest.mark.parametrize(
+    "disclaimer",
+    [
+        "Masking cannot be inferred from one isolated track.",
+        "There is no evidence of masking in a single-track capture.",
+        "Masking is not supported by the available evidence.",
+        "It is impossible to determine whether this track masks another.",
+        "I can't determine whether the kick masks the bass from this payload.",
+    ],
+)
+def test_honest_single_track_masking_disclaimer_is_preserved(disclaimer):
+    result = _track_volume_result().model_copy(deep=True)
+    result.finding.summary = disclaimer
+
+    validated = validate_proposal(result, _payload())
+
+    assert validated.finding.summary == result.finding.summary
+    assert validated.proposal.operation == "set_track_volume"
+
+
+def test_disclaimer_cannot_hide_a_later_cross_track_claim():
+    result = _track_volume_result().model_copy(deep=True)
+    result.finding.summary = (
+        "There is no evidence of masking, but the bass still buries the kick."
+    )
+
+    validated = validate_proposal(result, _payload())
+
+    assert validated.proposal.rejection_reason == "cross_track_claim"
+
+
+@pytest.mark.parametrize(
+    "claim",
+    [
+        "There is no evidence of clipping, and the bass masks the kick.",
+        "There is no evidence in the payload, so the bass masks the kick.",
+        "I can't determine whether the peak clips, and the bass buries the kick.",
+        "I cannot determine the exact frequency, though the bass masks the kick.",
+    ],
+)
+def test_unrelated_uncertainty_cannot_exempt_cross_track_claim(claim):
+    result = _track_volume_result().model_copy(deep=True)
+    result.finding.summary = claim
+
+    validated = validate_proposal(result, _payload())
+
+    assert validated.proposal.rejection_reason == "cross_track_claim"
+
+
+def test_disclaimer_in_one_field_cannot_exempt_claim_in_another():
+    result = _track_volume_result().model_copy(deep=True)
+    result.finding.summary = "There is no evidence of masking in this capture."
+    result.finding.probable_cause = "The bass masks the kick."
+
+    validated = validate_proposal(result, _payload())
+
+    assert validated.proposal.rejection_reason == "cross_track_claim"
 
 
 def test_stale_track_guid_rejects_the_proposal():

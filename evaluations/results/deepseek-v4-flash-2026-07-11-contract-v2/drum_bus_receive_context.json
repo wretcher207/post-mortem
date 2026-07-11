@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "The track exhibits typical spectral and dynamic characteristics for a kick submix, with no clear technical problems from the isolated data. However, the limited spectrum points and single source suggest it may not represent a full drum sum, and the high crest factor could benefit from dynamic control depending on context.",
+    "probable_cause": "The track is a submix receiving only a single kick source with no processing, resulting in natural drum characteristics.",
+    "confidence": "low",
+    "confidence_reason": "Isolation is verified but the track's purpose is ambiguous (labeled 'Drum Sum' but only one source), and the minimal spectrum data makes spectral evaluation incomplete.",
+    "evidence_refs": [
+      {
+        "path": "audio.sample_peak_db",
+        "description": "Sample peak at -6.0 dBFS"
+      },
+      {
+        "path": "audio.true_peak_db",
+        "description": "True peak at -5.5 dBFS"
+      },
+      {
+        "path": "audio.rms_db",
+        "description": "RMS level at -18.0 dBFS"
+      },
+      {
+        "path": "audio.crest_factor_db",
+        "description": "Crest factor 12.0 dB"
+      },
+      {
+        "path": "audio.integrated_lufs",
+        "description": "Integrated LUFS -20.0"
+      },
+      {
+        "path": "audio.spectrum_third_octave[0].level_db",
+        "description": "100 Hz band at -18 dBFS"
+      },
+      {
+        "path": "audio.spectrum_third_octave[1].level_db",
+        "description": "1 kHz band at -24 dBFS"
+      },
+      {
+        "path": "audio.spectrum_third_octave[2].level_db",
+        "description": "4 kHz band at -30 dBFS"
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "none",
+    "reason": "No safe parameter change can be recommended from the evidence. Levels and dynamics are within typical ranges for a kick bus. Any adjustments would require context from the full mix or a clear target loudness/programme.",
+    "expected_direction": []
+  }
+}

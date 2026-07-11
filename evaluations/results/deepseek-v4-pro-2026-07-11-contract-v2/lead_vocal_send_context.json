@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "The vocal track exhibits elevated low-frequency energy around 100 Hz relative to the 1 kHz midrange, with a 6 dB difference suggesting missing high-pass filtering or proximity effect.",
+    "probable_cause": "No high-pass filter or corrective EQ is present in the empty FX chain, allowing low-frequency rumble or proximity effect to dominate.",
+    "confidence": "medium",
+    "confidence_reason": "Only three spectrum points are provided, but the 6 dB difference between 100 Hz and 1 kHz is significant, and the very low silence fraction (0.05) confirms a reliable active measurement.",
+    "evidence_refs": [
+      {
+        "path": "audio.spectrum_third_octave[0].level_db",
+        "description": "100 Hz band level (-18 dBFS)"
+      },
+      {
+        "path": "audio.spectrum_third_octave[1].level_db",
+        "description": "1 kHz band level (-24 dBFS)"
+      },
+      {
+        "path": "audio.silence_fraction",
+        "description": "0.05 ensures minimal dead air, so levels are not diluted"
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "none",
+    "reason": "The available operations (track volume, pan, FX parameter) cannot apply a high-pass filter to correct the spectral imbalance. Adjusting track volume would risk altering the post-fader send level to the reverb, and pan is irrelevant to the frequency content. An EQ plugin would be needed but is outside the given operation set.",
+    "expected_direction": []
+  }
+}

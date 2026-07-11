@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "High true peak relative to sample peak indicates significant intersample peaks, leaving only 5.5 dBTP headroom. With 88% silence, the RMS and integrated LUFS are unreliable, but the peak levels are accurate.",
+    "probable_cause": "The raw kick hit was recorded/generated with high peak level and no limiting; the intersample overshoot exceeds the sample peak by 3.5 dB, which can cause distortion when the signal is converted or further processed.",
+    "confidence": "low",
+    "confidence_reason": "Confidence is capped at low because audio.silence_fraction is 0.880.",
+    "evidence_refs": [
+      {
+        "path": "audio.sample_peak_db",
+        "description": "Sample peak level -9.0 dBFS"
+      },
+      {
+        "path": "audio.true_peak_db",
+        "description": "True peak level -5.5 dBFS (3.5 dB higher than sample peak)"
+      },
+      {
+        "path": "audio.silence_fraction",
+        "description": "88% silence dilutes RMS and LUFS, but peaks remain valid"
+      },
+      {
+        "path": "audio.crest_factor_db",
+        "description": "Crest factor 12 dB is inflated by silence; actual crest factor during hits is lower"
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "none",
+    "reason": "Reducing track volume by 3 dB will lower both sample peak and true peak, increasing headroom and reducing risk of intersample-peak distortion during further processing or conversion.",
+    "expected_direction": [],
+    "rejection_reason": "insufficient_signal"
+  }
+}

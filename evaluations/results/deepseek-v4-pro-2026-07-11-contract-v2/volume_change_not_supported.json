@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "The track contains very sparse audio (88% silence), making level and loudness measurements unreliable.",
+    "probable_cause": "The audio capture is dominated by silence; the kick hits are infrequent, so average RMS and integrated LUFS are artificially low and crest factor is overestimated relative to program material.",
+    "confidence": "low",
+    "confidence_reason": "Confidence is capped at low because audio.silence_fraction is 0.880.",
+    "evidence_refs": [
+      {
+        "path": "audio.silence_fraction",
+        "description": "High silence fraction (0.88) indicates sparse audio, diluting all level statistics."
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "none",
+    "reason": "High silence fraction prevents a reliable diagnosis or safe adjustment. No move recommended until a sustained audio segment is captured.",
+    "expected_direction": []
+  }
+}

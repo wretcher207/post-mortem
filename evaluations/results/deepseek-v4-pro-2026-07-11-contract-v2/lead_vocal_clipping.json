@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "The vocal track sounds dull, with a notable drop in high-frequency energy that can reduce clarity and presence.",
+    "probable_cause": "The recording or source signal lacks high-frequency content, possibly due to microphone choice, distance, or a low‑pass characteristic in the capture chain. No processing is present to compensate.",
+    "confidence": "medium",
+    "confidence_reason": "Only three 1/3‑octave bands are provided, but the consistent level drop from 100 Hz to 4 kHz aligns with the expected tonal imbalance, and the low silence fraction indicates reliable metering.",
+    "evidence_refs": [
+      {
+        "path": "audio.spectrum_third_octave[0].level_db",
+        "description": "100 Hz level at -18 dBFS"
+      },
+      {
+        "path": "audio.spectrum_third_octave[1].level_db",
+        "description": "1 kHz level at -24 dBFS, already down 6 dB from 100 Hz"
+      },
+      {
+        "path": "audio.spectrum_third_octave[2].level_db",
+        "description": "4 kHz level at -30 dBFS, a further 6 dB drop, indicating substantial high‑frequency roll‑off"
+      },
+      {
+        "path": "audio.silence_fraction",
+        "description": "0.05 silence fraction confirms capture is representative, not diluted by dead air"
+      },
+      {
+        "path": "audio.true_peak_db",
+        "description": "True peak of 0.8 dBFS shows limited headroom, but the primary issue is spectral, not peak headroom"
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "none",
+    "reason": "No corrective action can be taken on this track with the current FX chain (empty); a tonal improvement requires an EQ plugin to boost high frequencies. A manual edit would be unsafe because it could introduce unintended side effects, especially given the already‑tight true peak headroom.",
+    "expected_direction": []
+  }
+}

@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "Kick track is hitting the digital ceiling: sample peak -0.4 dBFS and true peak -0.1 dBFS leave essentially no headroom for inter-sample peaks or downstream bus/master processing. The spectrum is well-shaped for a kick (strong 100 Hz fundamental, -6 dB at 1 kHz for beater click, -12 dB at 4 kHz), and dynamics (12 dB crest factor, -20 LUFS integrated, LRA 8 LU) are sensible for an unprocessed kick. The capture is isolated and silence_fraction is only 0.05, so the level measurements are trustworthy.",
+    "probable_cause": "Track volume is set to 0.0 dB with no FX chain in place (no limiter, no clip protection). The signal is being delivered to the next stage essentially at full scale. With true peak already at -0.1 dBFS, any subsequent summing, bus processing, or inter-sample behavior on export can push the signal into clipping.",
+    "confidence": "high",
+    "confidence_reason": "Isolation is verified, silence_fraction is low (0.05) so the peak readings are reliable, and both sample_peak_db and true_peak_db are independently reported close to 0 dBFS.",
+    "evidence_refs": [
+      {
+        "path": "audio.sample_peak_db",
+        "description": "Sample peak at -0.4 dBFS — very close to digital ceiling."
+      },
+      {
+        "path": "audio.true_peak_db",
+        "description": "True peak at -0.1 dBFS — essentially no headroom for ISP."
+      },
+      {
+        "path": "audio.crest_factor_db",
+        "description": "12 dB crest factor indicates a dynamic, unprocessed kick."
+      },
+      {
+        "path": "audio.silence_fraction",
+        "description": "0.05 — capture is mostly signal, so peak readings are reliable."
+      },
+      {
+        "path": "audio.spectrum_third_octave[0].level_db",
+        "description": "100 Hz at -18 dB — strong kick fundamental."
+      },
+      {
+        "path": "audio.spectrum_third_octave[2].level_db",
+        "description": "4 kHz at -30 dB — modest high-frequency content."
+      },
+      {
+        "path": "fx_chain",
+        "description": "Empty FX chain — no limiting or clip protection in place."
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "set_track_volume",
+    "reason": "Preview changing track volume from 0.000 dB to -2.000 dB to test whether true_peak_db decreases.",
+    "target": {
+      "track_guid": "{TRACK-KICK-01}",
+      "track_name": "Kick"
+    },
+    "current_value": {
+      "value": 0.0,
+      "unit": "db",
+      "display": "0.0 dB"
+    },
+    "proposed_value": {
+      "value": -2.0,
+      "unit": "db",
+      "display": "-2.0 dB"
+    },
+    "goal": "true_peak_db",
+    "expected_direction": [
+      {
+        "metric": "true_peak_db",
+        "direction": "decrease"
+      },
+      {
+        "metric": "sample_peak_db",
+        "direction": "decrease"
+      },
+      {
+        "metric": "rms_db",
+        "direction": "decrease"
+      }
+    ]
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "The track's true peak level is -0.1 dBFS, leaving almost no headroom. As a top-level track (parent null) it sums directly to the master bus, and even slight additional gain from other tracks could cause clipping.",
+    "probable_cause": "The track is at unity gain (volume 0 dB) and the audio has a high crest factor with peaks very close to 0 dBFS.",
+    "confidence": "high",
+    "confidence_reason": "Isolation is verified and silence fraction is low, so the measurement accurately reflects the track's independent output. The true peak value is precise and indicates a clear risk.",
+    "evidence_refs": [
+      {
+        "path": "audio.true_peak_db",
+        "description": "True peak measured at -0.1 dBFS."
+      },
+      {
+        "path": "track.parent_track",
+        "description": "Null indicates no parent attenuation; track outputs to master directly."
+      },
+      {
+        "path": "capture.isolation_verified",
+        "description": "Capture is isolated, so spikes are not caused by other tracks."
+      },
+      {
+        "path": "audio.silence_fraction",
+        "description": "Low silence fraction (0.05) ensures measurement is not diluted by silence."
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "none",
+    "reason": "Reduce the track's volume by 3 dB to bring the true peak down to approximately -3.1 dBFS, providing headroom for mixing with other tracks and preventing clipping.",
+    "expected_direction": [],
+    "rejection_reason": "evidence_value_null"
+  }
+}

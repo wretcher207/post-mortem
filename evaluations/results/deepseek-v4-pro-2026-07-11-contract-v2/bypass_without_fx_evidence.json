@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "Track shows no critical faults: levels are safe, dynamics are moderate, and silence is negligible.",
+    "probable_cause": "No problematic evidence found; the spectral tilt may be intentional for a pluck sound, and the delay plugin has no parameters to assess.",
+    "confidence": "low",
+    "confidence_reason": "Only three 1/3-octave bands and no stereo measurement limit analysis. The enabled delay offers no parameters for inspection, so its effect is unknown.",
+    "evidence_refs": [
+      {
+        "path": "audio.true_peak_db",
+        "description": "True peak level is -0.4 dB, well below clipping."
+      },
+      {
+        "path": "audio.crest_factor_db",
+        "description": "Crest factor is 12 dB, indicating moderate dynamic range."
+      },
+      {
+        "path": "audio.integrated_lufs",
+        "description": "Integrated LUFS is -20.0, which is low but not necessarily problematic in isolation."
+      },
+      {
+        "path": "audio.silence_fraction",
+        "description": "Silence fraction is 0.05, meaning the capture is representative of the track content."
+      },
+      {
+        "path": "fx_chain[0].enabled",
+        "description": "The delay plugin is active but its parameters are empty, preventing diagnosis."
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "none",
+    "reason": "With limited spectral data and an opaque delay plugin, no specific corrective move can be justified from the evidence.",
+    "expected_direction": []
+  }
+}

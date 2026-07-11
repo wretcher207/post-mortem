@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "The track's true peak (-0.4 dB) is critically close to 0 dBFS, risking digital clipping, while the integrated loudness is low (-20 LUFS). This indicates high dynamic content with insufficient headroom, which may degrade signal quality and limit mixing flexibility.",
+    "probable_cause": "Track volume set to 0 dB with no gain reduction; the source material has sharp transient peaks that push near the digital ceiling while the average level remains moderate.",
+    "confidence": "high",
+    "confidence_reason": "Capture isolation is verified, and true_peak_db, sample_peak_db, and rms_db are directly measured. The -0.4 dB true peak is a clear indicator of near-clipping conditions.",
+    "evidence_refs": [
+      {
+        "path": "audio.true_peak_db"
+      },
+      {
+        "path": "audio.sample_peak_db"
+      },
+      {
+        "path": "audio.rms_db"
+      },
+      {
+        "path": "audio.integrated_lufs"
+      },
+      {
+        "path": "track.volume_db"
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "set_track_volume",
+    "reason": "Preview changing track volume from 0.000 dB to -3.000 dB to test whether true_peak_db decreases.",
+    "target": {
+      "track_guid": "{TRACK-SYNTH-03}",
+      "track_name": "Pluck Synth"
+    },
+    "current_value": {
+      "value": 0.0,
+      "unit": "db",
+      "display": "0.0 dB"
+    },
+    "proposed_value": {
+      "value": -3.0,
+      "unit": "db",
+      "display": "-3.0 dB"
+    },
+    "goal": "true_peak_db",
+    "expected_direction": [
+      {
+        "metric": "true_peak_db",
+        "direction": "decrease"
+      },
+      {
+        "metric": "sample_peak_db",
+        "direction": "decrease"
+      },
+      {
+        "metric": "integrated_lufs",
+        "direction": "decrease"
+      }
+    ]
+  }
+}

@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "The drum bus has an unusually low crest factor of 3.2 dB, indicating heavy transient compression. The loudness range is only 2.1 LU, confirming limited dynamic range. This often results in a lifeless, punchless drum sound.",
+    "probable_cause": "The compressor (6:1 ratio) is likely applying excessive gain reduction due to a low threshold (unknown) or an overly aggressive ratio, squashing peaks and reducing overall dynamics.",
+    "confidence": "medium",
+    "confidence_reason": "Crest factor and loudness range are strongly indicative of over‑compression, but lack of threshold, attack, and release parameters prevents a complete diagnosis.",
+    "evidence_refs": [
+      {
+        "path": "audio.crest_factor_db",
+        "description": "Crest factor is only 3.2 dB, far below the typical 10‑15 dB for uncompressed drums."
+      },
+      {
+        "path": "audio.loudness_range_lu",
+        "description": "Loudness range is 2.1 LU, confirming very little dynamic variation."
+      },
+      {
+        "path": "audio.true_peak_db",
+        "description": "True peak is -5.5 dBFS, which would likely be higher without compression."
+      },
+      {
+        "path": "fx_chain[0].parameters[0].normalized_value",
+        "description": "Compressor ratio is set to 6:1 (normalized 0.72)."
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "set_fx_bypass",
+    "reason": "Preview bypassing VST3: Generic Compressor; this does not remove or delete the plugin; to test whether crest_factor_db increases.",
+    "target": {
+      "track_guid": "{TRACK-DRUM-BUS-01}",
+      "fx_guid": "{FX-COMP-01}",
+      "fx_index": 0,
+      "fx_scope": "track",
+      "fx_name": "VST3: Generic Compressor"
+    },
+    "current_value": {
+      "value": false,
+      "unit": "boolean",
+      "display": "Not bypassed"
+    },
+    "proposed_value": {
+      "value": true,
+      "unit": "boolean",
+      "display": "Bypassed"
+    },
+    "goal": "crest_factor_db",
+    "expected_direction": [
+      {
+        "metric": "crest_factor_db",
+        "direction": "increase"
+      },
+      {
+        "metric": "loudness_range_lu",
+        "direction": "increase"
+      },
+      {
+        "metric": "true_peak_db",
+        "direction": "increase"
+      }
+    ]
+  }
+}

@@ -44,8 +44,10 @@ fail validation.
 ```
 
 `finding.evidence_refs[].path` is a path into the exact Track Check payload sent
-to the provider. Post Mortem verifies that referenced values exist and are not
-null before it exposes an actionable proposal.
+to the provider. Model-facing schema descriptions require an exact leaf path,
+such as `audio.sample_peak_db` or `fx_chain[0].enabled`, rather than a container.
+Post Mortem verifies that referenced values exist and are not null before it
+exposes an actionable proposal.
 
 `proposal.operation` is one of:
 
@@ -63,6 +65,13 @@ Names are descriptive checks; GUIDs are stable identity. The deterministic
 validator can replace an unsafe action with `operation: "none"` while preserving
 the finding and recording `rejection_reason` for machines.
 
+The provider does not receive this public schema directly. It receives the
+stricter `ProviderDiagnosisResult`, which omits validator-owned
+`rejection_reason` and exposes supported goal/metric names as closed JSON Schema
+enums. Post Mortem converts a valid provider result into `DiagnosisResult`, then
+runs deterministic validation. This keeps the public version 1 shape stable
+while preventing models from authoring validation state.
+
 For an accepted actionable proposal, Post Mortem rewrites `proposal.reason`
 from the validated structured values and expected metric direction. Provider
 prose cannot add a second move or describe a value beyond the conservative
@@ -77,8 +86,16 @@ Value units are explicit:
 
 `expected_direction[].direction` is `increase`, `decrease`, `not_increase`,
 `not_decrease`, or `unchanged`. Supported metric names live in
-`postmortem.proposals.SUPPORTED_METRICS` and are validated after the provider
-response.
+`postmortem.schemas.SupportedMetric`; `postmortem.proposals.SUPPORTED_METRICS`
+is derived from that type so prompt, provider schema, and validator cannot drift.
+
+Verified isolated-track capture provenance is required for any track diagnosis.
+Missing or unverified isolation is refused before the provider call and returns
+a safe low-confidence unavailable result with
+`rejection_reason: "capture_not_isolated"`. A `silence_fraction` of `0.75` or
+greater caps confidence at `low` and rejects an actionable proposal. A response
+that introduces a cross-track claim in the single-track path is replaced with a
+safe low-confidence finding and `rejection_reason: "cross_track_claim"`.
 
 ## Compatibility policy
 

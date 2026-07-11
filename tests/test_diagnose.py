@@ -11,7 +11,10 @@ from postmortem import config, diagnose  # noqa: E402
 from postmortem.analysis import TrackStats  # noqa: E402
 from postmortem.providers import anthropic_provider  # noqa: E402
 from postmortem.providers.base import ProviderError, ProviderErrorCategory  # noqa: E402
-from postmortem.schemas import DiagnosisResult  # noqa: E402
+from postmortem.schemas import (  # noqa: E402
+    DiagnosisResult,
+    ProviderDiagnosisResult,
+)
 
 
 class _Block:
@@ -244,7 +247,13 @@ class TestParseRenderStats(unittest.TestCase):
 
 class TestDiagnoseReply(unittest.TestCase):
     def _payload(self):
-        return {"audio": {}}
+        return {
+            "capture": {
+                "scope": "isolated_track",
+                "isolation_verified": True,
+            },
+            "audio": {},
+        }
 
     def test_text_and_structured_prompts_share_one_canonical_honesty_contract(self):
         canonical = diagnose._SINGLE_TRACK_HONESTY_CONTRACT
@@ -287,10 +296,13 @@ class TestDiagnoseReply(unittest.TestCase):
 
         self.assertIsInstance(result, DiagnosisResult)
         self.assertEqual(result.proposal.operation, "none")
-        self.assertIs(provider.calls[0]["response_schema"], DiagnosisResult)
+        self.assertIs(provider.calls[0]["response_schema"], ProviderDiagnosisResult)
         contract = " ".join(provider.calls[0]["system_contract"].lower().split())
         self.assertIn("do not diagnose frequency masking", contract)
         self.assertIn("evidence references", contract)
+        self.assertIn("exact leaf paths", contract)
+        self.assertIn("never cite a null value", contract)
+        self.assertIn("silence_fraction is 0.75 or higher", contract)
         self.assertIn("operation: none", contract)
         self.assertIn("does not remove or delete", contract)
 
@@ -318,6 +330,27 @@ class TestDiagnoseReply(unittest.TestCase):
             result.proposal.rejection_reason, "invalid_structured_response"
         )
 
+    def test_track_check_refuses_unverified_capture_before_provider_call(self):
+        provider = _StructuredProvider()
+
+        result = diagnose.diagnose_track(
+            {
+                "capture": {
+                    "scope": "full_mix",
+                    "isolation_verified": False,
+                },
+                "audio": {"sample_peak_db": -1.0},
+            },
+            provider=provider,
+            profile=diagnose.ModelProfile(model="test", thinking=False),
+        )
+
+        self.assertEqual(provider.calls, [])
+        self.assertEqual(result.finding.confidence, "low")
+        self.assertEqual(result.finding.evidence_refs, [])
+        self.assertEqual(result.proposal.operation, "none")
+        self.assertEqual(result.proposal.rejection_reason, "capture_not_isolated")
+
     def test_track_check_validates_actionable_proposal_against_actual_payload(self):
         result = diagnose.diagnose_track(
             {
@@ -328,6 +361,10 @@ class TestDiagnoseReply(unittest.TestCase):
                     "pan": 0.0,
                 },
                 "fx_chain": [],
+                "capture": {
+                    "scope": "isolated_track",
+                    "isolation_verified": True,
+                },
                 "audio": {"sample_peak_db": -1.0},
             },
             provider=_StaleActionableProvider(),

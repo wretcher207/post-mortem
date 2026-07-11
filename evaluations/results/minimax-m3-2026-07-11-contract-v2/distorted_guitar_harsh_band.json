@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "The only FX, a generic EQ, is currently applying a +3.0 dB Upper Mid Gain boost in the 3 kHz presence region on a distorted guitar. Distortion already generates strong harmonic energy in this band, so the additional boost risks harshness or honk. The measured 3.15 kHz band sits at -9.0 dB while the 5 kHz band sits at -12.0 dB, consistent with a presence-region lift.",
+    "probable_cause": "A +3.0 dB boost is being applied via the EQ's Upper Mid Gain parameter (the sole FX in the chain). For a distorted guitar source that already produces harmonic content in the 2–5 kHz presence region, additional gain here commonly reads as harshness or 'bite' rather than clarity.",
+    "confidence": "medium",
+    "confidence_reason": "The capture isolation is verified and the EQ parameter state is read directly from the chain. However, only two 1/3-octave bands are reported, so the broader spectral balance cannot be confirmed; '+3 dB at upper mids on distorted guitar' is a common harshness move but the perceptual outcome is not directly measured.",
+    "evidence_refs": [
+      {
+        "path": "fx_chain[0].parameters[0].name",
+        "description": "EQ parameter label"
+      },
+      {
+        "path": "fx_chain[0].parameters[0].formatted_value",
+        "description": "Gain value of the Upper Mid band (+3.0 dB)"
+      },
+      {
+        "path": "fx_chain[0].parameters[0].normalized_value",
+        "description": "Current normalized position of the Upper Mid gain"
+      },
+      {
+        "path": "fx_chain[0].enabled",
+        "description": "EQ is active in the chain"
+      },
+      {
+        "path": "audio.spectrum_third_octave[0].freq_hz",
+        "description": "Spectrum band closest to the boosted Upper Mid region"
+      },
+      {
+        "path": "audio.spectrum_third_octave[0].level_db",
+        "description": "Level in the 3.15 kHz band"
+      },
+      {
+        "path": "audio.silence_fraction",
+        "description": "Low silence fraction; level statistics are not diluted"
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "none",
+    "reason": "The proposed normalized FX parameter change was rejected by deterministic validation.",
+    "expected_direction": [],
+    "rejection_reason": "move_limit_exceeded"
+  }
+}

@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "Stereo image is strongly decorrelated: L/R correlation is -0.42 and the side channel sits 12 dB above the mid (-15.0 dB vs -27.0 dB) while balance is essentially centered (0.2 dB). For a pad this implies heavy widening that will cancel substantially when summed to mono. Headroom is fine (true peak -5.5 dB, sample peak -6.0 dB, crest factor 12.0 dB, integrated LUFS -20.0, LRA 8.0 LU) and silence_fraction is 0.05, so level statistics are trustworthy.",
+    "probable_cause": "The signal entering the track carries significant anti-correlated stereo content (likely intentional stereo-widening or layered, decorrelated oscillator/detune sources) producing a side-dominant field without any post-processing in the FX chain to manage mono compatibility or width.",
+    "confidence": "medium",
+    "confidence_reason": "Negative correlation of -0.42 and side-to-mid ratio of +12 dB are directly measured and consistent; medium (not high) because the track is named 'Wide Pad' so the widening may be intentional, and without source/bus context we cannot judge whether mono compatibility matters for this arrangement.",
+    "evidence_refs": [
+      {
+        "path": "audio.stereo.correlation",
+        "description": "L/R correlation -0.42 indicates substantial anti-phase content"
+      },
+      {
+        "path": "audio.stereo.mid_rms_db",
+        "description": "Mid level -27.0 dB"
+      },
+      {
+        "path": "audio.stereo.side_rms_db",
+        "description": "Side level -15.0 dB, 12 dB above mid"
+      },
+      {
+        "path": "audio.stereo.balance_db",
+        "description": "Centered at 0.2 dB, so the decorrelation is from width, not panning"
+      },
+      {
+        "path": "audio.silence_fraction",
+        "description": "0.05, so snapshot statistics are reliable"
+      },
+      {
+        "path": "audio.crest_factor_db",
+        "description": "12.0 dB, healthy dynamics for a pad"
+      },
+      {
+        "path": "audio.true_peak_db",
+        "description": "-5.5 dBTP, headroom OK"
+      },
+      {
+        "path": "audio.integrated_lufs",
+        "description": "-20.0 LUFS"
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "none",
+    "reason": "The decorrelated stereo field is the only material issue and it originates in the source content, not in track-level controls. fx_chain is empty, so there is no widener/MS/decorrelation processor available to bypass or adjust; track volume (0.0 dB) and pan (0.0) are already neutral. Making a safe, verified single move requires an FX target that does not exist in this payload, so no operation is proposed.",
+    "goal": "stereo_correlation",
+    "expected_direction": [
+      {
+        "metric": "stereo_correlation",
+        "direction": "increase"
+      }
+    ]
+  }
+}
