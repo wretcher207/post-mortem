@@ -2,6 +2,7 @@
 
 import argparse
 import difflib
+import json
 import os
 import sys
 
@@ -188,8 +189,20 @@ def main(argv=None):
     parser.add_argument("--seconds", type=_capture_seconds, default=30, help="capture length 1-600 (default 30, from cursor)")
     parser.add_argument("--keep-wav", action="store_true", help="don't delete the temp stem after analysis")
     parser.add_argument("--payload-only", action="store_true", help="print the payload JSON and exit (no model call)")
+    parser.add_argument(
+        "--format",
+        choices=("text", "json"),
+        default="text",
+        help="diagnosis output format (default: text; JSON is single-track only)",
+    )
     parser.add_argument("--force", action="store_true", help="diagnose even a capture the silence gate would refuse")
     args = parser.parse_args(argv)
+    if args.format == "json" and args.payload_only:
+        parser.error("--format json cannot be used with --payload-only")
+    if args.format == "json" and len(args.track) != 1:
+        parser.error(
+            "--format json supports one track; cross-track masking remains text-only"
+        )
 
     try:
         return _run(args)
@@ -267,13 +280,15 @@ def _run_single(args, context, track):
         payload = build_payload(context, track_scan, routing, capture_data, stats, target_name=track)
 
         if args.payload_only:
-            import json
-
             print(json.dumps(payload, indent=2))
             return 0
 
         print("[postmortem] diagnosing...", file=sys.stderr)
-        print(render_diagnosis_text(diagnose_track(payload)))
+        result = diagnose_track(payload)
+        if args.format == "json":
+            print(result.model_dump_json(indent=2))
+        else:
+            print(render_diagnosis_text(result))
         return 0
     finally:
         if not args.keep_wav:
@@ -345,8 +360,6 @@ def _run_masking(args, context, tracks):
         payload = build_masking_payload(context, per_track, masking)
 
         if args.payload_only:
-            import json
-
             print(json.dumps(payload, indent=2))
             return 0
 

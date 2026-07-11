@@ -163,7 +163,7 @@ class TestCaptureIsolationGate(unittest.TestCase):
 
 class TestSingleTrackCaptureSafety(unittest.TestCase):
     def test_non_diagnosable_captures_stop_before_analysis(self):
-        args = SimpleNamespace(seconds=30, payload_only=False, force=False, keep_wav=True)
+        args = SimpleNamespace(seconds=30, payload_only=False, force=False, keep_wav=True, format="text")
         track_scan = {"tracks": [{"name": "Guitar", "guid": "A", "fx": []}]}
         routing = {"track": {"guid": "A"}}
         for case, provenance in (
@@ -190,7 +190,7 @@ class TestSingleTrackCaptureSafety(unittest.TestCase):
     def test_payload_only_keeps_full_mix_provenance_without_diagnosing(self):
         from postmortem.analysis import TrackStats
 
-        args = SimpleNamespace(seconds=30, payload_only=True, force=False, keep_wav=True)
+        args = SimpleNamespace(seconds=30, payload_only=True, force=False, keep_wav=True, format="text")
         track_scan = {"tracks": [{"name": "Guitar", "guid": "A", "fx": []}]}
         routing = {"track": {"guid": "A"}}
         capture = {
@@ -220,7 +220,7 @@ class TestSingleTrackCaptureSafety(unittest.TestCase):
     def test_verified_isolated_capture_reaches_diagnosis(self):
         from postmortem.analysis import TrackStats
 
-        args = SimpleNamespace(seconds=30, payload_only=False, force=False, keep_wav=True)
+        args = SimpleNamespace(seconds=30, payload_only=False, force=False, keep_wav=True, format="text")
         track_scan = {"tracks": [{"name": "Guitar", "guid": "A", "fx": []}]}
         routing = {"track": {"guid": "A"}}
         capture = {
@@ -244,7 +244,7 @@ class TestSingleTrackCaptureSafety(unittest.TestCase):
     def test_verified_single_track_uses_structured_track_check_and_text_output(self):
         from postmortem.analysis import TrackStats
 
-        args = SimpleNamespace(seconds=30, payload_only=False, force=False, keep_wav=True)
+        args = SimpleNamespace(seconds=30, payload_only=False, force=False, keep_wav=True, format="text")
         track_scan = {"tracks": [{"name": "Guitar", "guid": "A", "fx": []}]}
         routing = {"track": {"guid": "A"}}
         capture = {
@@ -270,10 +270,54 @@ class TestSingleTrackCaptureSafety(unittest.TestCase):
         self.assertIn("DIAGNOSIS: The upper mids are elevated.", output)
         self.assertIn("SUGGESTED MOVE: Advice only.", output)
 
+    def test_json_format_prints_only_round_trippable_diagnosis_on_stdout(self):
+        from postmortem.analysis import TrackStats
+
+        args = SimpleNamespace(
+            seconds=30,
+            payload_only=False,
+            force=False,
+            keep_wav=True,
+            format="json",
+        )
+        track_scan = {"tracks": [{"name": "Guitar", "guid": "A", "fx": []}]}
+        routing = {"track": {"guid": "A"}}
+        capture = {
+            "track": {"guid": "A"},
+            "capture_scope": "isolated_track",
+            "isolation_verified": True,
+        }
+        stats = TrackStats(30.0, 48000, 2, -1.0, -12.0, 11.0)
+        stdout = StringIO()
+        stderr = StringIO()
+
+        with (
+            patch.object(cli.bridge, "scan_fx", return_value=track_scan),
+            patch.object(cli.bridge, "get_track_routing", return_value=routing),
+            patch.object(
+                cli.bridge,
+                "capture_track_audio",
+                return_value=(capture, "/tmp/isolated.wav"),
+            ),
+            patch.object(cli, "analyze_wav", return_value=stats),
+            patch.object(cli, "diagnose_track", return_value=_diagnosis_result()),
+            redirect_stdout(stdout),
+            redirect_stderr(stderr),
+        ):
+            self.assertEqual(
+                cli._run_single(args, {"project_name": "mix.RPP"}, "Guitar"),
+                0,
+            )
+
+        parsed = DiagnosisResult.model_validate_json(stdout.getvalue())
+        self.assertEqual(parsed, _diagnosis_result())
+        self.assertNotIn("[postmortem]", stdout.getvalue())
+        self.assertIn("[postmortem] diagnosing...", stderr.getvalue())
+
 
 class TestMaskingCaptureSafety(unittest.TestCase):
     def test_non_diagnosable_captures_stop_before_masking_analysis(self):
-        args = SimpleNamespace(seconds=30, payload_only=False, force=False, keep_wav=True)
+        args = SimpleNamespace(seconds=30, payload_only=False, force=False, keep_wav=True, format="text")
         track_scan = {"tracks": [{"name": "Guitar", "guid": "A", "fx": []}]}
         routing = {"track": {"guid": "A"}}
         for case, provenance in (
@@ -303,7 +347,7 @@ class TestMaskingCaptureSafety(unittest.TestCase):
     def test_verified_isolated_captures_reach_masking_diagnosis(self):
         from postmortem.analysis import TrackStats
 
-        args = SimpleNamespace(seconds=30, payload_only=False, force=False, keep_wav=True)
+        args = SimpleNamespace(seconds=30, payload_only=False, force=False, keep_wav=True, format="text")
         guitar_scan = {"tracks": [{"name": "Guitar", "guid": "A", "fx": []}]}
         bass_scan = {"tracks": [{"name": "Bass", "guid": "B", "fx": []}]}
         guitar_routing = {"track": {"guid": "A"}}
@@ -359,6 +403,32 @@ class TestCaptureSeconds(unittest.TestCase):
 
     def test_accepts_valid(self):
         self.assertEqual(cli._capture_seconds("30"), 30)
+
+
+class TestCliFormats(unittest.TestCase):
+    def test_text_is_the_default_format(self):
+        with patch.object(cli, "_run", return_value=0) as run:
+            self.assertEqual(cli.main(["Kick"]), 0)
+
+        self.assertEqual(run.call_args.args[0].format, "text")
+
+    def test_json_format_and_payload_only_are_mutually_exclusive(self):
+        stderr = StringIO()
+
+        with self.assertRaises(SystemExit) as raised, redirect_stderr(stderr):
+            cli.main(["Kick", "--format", "json", "--payload-only"])
+
+        self.assertEqual(raised.exception.code, 2)
+        self.assertIn("--format json cannot be used with --payload-only", stderr.getvalue())
+
+    def test_json_format_rejects_cross_track_prose_path(self):
+        stderr = StringIO()
+
+        with self.assertRaises(SystemExit) as raised, redirect_stderr(stderr):
+            cli.main(["Kick", "Bass", "--format", "json"])
+
+        self.assertEqual(raised.exception.code, 2)
+        self.assertIn("--format json supports one track", stderr.getvalue())
 
 
 class TestProviderErrors(unittest.TestCase):
