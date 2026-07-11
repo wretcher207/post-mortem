@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "True peak is dangerously close to 0 dBFS, risking intersample clipping and distortion.",
+    "probable_cause": "Track volume is at 0 dB with no limiting or gain reduction, leaving no headroom for downstream processing.",
+    "confidence": "high",
+    "confidence_reason": "Direct measurement of true_peak_db = -0.1 dBFS confirms the level is near full scale, a well-known risk regardless of program material.",
+    "evidence_refs": [
+      {
+        "path": "audio.true_peak_db",
+        "description": "True peak level measured at -0.1 dBFS."
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "none",
+    "reason": "Reducing track volume by 3 dB will shift the true peak away from 0 dBFS, creating safe headroom and reducing clipping risk.",
+    "target": null,
+    "current_value": null,
+    "proposed_value": null,
+    "goal": null,
+    "expected_direction": [],
+    "rejection_reason": "unsupported_goal"
+  }
+}

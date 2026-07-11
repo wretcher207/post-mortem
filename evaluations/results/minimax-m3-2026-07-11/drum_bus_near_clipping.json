@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "Track true peak is at -0.1 dBTP, essentially at the digital ceiling, with no FX on this bus to control inter-sample peaks. The track is named 'Parallel Drum Bus' but the FX chain is empty, so the measured hot level and 9 dB crest factor were baked in upstream of this track — the chain itself cannot be the source of that character. Capture is reliable (silence_fraction 0.05), so the levels reflect real signal.",
+    "probable_cause": "Audio rendered upstream with limiting/parallel compression already applied; this bus is just passing that hot signal through with 0.0 dB fader and no margin left for summing, dithering, or lossy codec conversion downstream.",
+    "confidence": "high",
+    "confidence_reason": "true_peak_db and sample_peak_db are directly measured; silence_fraction 0.05 means the level statistics are not diluted. The FX chain is verifiably empty in the payload.",
+    "evidence_refs": [
+      {
+        "path": "audio.true_peak_db",
+        "description": "True peak -0.1 dBTP leaves essentially no headroom."
+      },
+      {
+        "path": "audio.sample_peak_db",
+        "description": "Sample peak -0.3 dB confirms signal is near full scale."
+      },
+      {
+        "path": "audio.crest_factor_db",
+        "description": "9 dB crest factor consistent with already-limited material."
+      },
+      {
+        "path": "fx_chain",
+        "description": "Empty FX chain; no limiter on this bus to catch inter-sample peaks."
+      },
+      {
+        "path": "track.name",
+        "description": "Naming implies parallel compression character that is not produced by any current plugin."
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "set_track_volume",
+    "reason": "Pulling the fader down 1 dB creates true-peak headroom on the bus without changing the signal character or removing any processing. This is the only move directly supported by the measured -0.1 dBTP and the empty FX chain.",
+    "target": {
+      "track_guid": "{TRACK-DRUM-BUS-02}",
+      "track_name": "Parallel Drum Bus",
+      "fx_guid": null,
+      "fx_index": null,
+      "fx_scope": null,
+      "fx_name": null,
+      "parameter_index": null,
+      "parameter_name": null
+    },
+    "current_value": {
+      "value": 0.0,
+      "unit": "db",
+      "display": "0.0 dB"
+    },
+    "proposed_value": {
+      "value": -1.0,
+      "unit": "db",
+      "display": "-1.0 dB"
+    },
+    "goal": "true_peak_db",
+    "expected_direction": [
+      {
+        "metric": "true_peak_db",
+        "direction": "decrease"
+      },
+      {
+        "metric": "sample_peak_db",
+        "direction": "decrease"
+      },
+      {
+        "metric": "integrated_lufs",
+        "direction": "decrease"
+      },
+      {
+        "metric": "rms_db",
+        "direction": "decrease"
+      }
+    ],
+    "rejection_reason": null
+  }
+}

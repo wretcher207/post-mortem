@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "All level and dynamic statistics on this track are heavily diluted by a 0.78 silence fraction (~7.8 s of dead air in a 10 s capture). The spectrum is only sampled at three 1/3-octave points (100/1000/4000 Hz), which is too coarse to support tonal-balance moves. The FX chain is empty and no stereo image was measured. Given these gaps, no diagnosis beyond 'measurements are unreliable due to silence' can be supported by the payload.",
+    "probable_cause": "The source material is sparse (long gaps between bass notes/automation moves). When 78% of a capture window is silence, integrated LUFS, RMS, true-peak estimates, LRA, and crest factor all reflect mostly the noise floor of the silence portion rather than the perceived loudness or dynamics of the active bass content. The limited three-band spectrum cannot reveal resonances, sub harmonics, or upper-mid bite that would justify an EQ move.",
+    "confidence": "low",
+    "confidence_reason": "Silence fraction 0.78 means roughly the bottom 4-5 LUFS, the RMS, and the crest factor are dominated by the silent portion. Stereo and true-peak fields are null. Only three spectrum bands are present. Without FX in the chain and without bus/mix context, there is nothing the single-track evidence supports changing.",
+    "evidence_refs": [
+      {
+        "path": "audio.silence_fraction",
+        "description": "0.78 — capture is 78% dead air, diluting every level statistic"
+      },
+      {
+        "path": "audio.integrated_lufs",
+        "description": "-20.0 LUFS — unreliable given the 0.78 silence fraction"
+      },
+      {
+        "path": "audio.rms_db",
+        "description": "-42.0 dB — diluted by silence; cannot characterize active bass level"
+      },
+      {
+        "path": "audio.crest_factor_db",
+        "description": "12.0 dB — measured over full window including silence; not representative of active bass dynamics"
+      },
+      {
+        "path": "audio.sample_peak_db",
+        "description": "-18.0 dB — only confident datapoint: at least 18 dB of sample-peak headroom on this track"
+      },
+      {
+        "path": "audio.spectrum_third_octave",
+        "description": "Only 100/1000/4000 Hz bands provided; insufficient resolution to motivate an EQ change"
+      },
+      {
+        "path": "audio.stereo",
+        "description": "null — no stereo image data captured"
+      },
+      {
+        "path": "audio.true_peak_db",
+        "description": "null — cannot evaluate inter-sample peak risk"
+      },
+      {
+        "path": "fx_chain",
+        "description": "Empty chain — no FX parameter available to address even if a problem were identified"
+      },
+      {
+        "path": "routing",
+        "description": "No sends/receives and no parent bus — nothing in routing suggests a corrective move"
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "none",
+    "reason": "The evidence cannot support a safe, verifiable single move. Loudness and dynamic metrics are dominated by the 0.78 silence fraction, the spectrum is too sparse (three bands) to justify an EQ change, true-peak and stereo fields are null, and the FX chain is empty so there is no parameter to address even where the data is usable. Reporting -18 dB sample peak as 'plenty of headroom' would be true but not an actionable, measured change — and the integrated LUFS of -20 is too contaminated to serve as a volume target. Returning 'none' is the honest answer until a fuller capture (lower silence_fraction or a longer non-silent window) and a denser spectrum are available.",
+    "target": null,
+    "current_value": null,
+    "proposed_value": null,
+    "goal": null,
+    "expected_direction": [],
+    "rejection_reason": "evidence_value_null"
+  }
+}

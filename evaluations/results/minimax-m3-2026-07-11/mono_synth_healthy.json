@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "The provider response could not be validated.",
+    "probable_cause": "The initial response and one repair attempt failed the schema.",
+    "confidence": "low",
+    "confidence_reason": "There is no provider diagnosis to evaluate.",
+    "evidence_refs": []
+  },
+  "proposal": {
+    "operation": "none",
+    "reason": "Malformed structured output cannot support a safe change.",
+    "target": null,
+    "current_value": null,
+    "proposed_value": null,
+    "goal": null,
+    "expected_direction": [],
+    "rejection_reason": "invalid_structured_response"
+  }
+}

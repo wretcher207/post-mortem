@@ -588,7 +588,8 @@ Deliverables:
 - Resolve the product questions at the end of this document.
 - Collect 15–25 anonymized test scenarios across drums, bass, guitars, vocals, synths, buses, and full mixes.
 - Save expected findings, acceptable moves, and unacceptable claims.
-- Benchmark at least two economical models against the current Opus baseline.
+- Benchmark DeepSeek V4 Flash and MiniMax M3 against DeepSeek V4 Pro; do not use
+  an Anthropic model as the Post Mortem quality baseline.
 - Define the proposal schema and conservative move limits.
 
 Exit criteria:

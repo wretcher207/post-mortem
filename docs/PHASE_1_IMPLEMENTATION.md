@@ -447,6 +447,16 @@ Phase 1 is complete only when:
 9. No preview or mutation path has accidentally entered Phase 1.
 10. The next phase can consume `DiagnosisResult.proposal` without parsing prose.
 
+### Model evaluation result — 2026-07-11
+
+DeepSeek V4 Flash, DeepSeek V4 Pro, and MiniMax M3 were evaluated against the
+same 25-case corpus. The gate was executed, but no model met the 80% usefulness
+threshold for primary findings: MiniMax M3 reached 12/25, DeepSeek V4 Flash
+9/25, and DeepSeek V4 Pro 8/25. Their stricter full-contract pass counts were
+3/25, 2/25, and 0/25. The benchmark also found and closed a prose path around
+structured move limits. See `evaluations/results/2026-07-11-model-benchmark.md`;
+Phase 1 model selection remains open.
+
 ## 7. Recommended pull request sequence
 
 1. **Reaper Daemon:** additive track/FX GUID response fields and tests.

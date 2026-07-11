@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "Stereo correlation is -0.25, well below the +0.5 to +0.9 range expected for normal stereo content. Mid RMS (-28.0 dB) is 14 dB below Side RMS (-14.0 dB), meaning the image is dominated by L/R difference energy rather than well-correlated content. Sustained audio is present (silence_fraction 0.05), so the negative correlation is not an artifact of a sparse signal. The only enabled FX is a stereo chorus with unmeasured parameters.",
+    "probable_cause": "Stereo chorus modulation is the most likely contributor to heavily decorrelated L/R content: chorus-style engines typically generate delayed, modulated duplicates that become increasingly uncorrelated between channels, especially at wider settings. The track name 'Wide Synth' and the centered pan rule out a L/R balance or routing cause. The signal itself cannot be ruled out (some synth patches are designed with strong pseudo-stereo), but with only one stereo FX on the chain, the chorus is the primary suspect.",
+    "confidence": "medium",
+    "confidence_reason": "A correlation of -0.25 is objectively a problem regardless of intentional width (mono summing will cause significant level and tonal loss). However, the chorus FX parameter list is empty, so I cannot verify which chorus parameter is driving the decorrelation, and I cannot rule out a contribution from the source synth patch. A bypass preview is needed to isolate the cause.",
+    "evidence_refs": [
+      {
+        "path": "audio.stereo.correlation",
+        "description": "Stereo correlation of -0.25 indicates substantial phase cancellation risk on mono sum."
+      },
+      {
+        "path": "audio.stereo.mid_rms_db",
+        "description": "Mid energy -28.0 dB shows mono-correlated content is very low."
+      },
+      {
+        "path": "audio.stereo.side_rms_db",
+        "description": "Side energy -14.0 dB is 14 dB above mid, confirming an L/R-difference-dominant image."
+      },
+      {
+        "path": "audio.stereo.balance_db",
+        "description": "Centered pan (0.0 dB) rules out a L/R imbalance explanation."
+      },
+      {
+        "path": "audio.silence_fraction",
+        "description": "0.05 means the negative correlation is not a sparse-signal artifact."
+      },
+      {
+        "path": "fx_chain[0]",
+        "description": "Only enabled FX is VST3: Generic Chorus, a likely source of L/R decorrelation."
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "none",
+    "reason": "Diagnostic preview only — this does NOT remove or delete the chorus; it temporarily bypasses it so a fresh isolated capture can be compared. If correlation rises toward positive values (and mid RMS rises relative to side RMS), the chorus is confirmed as the dominant cause of the decorrelated stereo image and its width/mix/feedback parameters can then be dialed back rather than the plugin removed.",
+    "target": null,
+    "current_value": null,
+    "proposed_value": null,
+    "goal": null,
+    "expected_direction": [],
+    "rejection_reason": "unsupported_goal"
+  }
+}

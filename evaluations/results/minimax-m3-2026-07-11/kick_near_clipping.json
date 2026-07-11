@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "Kick is at unity gain with true peak at -0.1 dBFS and sample peak at -0.4 dBFS, leaving essentially no headroom for downstream bus or master processing. Spectrum shows a typical kick shape (100 Hz dominant at -18 dB, with a smooth ~-6 dB per octave rolloff through 1 kHz and 4 kHz, no spectral anomalies). Dynamics look healthy: crest factor 12 dB, LRA 8 LU, RMS -10.5 dB. Mono track, empty FX chain, no sends. Stereo metrics are null, consistent with a mono kick at pan 0.",
+    "probable_cause": "The track is rendered hot relative to a downstream-processing-tolerant staging target. The 0.3 dB gap between sample peak and true peak indicates inter-sample content typical of transient-heavy material (kick) that has not yet passed through a bus limiter.",
+    "confidence": "medium",
+    "confidence_reason": "The close-to-0 dBFS true peak is directly measurable; whether this is actually a problem depends on the downstream bus/master chain (which is out of scope for a single-track diagnosis). The spectrum data is sparse (only three 1/3-octave bands reported), so detailed tonal conclusions are limited.",
+    "evidence_refs": [
+      {
+        "path": "audio.sample_peak_db",
+        "description": "-0.4 dBFS sample peak"
+      },
+      {
+        "path": "audio.true_peak_db",
+        "description": "-0.1 dBFS true peak; 0.3 dB above sample peak indicates inter-sample content"
+      },
+      {
+        "path": "audio.rms_db",
+        "description": "-10.5 dB RMS across ~9.5 s of signal (silence_fraction 0.05)"
+      },
+      {
+        "path": "audio.crest_factor_db",
+        "description": "12 dB crest factor consistent with healthy kick transients"
+      },
+      {
+        "path": "audio.integrated_lufs",
+        "description": "-20 LUFS integrated"
+      },
+      {
+        "path": "audio.loudness_range_lu",
+        "description": "8 LU LRA — moderate, normal for a kick in isolation"
+      },
+      {
+        "path": "audio.silence_fraction",
+        "description": "0.05 — capture is mostly signal, level stats are reliable"
+      },
+      {
+        "path": "audio.spectrum_third_octave",
+        "description": "100 Hz -18 / 1 kHz -24 / 4 kHz -30: smooth -6 dB/octave rolloff, no peaks or dips to flag"
+      },
+      {
+        "path": "track.volume_db",
+        "description": "0.0 dB — unity gain, no attenuation in place"
+      },
+      {
+        "path": "fx_chain",
+        "description": "Empty — track reaches the output unprocessed"
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "none",
+    "reason": "Trim the kick by ~1 dB to leave headroom for downstream bus compression and/or master limiting without risking 0 dBTP overs. The track currently rides at -0.1 dBTP with nothing in its FX chain, which is hot for staging. A 1 dB cut barely changes perceived loudness but moves true peak to roughly -1.1 dBTP.",
+    "target": null,
+    "current_value": null,
+    "proposed_value": null,
+    "goal": null,
+    "expected_direction": [],
+    "rejection_reason": "unsupported_goal"
+  }
+}

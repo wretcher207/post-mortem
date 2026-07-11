@@ -58,9 +58,12 @@ python -m postmortem.evaluation \
 The evaluator only reads captured files and cannot spend provider credits.
 Review snapshots for de-identification before committing them.
 
-Phase 1 closeout requires two intentional snapshots against the same corpus: a
-pinned economical model and the current quality baseline. The offline fixture
-example above does not satisfy that external model-evaluation gate.
+Phase 1 closeout requires intentional snapshots against the same corpus. The
+2026-07-11 baseline covers DeepSeek V4 Flash, DeepSeek V4 Pro, and MiniMax M3;
+see `evaluations/results/2026-07-11-model-benchmark.md`. None reached the 80%
+useful-primary-finding threshold, and their stricter full-contract scores were
+lower still. The offline fixture example above does not satisfy that external
+model-evaluation gate on its own.
 
 ## Contract changes
 

@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "Track’s true peak is very close to 0 dBFS (-0.4 dB) while the overall loudness is moderate (-20 LUFS integrated), yielding a high crest factor. An enabled delay plugin on the track may be increasing peak levels.",
+    "probable_cause": "The enabled VST3: Generic Delay is feeding delayed copies back into the signal, potentially summing with the original pluck and raising transient peaks. Without parameter values, the exact contribution is unknown.",
+    "confidence": "medium",
+    "confidence_reason": "The effect of the delay on the peaks cannot be definitively quantified because its parameters (mix, feedback, time) are unavailable, but bypassing offers a direct test.",
+    "evidence_refs": [
+      {
+        "path": "audio.true_peak_db",
+        "description": "True peak measured at -0.4 dBFS, only 0.4 dB below digital full scale."
+      },
+      {
+        "path": "audio.crest_factor_db",
+        "description": "Crest factor of 12 dB indicates large difference between peak and average levels."
+      },
+      {
+        "path": "fx_chain[0]",
+        "description": "Track FX chain contains an enabled VST3: Generic Delay with no exposed parameters in this capture."
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "none",
+    "reason": "True peak is -0.4 dBFS; the enabled delay may be summing delayed repeats, raising peaks. Bypassing will reveal its contribution. This is a preview – the plugin stays in the chain but is temporarily disabled.",
+    "target": null,
+    "current_value": null,
+    "proposed_value": null,
+    "goal": null,
+    "expected_direction": [],
+    "rejection_reason": "unsupported_goal"
+  }
+}

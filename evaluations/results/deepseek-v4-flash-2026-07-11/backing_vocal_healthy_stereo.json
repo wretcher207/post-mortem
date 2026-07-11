@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "Excessive low-frequency content and high true peak relative to sample peak.",
+    "probable_cause": "Likely due to close microphone placement causing proximity effect, and presence of intersample peaks.",
+    "confidence": "medium",
+    "confidence_reason": "The spectrum shows 100 Hz at -18 dB vs 1 kHz at -24 dB and 4 kHz at -30 dB, a clear low-frequency bias. True peak is -5.5 dB while sample peak is -8.5 dB, indicating intersample peaks. However, only three frequency bands are available, limiting certainty.",
+    "evidence_refs": [
+      {
+        "path": "audio.spectrum_third_octave[0].level_db",
+        "description": "100 Hz band level"
+      },
+      {
+        "path": "audio.spectrum_third_octave[1].level_db",
+        "description": "1 kHz band level"
+      },
+      {
+        "path": "audio.spectrum_third_octave[2].level_db",
+        "description": "4 kHz band level"
+      },
+      {
+        "path": "audio.true_peak_db",
+        "description": "True peak level"
+      },
+      {
+        "path": "audio.sample_peak_db",
+        "description": "Sample peak level"
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "none",
+    "reason": "No FX chain exists on this track. The only available operations (volume, pan) cannot correct the spectral imbalance or improve the high-frequency content. Adding an EQ plugin (e.g., high-pass filter around 80-100 Hz and a gentle presence boost around 4 kHz) would be necessary to address the excessive low end and improve vocal clarity.",
+    "target": null,
+    "current_value": null,
+    "proposed_value": null,
+    "goal": null,
+    "expected_direction": [],
+    "rejection_reason": null
+  }
+}

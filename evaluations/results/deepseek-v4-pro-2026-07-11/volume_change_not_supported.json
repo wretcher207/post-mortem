@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "The track shows healthy peak levels and typical kick-drum spectral balance, but the extreme silence fraction (0.88) dilutes RMS and overall level statistics. No problematic signs are evident from the isolated capture.",
+    "probable_cause": "The track contains very sparse hits (only 12% non-silent content), as designed.",
+    "confidence": "medium",
+    "confidence_reason": "The high silence fraction limits the reliability of RMS and integrated LUFS as indicators of average playback level, but the peak and spectral data from the hits are reliable.",
+    "evidence_refs": [
+      {
+        "path": "audio.true_peak_db",
+        "description": "True peak at -5.5 dBFS, well below clipping."
+      },
+      {
+        "path": "audio.silence_fraction",
+        "description": "88% of the capture is dead air, heavily skewing continuous level measurements."
+      },
+      {
+        "path": "audio.spectrum_third_octave",
+        "description": "Spectral balance dominated by 100 Hz (-18 dB), with energy falling off at higher frequencies, consistent with a typical kick drum."
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "none",
+    "reason": "No corrective action is justified based on the isolated-track data. The track appears well-recorded with no clipping or spectral anomalies.",
+    "target": null,
+    "current_value": null,
+    "proposed_value": null,
+    "goal": null,
+    "expected_direction": [],
+    "rejection_reason": null
+  }
+}

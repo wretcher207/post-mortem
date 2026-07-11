@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "Lead vocal track is entirely dry with no EQ or compression. The sparse 1/3-octave spectrum shows a strong low-frequency emphasis (100 Hz at −18 dBFS) compared to the mid-range (1 kHz at −24 dBFS) and presence (4 kHz at −30 dBFS), suggesting possible proximity effect or unwanted low-end buildup. The send to 'Vocal Verb' is at +4 dB, which may cause the reverb to be overly prominent or clip its input, but no data on the reverb plugin is available to confirm.",
+    "probable_cause": "No high‑pass filter or EQ applied to control low frequencies; send level set to +4 dB without reference to reverb plugin headroom or mix balance.",
+    "confidence": "medium",
+    "confidence_reason": "Spectrum data is limited to three frequency bands, so the tonal balance diagnosis is tentative. The send level concern is based solely on the +4 dB value; we cannot verify if the reverb expects such a hot signal or if it introduces distortion.",
+    "evidence_refs": [
+      {
+        "path": "audio.spectrum_third_octave",
+        "description": "Only three bands: 100 Hz (−18 dBFS), 1 kHz (−24 dBFS), 4 kHz (−30 dBFS). Strong low-end relative to mids and highs."
+      },
+      {
+        "path": "routing.sends[0].volume_db",
+        "description": "Send to Vocal Verb is +4 dB above unity."
+      },
+      {
+        "path": "fx_chain",
+        "description": "No effects present; track is completely dry."
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "none",
+    "reason": "The available operations (set_track_volume, set_track_pan, set_fx_param, set_fx_bypass) cannot add an EQ or adjust send volume. The track volume could be lowered to indirectly reduce the send level, but this would also reduce the dry vocal level, which is not clearly warranted by the data. The low‑frequency issue requires a high‑pass filter, which is not present. Thus no safe, evidence‑based move is possible with the permitted actions.",
+    "target": null,
+    "current_value": null,
+    "proposed_value": null,
+    "goal": null,
+    "expected_direction": [],
+    "rejection_reason": null
+  }
+}

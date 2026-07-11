@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "Drum Sum bus shows healthy headroom and drum-appropriate dynamics on the captured material (sample peak -6.0 dB, true peak -5.5 dB, RMS -18.0 dB, crest factor 12.0 dB, integrated LUFS -20.0, LRA 8.0 LU). The spectrum is dominated by a strong 100 Hz band (-18 dB) with a -6 dB roll-off through 1 kHz (-24 dB) and 4 kHz (-30 dB), consistent with kick-dominated content. Two notable configuration issues: (1) the FX chain is empty, so there is no bus processing (no glue compression, no transient shaping) on a 'Drum Sum'; (2) the only receive is from 'Kick Feed' — a drum-sum bus typically aggregates multiple drum sources, so either other drum feeds are missing or this bus is functioning as a kick sub-group. Silence is low (5%), so the level/dynamics statistics are reliable and not diluted by dead air.",
+    "probable_cause": "The track is configured as a drum bus but currently sums only a single kick source into an unprocessed chain, so the audio snapshot reflects kick-only spectrum and dynamics. The empty FX chain and minimal routing suggest the bus has been set up structurally but not yet fleshed out for mixing.",
+    "confidence": "medium",
+    "confidence_reason": "Levels, dynamics, and spectrum are directly measurable and reliable given the low silence fraction. Confidence is capped at medium because the routing shows only a kick feed for a bus named 'Drum Sum' — without knowing the intent (kick sub-group vs. unfinished drum bus), the tonal-balance interpretation is ambiguous, and with no FX present no bus-processing diagnosis can be made.",
+    "evidence_refs": [
+      {
+        "path": "track.name",
+        "description": "Track name 'Drum Sum' indicates an aggregating drum bus role."
+      },
+      {
+        "path": "routing.receives",
+        "description": "Only a single receive from 'Kick Feed' at 0.0 dB — no snare, toms, overheads, or room sources visible."
+      },
+      {
+        "path": "fx_chain",
+        "description": "Empty FX chain — no bus compression, EQ, or transient shaping applied."
+      },
+      {
+        "path": "audio.sample_peak_db",
+        "description": "-6.0 dB, ~6 dB of headroom below 0 dBFS."
+      },
+      {
+        "path": "audio.true_peak_db",
+        "description": "-5.5 dB true peak, comfortable below typical -1 dBTP ceiling."
+      },
+      {
+        "path": "audio.rms_db",
+        "description": "-18.0 dB RMS."
+      },
+      {
+        "path": "audio.crest_factor_db",
+        "description": "12.0 dB — appropriate transient-rich profile for drums."
+      },
+      {
+        "path": "audio.integrated_lufs",
+        "description": "-20.0 LUFS, reasonable for an isolated drum-bus capture."
+      },
+      {
+        "path": "audio.loudness_range_lu",
+        "description": "8.0 LU, moderate dynamic range."
+      },
+      {
+        "path": "audio.silence_fraction",
+        "description": "0.05 — statistics are not diluted by silence; confidence in level readings is high."
+      },
+      {
+        "path": "audio.spectrum_third_octave",
+        "description": "100 Hz at -18 dB, 1 kHz at -24 dB, 4 kHz at -30 dB — kick-dominant spectral shape."
+      },
+      {
+        "path": "capture.note",
+        "description": "Capture is a verified isolated fixture capture, so stereo field is intentionally not measured."
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "none",
+    "reason": "No actionable single-track move is supported by the evidence. Levels already have comfortable headroom (sample peak -6 dB, true peak -5.5 dB), dynamics are appropriate for drums (crest factor 12 dB), and the spectrum's kick-leaning shape is expected given that only the Kick Feed is routed into this bus. The two real concerns — empty FX chain and a drum-sum bus receiving only kick — require adding new FX instances and new send routings, neither of which are among the supported operations (set_track_volume, set_track_pan, set_fx_param, set_fx_bypass). Bypassing non-existent FX is not possible, and there is no parameter to nudge whose effect on this audio I can verify from the payload.",
+    "target": null,
+    "current_value": null,
+    "proposed_value": null,
+    "goal": null,
+    "expected_direction": [],
+    "rejection_reason": "Empty fx_chain and missing drum sources exceed supported ops; no safe single-track move."
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "Track peak level is very close to 0 dBFS, leaving minimal headroom for subsequent processing.",
+    "probable_cause": "Source level recorded or normalized to near full scale.",
+    "confidence": "medium",
+    "confidence_reason": "While the track is not clipping, the peak level is extremely close to 0 dBFS, and reducing gain is a common precaution to allow headroom for EQ, compression, or summing; however, the necessity depends on the mix context, which is not available.",
+    "evidence_refs": [
+      {
+        "path": "audio.true_peak_db",
+        "description": "True peak measured at -0.1 dBTP, only 0.1 dB below digital full scale."
+      },
+      {
+        "path": "audio.sample_peak_db",
+        "description": "Sample peak at -0.4 dBFS, confirming near‑clipping levels."
+      },
+      {
+        "path": "audio.silence_fraction",
+        "description": "Silence fraction is 0.05, meaning the level measurements represent actual signal and are not diluted by dead air."
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "none",
+    "reason": "Reducing track gain by 6 dB will bring peaks down to approximately -6.1 dBTP, providing safe headroom for mixing and processing without affecting tonal balance.",
+    "target": null,
+    "current_value": null,
+    "proposed_value": null,
+    "goal": null,
+    "expected_direction": [],
+    "rejection_reason": "unsupported_goal"
+  }
+}

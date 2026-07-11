@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "The Parallel Drum Bus track has no FX chain and no receives, despite its intended role as a parallel compression bus. This suggests it is an unprocessed duplicate of the dry drum signal, which will cause level doubling and potential phase issues when summed with the original.",
+    "probable_cause": "The track was created as a parallel bus but the compressor and routing were never configured, or the FX were accidentally removed.",
+    "confidence": "medium",
+    "confidence_reason": "We have no visibility of other tracks or the overall mix, but the track name, empty FX chain, and absence of receives strongly indicate misconfiguration.",
+    "evidence_refs": [
+      {
+        "path": "track.name",
+        "description": "The track is named 'Parallel Drum Bus'."
+      },
+      {
+        "path": "fx_chain",
+        "description": "Empty FX chain, indicating no processing."
+      },
+      {
+        "path": "routing.receives",
+        "description": "No receives, so this track is not receiving audio from a dry drum bus."
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "none",
+    "reason": "Muting this track will prevent the unprocessed parallel signal from summing with the dry drums, avoiding potential level increase and phase issues. This is a preview; no data is removed.",
+    "target": null,
+    "current_value": null,
+    "proposed_value": null,
+    "goal": null,
+    "expected_direction": [],
+    "rejection_reason": "unsupported_goal"
+  }
+}

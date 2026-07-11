@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "Track level is low (integrated LUFS -20) and has a bass-heavy tonal balance with limited high-frequency content.",
+    "probable_cause": "The synth patch likely has a low default output level and a frequency profile that emphasizes low frequencies over mids and highs.",
+    "confidence": "medium",
+    "confidence_reason": "Integrated LUFS and RMS levels are about 4 dB below typical mix targets; spectrum shows a steep drop from 100 Hz to 4 kHz, but only three bins are available, giving limited spectral resolution.",
+    "evidence_refs": [
+      {
+        "path": "audio.integrated_lufs",
+        "description": "Integrated loudness -20 LUFS is well below common mix levels (-14 to -16 LUFS)."
+      },
+      {
+        "path": "audio.spectrum_third_octave",
+        "description": "100 Hz at -18 dB, 1 kHz at -24 dB, 4 kHz at -30 dB; implies strong low-end relative to mids and highs."
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "none",
+    "reason": "Raising track volume by 4 dB will bring integrated LUFS closer to -16 (a typical mix target) while keeping true peak below 0 dBFS (-1.5 dB).",
+    "target": null,
+    "current_value": null,
+    "proposed_value": null,
+    "goal": null,
+    "expected_direction": [],
+    "rejection_reason": "unsupported_goal"
+  }
+}

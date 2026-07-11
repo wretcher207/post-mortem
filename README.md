@@ -59,8 +59,8 @@ Real output, run on a kick drum:
 - The [Reaper Daemon](https://github.com/wretcher207/reaper-daemon) bridge,
   installed and running inside REAPER
 - Python 3.10+
-- An API key. A plain Anthropic key is all you need (it defaults to Claude
-  Opus). Any Anthropic-compatible endpoint works too (MiniMax is tested).
+- A provider API key. The recommended explicit configuration uses DeepSeek V4
+  Flash; MiniMax M3 can also be configured through its compatible endpoint.
 
 ## Install
 
@@ -86,18 +86,21 @@ won't be found yet. (No pipx? Install it first with
 `python3 -m pip install --user pipx`, use `python` on Windows, then run the two
 lines above.)
 
-**3. Config.** Create `~/.config/postmortem/config`. The whole file, for a
-plain Anthropic key, is two lines:
+**3. Config.** Create `~/.config/postmortem/config`. For DeepSeek V4 Flash:
 
 ```
-ANTHROPIC_API_KEY=<your key>
+POSTMORTEM_API_KEY=<your DeepSeek key>
+ANTHROPIC_BASE_URL=https://api.deepseek.com/anthropic
+POSTMORTEM_MODEL=deepseek-v4-flash
 REAPER_DAEMON_ROOT=/path/to/your/reaper-daemon/clone
 ```
 
-That's it. It defaults to Claude Opus. To use an Anthropic-compatible
-endpoint instead (MiniMax, etc.), add two more lines:
+The `ANTHROPIC_BASE_URL` name describes the compatible wire protocol used by
+the current transport; it does not mean the request goes to Anthropic. To use
+MiniMax M3 instead:
 
 ```
+POSTMORTEM_API_KEY=<your MiniMax key>
 ANTHROPIC_BASE_URL=https://api.minimax.io/anthropic
 POSTMORTEM_MODEL=MiniMax-M3
 ```
@@ -191,6 +194,8 @@ current CLI still cannot apply a change to REAPER.
   another model provider without coupling the engine to its SDK.
 - [`docs/MIGRATING_TEXT_CONSUMERS.md`](docs/MIGRATING_TEXT_CONSUMERS.md) — move
   scripts from presentation text to the versioned JSON contract.
+- [`evaluations/results/2026-07-11-model-benchmark.md`](evaluations/results/2026-07-11-model-benchmark.md)
+  — first full model comparison and the failed selection decision.
 
 ## Known rough edge
 

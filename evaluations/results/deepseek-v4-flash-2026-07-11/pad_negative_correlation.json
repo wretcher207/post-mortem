@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "Excessive negative stereo correlation (-0.42) and side-dominant energy (side RMS -15 dB vs mid -27 dB) indicate significant out-of-phase content that will cause cancellation in mono, making the track weak or hollow when collapsed.",
+    "probable_cause": "The track's stereo widening technique or source material uses phase inversion between left and right channels, resulting in a very wide but mono-incompatible image.",
+    "confidence": "high",
+    "confidence_reason": "Correlation and mid/side levels are directly measured from an isolated capture with low silence fraction (0.05), so the data is reliable.",
+    "evidence_refs": [
+      {
+        "path": "audio.stereo.correlation",
+        "description": "Negative stereo correlation indicating out-of-phase content"
+      },
+      {
+        "path": "audio.stereo.mid_rms_db",
+        "description": "Mid channel RMS level is much lower than side"
+      },
+      {
+        "path": "audio.stereo.side_rms_db",
+        "description": "Side channel RMS level is 12 dB higher than mid"
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "none",
+    "reason": "The identified problem requires adding a mid/side processor (e.g., JS Mid/Side Encoder or a utility plugin) to reduce side level or adjust polarity, but none of the allowed operations (set_track_volume, set_track_pan, set_fx_param, set_fx_bypass) can insert a new plugin. The current FX chain is empty.",
+    "target": null,
+    "current_value": null,
+    "proposed_value": null,
+    "goal": null,
+    "expected_direction": [],
+    "rejection_reason": "Cannot add new FX via the available operations; manual insertion of a mid/side utility is needed."
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "Kick track has significant intersample peaks (true peak -5.5 dBFS vs sample peak -9.0 dBFS) and high silence fraction (0.88) diluting level measurements.",
+    "probable_cause": "The nature of a sparse kick with high transient content; no FX processing to control peaks.",
+    "confidence": "medium",
+    "confidence_reason": "The true peak and sample peak difference is measurable, but the impact on the mix depends on other tracks' levels and headroom.",
+    "evidence_refs": [
+      {
+        "path": "audio.true_peak_db",
+        "description": "True peak measured at -5.5 dBFS"
+      },
+      {
+        "path": "audio.sample_peak_db",
+        "description": "Sample peak at -9.0 dBFS"
+      },
+      {
+        "path": "audio.silence_fraction",
+        "description": "Silence fraction 0.88"
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "none",
+    "reason": "Reduce risk of intersample clipping when this track is summed with others in the mix, given the 3.5 dB gap between sample and true peak.",
+    "target": null,
+    "current_value": null,
+    "proposed_value": null,
+    "goal": null,
+    "expected_direction": [],
+    "rejection_reason": "unsupported_goal"
+  }
+}

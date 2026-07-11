@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "The track is significantly quieter than typical mix levels (integrated LUFS -20) while having ample peak headroom, suggesting it could benefit from gain staging adjustment. The spectral balance shows a prominent low-frequency content relative to mids and highs, which may contribute to a muddy or undefined character.",
+    "probable_cause": "Low overall level likely due to conservative gain staging or intentional dynamic range. The bass-heavy spectrum may be inherent to the synth patch.",
+    "confidence": "medium",
+    "confidence_reason": "The integrated LUFS and peak levels clearly indicate headroom, but without mix context the necessity of raising levels is stylistic. Spectral imbalance is noted but may be intended for the sound design.",
+    "evidence_refs": [
+      {
+        "path": "audio.integrated_lufs",
+        "description": "Integrated LUFS is -20, below typical mix level for a supporting synth."
+      },
+      {
+        "path": "audio.sample_peak_db",
+        "description": "Sample peak is -0.8 dB, allowing up to ~5-6 dB increase before hitting 0 dBFS."
+      },
+      {
+        "path": "audio.spectrum_third_octave",
+        "description": "100 Hz band at -18 dB, 1 kHz at -24 dB, 4 kHz at -30 dB; low end is 6 dB louder than mids, potentially muddy."
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "none",
+    "reason": "Increase track volume to bring integrated LUFS closer to a typical -16 LUFS for a mix element, utilizing the 4-5 dB of headroom available before sample peak reaches 0 dBFS.",
+    "target": null,
+    "current_value": null,
+    "proposed_value": null,
+    "goal": null,
+    "expected_direction": [],
+    "rejection_reason": "unsupported_goal"
+  }
+}

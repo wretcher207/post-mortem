@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "Crest factor of 3.2 dB is unusually low for a drum bus, indicating heavy compression; LRA of 2.1 LU is correspondingly very narrow, confirming the dynamics are squashed. Sample/true peaks (-6.0 / -5.5 dB) are well below 0, so this is not a limiter-clipping ceiling issue — it is upstream dynamic-range collapse.",
+    "probable_cause": "The compressor on the FX chain (VST3: Generic Compressor, index 0) is set to a 6:1 ratio (parameter index 4, normalized 0.72). Combined with the measured crest factor of 3.2 dB and LRA of 2.1 LU on a fully active capture (silence_fraction 0.05), the ratio/operating point is producing strong gain reduction on transients. Threshold, attack, release, knee, and makeup gain values are not exposed in the payload, so the full picture of the compression stage cannot be confirmed, but the resulting dynamics are unambiguous in the audio block.",
+    "confidence": "medium",
+    "confidence_reason": "Crest factor of 3.2 dB combined with LRA of 2.1 LU on a near-fully active drum-bus capture is consistent and high-signal evidence. Medium rather than high because only one compressor parameter (ratio) is reported; threshold/attack/release/makeup could shift the interpretation, and without them the precise cause cannot be isolated further.",
+    "evidence_refs": [
+      {
+        "path": "audio.crest_factor_db",
+        "description": "3.2 dB crest factor — unusually low for drums."
+      },
+      {
+        "path": "audio.loudness_range_lu",
+        "description": "2.1 LU LRA — very narrow, consistent with heavy compression."
+      },
+      {
+        "path": "audio.silence_fraction",
+        "description": "0.05 — capture is essentially fully active, so the low crest factor is not diluted by silence."
+      },
+      {
+        "path": "audio.integrated_lufs",
+        "description": "-20.0 LUFS — relatively loud for a single bus, consistent with makeup gain or heavy gain reduction."
+      },
+      {
+        "path": "audio.sample_peak_db",
+        "description": "-6.0 dB — comfortable headroom, rules out output-clipping as the cause."
+      },
+      {
+        "path": "audio.true_peak_db",
+        "description": "-5.5 dB — confirms headroom, not a true-peak/limiter ceiling issue."
+      },
+      {
+        "path": "fx_chain[0].parameters",
+        "description": "Compressor Ratio = 6:1 (normalized 0.72) at fx_index 0, parameter_index 4."
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "none",
+    "reason": "The proposed normalized FX parameter change was rejected by deterministic validation.",
+    "target": null,
+    "current_value": null,
+    "proposed_value": null,
+    "goal": null,
+    "expected_direction": [],
+    "rejection_reason": "unsupported_goal"
+  }
+}

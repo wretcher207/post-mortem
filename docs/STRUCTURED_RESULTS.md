@@ -63,6 +63,11 @@ Names are descriptive checks; GUIDs are stable identity. The deterministic
 validator can replace an unsafe action with `operation: "none"` while preserving
 the finding and recording `rejection_reason` for machines.
 
+For an accepted actionable proposal, Post Mortem rewrites `proposal.reason`
+from the validated structured values and expected metric direction. Provider
+prose cannot add a second move or describe a value beyond the conservative
+limits, while the rendered move still says why the change is being previewed.
+
 Value units are explicit:
 
 - track volume: `db`

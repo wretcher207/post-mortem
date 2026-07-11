@@ -1,0 +1,83 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "Bass track is gain-staged hot: fader sits at +5 dB while the post-fader true peak is only -0.3 dBTP, leaving essentially no headroom for downstream bus processing. The 1/3-octave spectrum is sparse but shows 4 kHz at -24 dB sitting 6 dB above the 1 kHz band at -30 dB — an unusually high-frequency tilt for a bass with no FX chain — but three data points are too few to target an EQ move.",
+    "probable_cause": "Track volume fader is set 5 dB above unity, which pushes the captured signal within 0.3 dB of the inter-sample ceiling. The empty FX chain means nothing downstream is catching transients, and the healthy 12 dB crest factor confirms peaks (not sustained level) are what is hitting the ceiling.",
+    "confidence": "medium",
+    "confidence_reason": "The headroom calculation follows directly from true_peak_db and volume_db and is reliable (silence_fraction 0.05 — level stats are not diluted). The 4 kHz observation is real but cannot be acted on with only three 1/3-octave bands; I therefore mention it but do not propose an EQ change.",
+    "evidence_refs": [
+      {
+        "path": "audio.true_peak_db",
+        "description": "-0.3 dBTP — only 0.3 dB below the inter-sample ceiling."
+      },
+      {
+        "path": "track.volume_db",
+        "description": "+5 dB fader above unity on an empty FX chain."
+      },
+      {
+        "path": "audio.sample_peak_db",
+        "description": "-0.7 dBFS — 0.4 dB below true peak, consistent with minimal inter-sample overshoot (no heavy limiting evident)."
+      },
+      {
+        "path": "audio.crest_factor_db",
+        "description": "12 dB — healthy, transient peaks are what is hitting the ceiling, not sustained RMS."
+      },
+      {
+        "path": "audio.spectrum_third_octave",
+        "description": "4 kHz at -24 dB vs 1 kHz at -30 dB; spectral tilt noted but resolution is too coarse for a specific EQ proposal."
+      },
+      {
+        "path": "fx_chain",
+        "description": "Empty — no downstream limiting or compression to manage peaks."
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "set_track_volume",
+    "reason": "Trim the bass fader by 2 dB to recover headroom for mix-bus summing and any downstream processing. Crest factor is 12 dB and integrated LUFS is -20, so a 2 dB cut preserves dynamic shape and body; the resulting true peak should land around -2.3 dBTP, giving ~2 dB of usable margin without changing the mix balance meaningfully.",
+    "target": {
+      "track_guid": "{TRACK-BASS-01}",
+      "track_name": "Bass Guitar",
+      "fx_guid": null,
+      "fx_index": null,
+      "fx_scope": null,
+      "fx_name": null,
+      "parameter_index": null,
+      "parameter_name": null
+    },
+    "current_value": {
+      "value": 5.0,
+      "unit": "db",
+      "display": "+5.0 dB"
+    },
+    "proposed_value": {
+      "value": 3.0,
+      "unit": "db",
+      "display": "+3.0 dB"
+    },
+    "goal": "true_peak_db",
+    "expected_direction": [
+      {
+        "metric": "true_peak_db",
+        "direction": "decrease"
+      },
+      {
+        "metric": "sample_peak_db",
+        "direction": "decrease"
+      },
+      {
+        "metric": "rms_db",
+        "direction": "decrease"
+      },
+      {
+        "metric": "integrated_lufs",
+        "direction": "decrease"
+      },
+      {
+        "metric": "crest_factor_db",
+        "direction": "unchanged"
+      }
+    ],
+    "rejection_reason": null
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "The track has a high true peak level of 0.8 dBFS, close to 0 dBFS, while the integrated loudness is relatively low at -20 LUFS, indicating that peaky transients are driving the level up without much body.",
+    "probable_cause": "The recording was captured too hot with insufficient headroom, leaving no safety margin for inter-sample peaks. The absence of any dynamics processing in the FX chain means the raw transients are preserved.",
+    "confidence": "medium",
+    "confidence_reason": "The true peak measurement is concrete, and the silence fraction is low, so the readings are reliable. However, only three 1/3‑octave spectrum bands are provided, limiting tonal assessment.",
+    "evidence_refs": [
+      {
+        "path": "audio.true_peak_db",
+        "description": "True peak of 0.8 dBFS – only 0.8 dB below 0 dBFS, leaving minimal headroom before inter-sample clipping."
+      },
+      {
+        "path": "audio.crest_factor_db",
+        "description": "Crest factor of 12 dB – indicates moderate peak-to-average ratio, but the peaks are still too close to 0 dBFS."
+      },
+      {
+        "path": "audio.spectrum_third_octave",
+        "description": "Three-band spectrum shows a gentle roll-off from 100 Hz (-18 dB) to 4 kHz (-30 dB); no sign of HF emphasis that would exaggerate true peak, but the limited bands cannot rule out ultrasonic energy."
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "none",
+    "reason": "Lowering the track volume will reduce the true peak to a safer level, preventing possible inter-sample clipping when the signal is further processed, sent to a bus, or converted to analog. This is a simple gain adjustment with no side effects on tone.",
+    "target": null,
+    "current_value": null,
+    "proposed_value": null,
+    "goal": null,
+    "expected_direction": [],
+    "rejection_reason": "unsupported_goal"
+  }
+}

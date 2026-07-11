@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "All measured single-track metrics for the soloed distorted guitar are within healthy ranges and reveal no actionable problem. True peak -5.5 dB against sample peak -6.0 dB leaves ~5.5 dB of headroom; RMS -18.0 dB and a 12.0 dB crest factor indicate the distortion is not over-squashed; integrated loudness -20.0 LUFS and 8.0 LU LRA are moderate. With silence_fraction 0.05 the level statistics are reliable (not diluted by dead air). The only processing in the chain is a +3.0 dB boost on the EQ's 'Upper Mid Gain' band, which is consistent with the elevated 1/3-octave readings at 3.15 kHz (-9.0 dB) and 5 kHz (-12.0 dB) — that is the expected response to that EQ move on its own, not a sign of harshness.",
+    "probable_cause": "No defect identified: peaks are well below 0 dBFS, dynamics are uncompressed, and the limited spectrum evidence is coherent with the single EQ move in the chain. There is no phase inversion, no parent bus, and no sends to deroute.",
+    "confidence": "medium",
+    "confidence_reason": "Evidence is sufficient for level/dynamics/headroom claims, but the 1/3-octave spectrum covers only two bands (3.15 kHz, 5 kHz) and stereo data is null, so any claim about overall tonal balance or stereo image is incomplete. The single soloed-guitar capture also cannot speak to masking against other tracks, but that is outside the single-track scope anyway.",
+    "evidence_refs": [
+      {
+        "path": "/audio/true_peak_db",
+        "description": "True peak in dBFS, leaves comfortable headroom"
+      },
+      {
+        "path": "/audio/sample_peak_db",
+        "description": "Sample peak in dBFS"
+      },
+      {
+        "path": "/audio/rms_db",
+        "description": "RMS level in dBFS"
+      },
+      {
+        "path": "/audio/crest_factor_db",
+        "description": "Crest factor in dB, indicates dynamics are preserved"
+      },
+      {
+        "path": "/audio/integrated_lufs",
+        "description": "Integrated loudness, consistent with a soloed guitar"
+      },
+      {
+        "path": "/audio/loudness_range_lu",
+        "description": "Loudness range, moderate"
+      },
+      {
+        "path": "/audio/silence_fraction",
+        "description": "Low silence fraction means stats are not diluted"
+      },
+      {
+        "path": "/fx_chain/0/name",
+        "description": "Sole FX in the chain is a generic EQ"
+      },
+      {
+        "path": "/fx_chain/0/parameters/0/name",
+        "description": "Parameter is Upper Mid Gain"
+      },
+      {
+        "path": "/fx_chain/0/parameters/0/formatted_value",
+        "description": "Current value +3.0 dB"
+      },
+      {
+        "path": "/audio/spectrum_third_octave",
+        "description": "Reported 1/3-octave bands at 3.15 kHz and 5 kHz"
+      },
+      {
+        "path": "/capture/isolation_verified",
+        "description": "Capture was verified isolated"
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "none",
+    "reason": "The evidence for this soloed distorted guitar shows healthy headroom (true peak -5.5 dB), uncompressed dynamics (crest factor 12.0 dB), and a single tonal move (+3.0 dB Upper Mid Gain) that matches the measured energy at 3.15 kHz and 5 kHz. The track's pan, volume, phase, and routing are all neutral/intact, and the single observed parameter is doing what it appears to be intended to do. None of the supported single-track operations is justified by the data, so no move is proposed.",
+    "target": null,
+    "current_value": null,
+    "proposed_value": null,
+    "goal": null,
+    "expected_direction": [],
+    "rejection_reason": "evidence_path_missing"
+  }
+}
