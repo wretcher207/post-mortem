@@ -76,6 +76,14 @@ class _RefusingProvider:
         )
 
 
+class _InvalidStructuredProvider:
+    def generate(self, **kwargs):
+        raise ProviderError(
+            ProviderErrorCategory.INVALID_RESPONSE,
+            "the provider returned malformed structured content",
+        )
+
+
 def _stats():
     return TrackStats(
         duration_seconds=30.0,
@@ -210,6 +218,13 @@ class TestDiagnoseReply(unittest.TestCase):
     def _payload(self):
         return {"audio": {}}
 
+    def test_text_and_structured_prompts_share_one_canonical_honesty_contract(self):
+        canonical = diagnose._SINGLE_TRACK_HONESTY_CONTRACT
+
+        self.assertTrue(diagnose.SYSTEM_PROMPT.startswith(canonical))
+        self.assertTrue(diagnose.TRACK_CHECK_SYSTEM_PROMPT.startswith(canonical))
+        self.assertIn("Do not diagnose frequency masking", canonical)
+
     def test_joins_multiple_text_blocks(self):
         client = _FakeClient(_Response([_Block("part one"), _Block("part two")]))
         out = diagnose.diagnose(self._payload(), client=client)
@@ -260,6 +275,19 @@ class TestDiagnoseReply(unittest.TestCase):
         self.assertEqual(result.finding.confidence, "low")
         self.assertEqual(result.proposal.operation, "none")
         self.assertEqual(result.proposal.rejection_reason, "provider_refusal")
+
+    def test_track_check_turns_failed_schema_repair_into_unavailable_result(self):
+        result = diagnose.diagnose_track(
+            self._payload(),
+            provider=_InvalidStructuredProvider(),
+            profile=diagnose.ModelProfile(model="test", thinking=False),
+        )
+
+        self.assertEqual(result.finding.confidence, "low")
+        self.assertEqual(result.proposal.operation, "none")
+        self.assertEqual(
+            result.proposal.rejection_reason, "invalid_structured_response"
+        )
 
 
 class TestProviderProfile(unittest.TestCase):

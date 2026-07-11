@@ -9,7 +9,7 @@ from .providers.base import (
 )
 from .schemas import DiagnosisResult
 
-SYSTEM_PROMPT = """\
+_SINGLE_TRACK_HONESTY_CONTRACT = """\
 You are a mix engineer analyzing a single track inside a REAPER session. You
 receive the track's FX chain (with current parameter values), routing (sends,
 receives, parent bus, phase, automation mode), and a post-FX audio snapshot
@@ -25,10 +25,16 @@ say so.
 Your job: diagnose what's wrong or could be improved. Be specific. Name
 frequencies. Name parameters. Propose one concrete move, not five.
 
-You see ONE track, not the mix. Do not diagnose frequency masking or claim
-anything about how this track sits against others; you have no data for that.
+You see ONE track, not the mix. Do not diagnose frequency masking or claim how
+this track sits against others; you have no data for that.
 Stay on what the single-track evidence supports: tonal balance, dynamics,
 gain staging, FX-chain configuration.
+
+Do not suggest moves you can't verify from the data. If the diagnosis is
+uncertain, say so. An honest "I'm not sure" beats a confident wrong answer.
+"""
+
+SYSTEM_PROMPT = _SINGLE_TRACK_HONESTY_CONTRACT + """
 
 Format:
 1. DIAGNOSIS: [2-3 sentences. What you hear in the numbers.]
@@ -39,22 +45,9 @@ Format:
 4. CONFIDENCE: [low / medium / high. Based on how much signal you have vs.
    how much you're guessing.]
 
-Do not suggest moves you can't verify from the data. If the diagnosis is
-uncertain, say so. An honest "I'm not sure" beats a confident wrong answer.
 """
 
-TRACK_CHECK_SYSTEM_PROMPT = """\
-You are a mix engineer analyzing one track inside a REAPER session. You receive
-its verified identity, FX chain with current parameters, routing, and a post-FX
-audio snapshot. Some fields may be null; null means "not measured", never zero.
-Use true_peak_db only when present and never infer true peak from sample peak.
-High silence_fraction dilutes every level statistic, so reduce confidence and
-say why.
-
-Diagnose only what this single-track evidence supports: tonal balance,
-dynamics, gain staging, routing, and FX-chain configuration. Do not diagnose
-frequency masking or claim how the track sits against other tracks. Propose one
-move, not five, and uncertainty is acceptable.
+TRACK_CHECK_SYSTEM_PROMPT = _SINGLE_TRACK_HONESTY_CONTRACT + """
 
 Return the structured diagnosis contract supplied with the request. Evidence
 references must be payload paths that exist in the supplied payload. Supported
@@ -335,22 +328,38 @@ def diagnose_track(
             user_instruction="Diagnose this track and return the structured Track Check result:",
         )
     except ProviderError as error:
-        if error.category is not ProviderErrorCategory.REFUSAL:
+        unavailable = {
+            ProviderErrorCategory.REFUSAL: (
+                "The provider declined to produce a diagnosis.",
+                "No structured Track Check result was returned.",
+                "A refused diagnosis cannot support a safe change.",
+                "provider_refusal",
+            ),
+            ProviderErrorCategory.INVALID_RESPONSE: (
+                "The provider response could not be validated.",
+                "The initial response and one repair attempt failed the schema.",
+                "Malformed structured output cannot support a safe change.",
+                "invalid_structured_response",
+            ),
+        }
+        fallback = unavailable.get(error.category)
+        if fallback is None:
             raise
+        summary, probable_cause, reason, rejection_reason = fallback
         result = {
             "schema_version": 1,
             "finding": {
-                "summary": "The provider declined to produce a diagnosis.",
-                "probable_cause": "No structured Track Check result was returned.",
+                "summary": summary,
+                "probable_cause": probable_cause,
                 "confidence": "low",
                 "confidence_reason": "There is no provider diagnosis to evaluate.",
                 "evidence_refs": [],
             },
             "proposal": {
                 "operation": "none",
-                "reason": "A refused diagnosis cannot support a safe change.",
+                "reason": reason,
                 "expected_direction": [],
-                "rejection_reason": "provider_refusal",
+                "rejection_reason": rejection_reason,
             },
         }
     return DiagnosisResult.model_validate(result)

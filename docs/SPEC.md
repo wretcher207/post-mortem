@@ -37,8 +37,9 @@ computes the 1/3-octave overlap, and diagnoses masking with a SIBLING prompt
 contract (`MASKING_SYSTEM_PROMPT`) only after every capture is verified isolated.
 This is a deliberate, gated relaxation of the single-track hedge, not a
 weakening: it still refuses to over-claim on coarse bands (contested band =
-candidate collision region, not proof). The single-track hedge (`SYSTEM_PROMPT`)
-is unchanged and still governs single-track runs. See "Cross-track masking
+candidate collision region, not proof). Single-track text and structured output
+share `_SINGLE_TRACK_HONESTY_CONTRACT`; structured Track Check adds only the
+schema/proposal rules in `TRACK_CHECK_SYSTEM_PROMPT`. See "Cross-track masking
 (build #2)" below.
 
 **Capture-validity gate:** model diagnosis requires the daemon result to say
@@ -456,9 +457,10 @@ phase correlation, mid/side RMS, L-minus-R balance; `null` for mono), and the
 rest of REAPER's RENDER_STATS parsed client-side in
 `diagnose.parse_render_stats` (`true_peak_db`, `loudness_range_lu`,
 `lufs_momentary_max`, `lufs_short_term_max` — the bridge itself still parses
-only LUFS-I). Absent stats are omitted, never null-filled. The live prompt in
-`diagnose.SYSTEM_PROMPT` describes these fields; the prompt block quoted above
-is the original v1 wording, kept for design history.
+only LUFS-I). Absent stats are omitted, never null-filled. The live canonical
+contract in `diagnose._SINGLE_TRACK_HONESTY_CONTRACT` describes these fields;
+the prompt block quoted above is the original v1 wording, kept for design
+history.
 
 **Silence gate (2026-07-08, shipped):** the CLI refuses to spend a model call
 on dead air. A capture with overall RMS at or below -60 dBFS, or with
@@ -516,8 +518,9 @@ not proof, name the region not a false-precise Hz, a shared band can be fine by
 design (kick + bass), and if the tracks barely overlap it says so instead of
 inventing a problem. Same 4-part format (diagnosis / cause / move / confidence),
 same "one concrete move" discipline, biased toward a complementary carve
-referencing a real EQ already on the relevant track. `diagnose()` takes `system`
-and `intro` params; single-track defaults are unchanged.
+referencing a real EQ already on the relevant track. The masking path remains on
+the prose `diagnose()` interface while single-track Track Check uses
+`diagnose_track()` and the structured contract.
 
 **Monetization note:** the original spec filed cross-track masking under the paid
 v2 tier. Shipping it in the free CLI is a product decision still open for David;

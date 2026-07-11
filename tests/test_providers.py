@@ -171,7 +171,7 @@ def test_structured_adapter_allows_one_schema_repair_request():
 
     result = provider.generate(
         system_contract="contract",
-        payload={},
+        payload={"track": {"guid": "{TRACK-GUID}"}},
         response_schema=_StructuredResult,
         model_profile=ModelProfile(model="test", thinking=False),
         user_instruction="Diagnose:",
@@ -179,7 +179,9 @@ def test_structured_adapter_allows_one_schema_repair_request():
 
     assert result == {"finding": "controlled repair"}
     assert len(client.calls) == 2
-    assert "repair" in client.calls[1]["messages"][0]["content"].lower()
+    repair_content = client.calls[1]["messages"][0]["content"]
+    assert "repair" in repair_content.lower()
+    assert "{TRACK-GUID}" in repair_content
 
 
 def test_structured_adapter_requests_json_only_with_the_target_schema():

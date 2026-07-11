@@ -258,6 +258,7 @@ class AnthropicProvider:
                             "Repair the response below into exactly one JSON object "
                             "matching the supplied schema. Return JSON only.\n\n"
                             f"SCHEMA:\n{json.dumps(response_schema.model_json_schema())}"
+                            f"\n\nAUTHORITATIVE PAYLOAD:\n{json.dumps(payload)}"
                             f"\n\nRESPONSE:\n{text}"
                         ),
                     }
