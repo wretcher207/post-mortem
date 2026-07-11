@@ -12,6 +12,8 @@ from .diagnose import (
     build_masking_payload,
     build_payload,
     diagnose,
+    diagnose_track,
+    render_diagnosis_text,
 )
 from .providers.base import ProviderError
 
@@ -271,7 +273,7 @@ def _run_single(args, context, track):
             return 0
 
         print("[postmortem] diagnosing...", file=sys.stderr)
-        print(diagnose(payload))
+        print(render_diagnosis_text(diagnose_track(payload)))
         return 0
     finally:
         if not args.keep_wav:

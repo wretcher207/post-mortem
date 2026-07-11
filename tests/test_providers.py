@@ -53,6 +53,19 @@ class _FakeAnthropicClient:
         self.messages = _Messages()
 
 
+class _SequenceAnthropicClient:
+    def __init__(self, responses):
+        self.calls = []
+        self.responses = iter(responses)
+
+        class _Messages:
+            def create(inner, **kwargs):
+                self.calls.append(kwargs)
+                return next(self.responses)
+
+        self.messages = _Messages()
+
+
 class _RaisingAnthropicClient:
     def __init__(self, error):
         class _Messages:
@@ -120,6 +133,116 @@ def test_anthropic_adapter_returns_validated_data_without_leaking_sdk_objects():
     assert client.calls[0]["model"] == "claude-test"
     assert client.calls[0]["system"] == "honesty contract"
     assert client.calls[0]["thinking"] == {"type": "adaptive"}
+
+
+def test_structured_adapter_extracts_one_json_object_from_provider_preamble():
+    provider = AnthropicProvider(
+        _FakeAnthropicClient(
+            _Response(
+                [
+                    _Block(
+                        'I checked the evidence first.\n```json\n'
+                        '{"finding":"high-frequency buildup"}\n```'
+                    )
+                ]
+            )
+        )
+    )
+
+    result = provider.generate(
+        system_contract="contract",
+        payload={},
+        response_schema=_StructuredResult,
+        model_profile=ModelProfile(model="test", thinking=False),
+        user_instruction="Diagnose:",
+    )
+
+    assert result == {"finding": "high-frequency buildup"}
+
+
+def test_structured_adapter_allows_one_schema_repair_request():
+    client = _SequenceAnthropicClient(
+        [
+            _Response([_Block('{"wrong":"shape"}')]),
+            _Response([_Block('{"finding":"controlled repair"}')]),
+        ]
+    )
+    provider = AnthropicProvider(client)
+
+    result = provider.generate(
+        system_contract="contract",
+        payload={},
+        response_schema=_StructuredResult,
+        model_profile=ModelProfile(model="test", thinking=False),
+        user_instruction="Diagnose:",
+    )
+
+    assert result == {"finding": "controlled repair"}
+    assert len(client.calls) == 2
+    assert "repair" in client.calls[1]["messages"][0]["content"].lower()
+
+
+def test_structured_adapter_requests_json_only_with_the_target_schema():
+    client = _FakeAnthropicClient(
+        _Response([_Block('{"finding":"schema-guided"}')])
+    )
+    provider = AnthropicProvider(client)
+
+    provider.generate(
+        system_contract="honesty contract",
+        payload={},
+        response_schema=_StructuredResult,
+        model_profile=ModelProfile(model="test", thinking=False),
+        user_instruction="Diagnose:",
+    )
+
+    content = client.calls[0]["messages"][0]["content"]
+    assert "return json only" in content.lower()
+    assert '"finding"' in content
+
+
+def test_structured_adapter_stops_after_one_failed_repair():
+    client = _SequenceAnthropicClient(
+        [
+            _Response([_Block('{"wrong":"first"}')]),
+            _Response([_Block('{"wrong":"repair"}')]),
+            _Response([_Block('{"finding":"must not be requested"}')]),
+        ]
+    )
+    provider = AnthropicProvider(client)
+
+    with pytest.raises(ProviderError) as caught:
+        provider.generate(
+            system_contract="contract",
+            payload={},
+            response_schema=_StructuredResult,
+            model_profile=ModelProfile(model="test", thinking=False),
+            user_instruction="Diagnose:",
+        )
+
+    assert caught.value.category is ProviderErrorCategory.INVALID_RESPONSE
+    assert len(client.calls) == 2
+
+
+def test_structured_adapter_never_chooses_between_multiple_json_objects():
+    provider = AnthropicProvider(
+        _FakeAnthropicClient(
+            _Response(
+                [_Block('{"finding":"first"}\n{"finding":"second"}')]
+            )
+        )
+    )
+
+    with pytest.raises(ProviderError) as caught:
+        provider.generate(
+            system_contract="contract",
+            payload={},
+            response_schema=_StructuredResult,
+            model_profile=ModelProfile(model="test", thinking=False),
+            user_instruction="Diagnose:",
+        )
+
+    assert caught.value.category is ProviderErrorCategory.INVALID_RESPONSE
 
 
 def test_anthropic_adapter_maps_invalid_structured_output_to_typed_error():

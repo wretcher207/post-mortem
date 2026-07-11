@@ -1,7 +1,13 @@
 """Payload assembly + model call. The hedge contract lives here; don't weaken it."""
 
 import math
-from .providers.base import ModelProfile, TextDiagnosisResult
+from .providers.base import (
+    ModelProfile,
+    ProviderError,
+    ProviderErrorCategory,
+    TextDiagnosisResult,
+)
+from .schemas import DiagnosisResult
 
 SYSTEM_PROMPT = """\
 You are a mix engineer analyzing a single track inside a REAPER session. You
@@ -35,6 +41,30 @@ Format:
 
 Do not suggest moves you can't verify from the data. If the diagnosis is
 uncertain, say so. An honest "I'm not sure" beats a confident wrong answer.
+"""
+
+TRACK_CHECK_SYSTEM_PROMPT = """\
+You are a mix engineer analyzing one track inside a REAPER session. You receive
+its verified identity, FX chain with current parameters, routing, and a post-FX
+audio snapshot. Some fields may be null; null means "not measured", never zero.
+Use true_peak_db only when present and never infer true peak from sample peak.
+High silence_fraction dilutes every level statistic, so reduce confidence and
+say why.
+
+Diagnose only what this single-track evidence supports: tonal balance,
+dynamics, gain staging, routing, and FX-chain configuration. Do not diagnose
+frequency masking or claim how the track sits against other tracks. Propose one
+move, not five, and uncertainty is acceptable.
+
+Return the structured diagnosis contract supplied with the request. Evidence
+references must be payload paths that exist in the supplied payload. Supported
+operations are: none, set_track_volume, set_track_pan, set_fx_param, and
+set_fx_bypass. Use operation: none when the evidence cannot support a safe move.
+For an actionable move, copy real track, FX, and parameter identities from the
+payload and report current and proposed values without inventing unavailable
+display mappings. Never claim a proposal improved the audio before a verified
+before/after comparison exists. A refusal or honest non-actionable result is
+better than fabricated certainty.
 """
 
 # Sibling of SYSTEM_PROMPT. Only ever used when the payload carries 2+ tracks'
@@ -188,6 +218,7 @@ def build_payload(context, track_scan, routing, capture_data, stats, target_name
         "track": {
             "name": track.get("name"),
             "index": track.get("index"),
+            "guid": track.get("guid"),
             "volume_db": routing.get("volume_db"),
             "pan": routing.get("pan"),
             "parent_track": (routing.get("parent_track") or {}).get("name"),
@@ -244,6 +275,21 @@ def build_masking_payload(context, per_track, masking):
     }
 
 
+def _resolve_provider(client, provider, profile):
+    if provider is None:
+        from .providers.anthropic_provider import AnthropicProvider
+
+        if client is None:
+            return AnthropicProvider.from_config()
+        return (
+            AnthropicProvider(client),
+            profile or AnthropicProvider.model_profile_from_config(),
+        )
+    if profile is None:
+        raise ValueError("an injected provider requires an explicit model profile")
+    return provider, profile
+
+
 def diagnose(
     payload,
     client=None,
@@ -255,16 +301,7 @@ def diagnose(
     """Send the payload to the model, return the diagnosis text. system/intro
     default to the single-track hedge contract; the masking path passes
     MASKING_SYSTEM_PROMPT and its own intro."""
-    if provider is None:
-        from .providers.anthropic_provider import AnthropicProvider
-
-        if client is None:
-            provider, profile = AnthropicProvider.from_config()
-        else:
-            provider = AnthropicProvider(client)
-            profile = profile or AnthropicProvider.model_profile_from_config()
-    elif profile is None:
-        raise ValueError("an injected provider requires an explicit model profile")
+    provider, profile = _resolve_provider(client, provider, profile)
 
     if profile is None:  # Defensive for type checkers and future provider factories.
         raise ValueError("provider resolution did not return a model profile")
@@ -276,3 +313,61 @@ def diagnose(
         user_instruction=intro,
     )
     return TextDiagnosisResult.model_validate(result).text
+
+
+def diagnose_track(
+    payload,
+    client=None,
+    provider=None,
+    profile: ModelProfile | None = None,
+):
+    """Return a validated structured result for one-track Track Check."""
+    provider, profile = _resolve_provider(client, provider, profile)
+
+    if profile is None:
+        raise ValueError("provider resolution did not return a model profile")
+    try:
+        result = provider.generate(
+            system_contract=TRACK_CHECK_SYSTEM_PROMPT,
+            payload=payload,
+            response_schema=DiagnosisResult,
+            model_profile=profile,
+            user_instruction="Diagnose this track and return the structured Track Check result:",
+        )
+    except ProviderError as error:
+        if error.category is not ProviderErrorCategory.REFUSAL:
+            raise
+        result = {
+            "schema_version": 1,
+            "finding": {
+                "summary": "The provider declined to produce a diagnosis.",
+                "probable_cause": "No structured Track Check result was returned.",
+                "confidence": "low",
+                "confidence_reason": "There is no provider diagnosis to evaluate.",
+                "evidence_refs": [],
+            },
+            "proposal": {
+                "operation": "none",
+                "reason": "A refused diagnosis cannot support a safe change.",
+                "expected_direction": [],
+                "rejection_reason": "provider_refusal",
+            },
+        }
+    return DiagnosisResult.model_validate(result)
+
+
+def render_diagnosis_text(result: DiagnosisResult) -> str:
+    """Compatibility text view for the structured single-track result."""
+    if result.proposal.operation == "none":
+        move = f"No previewable move. {result.proposal.reason}"
+    else:
+        move = result.proposal.reason
+    return "\n".join(
+        (
+            f"DIAGNOSIS: {result.finding.summary}",
+            f"PROBABLE CAUSE: {result.finding.probable_cause}",
+            f"SUGGESTED MOVE: {move}",
+            "CONFIDENCE: "
+            f"{result.finding.confidence} — {result.finding.confidence_reason}",
+        )
+    )

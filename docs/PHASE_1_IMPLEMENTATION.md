@@ -102,6 +102,7 @@ Acceptance criteria:
 **Repository:** `post-mortem`
 **Priority:** Blocking
 **Depends on:** P1-001 field contract
+**Status:** Completed and verified 2026-07-10
 
 Create `postmortem/schemas.py` using Pydantic v2 and add Pydantic as a direct project dependency rather than relying on it transitively through an SDK.
 
@@ -156,6 +157,7 @@ Acceptance criteria:
 **Repository:** `post-mortem`
 **Priority:** Blocking
 **Depends on:** P1-002
+**Status:** Completed and verified 2026-07-10
 
 Create:
 
@@ -198,6 +200,7 @@ Acceptance criteria:
 **Repository:** `post-mortem`
 **Priority:** Blocking
 **Depends on:** P1-002, P1-003
+**Status:** Completed and verified 2026-07-11
 
 Preserve every current honesty rule:
 

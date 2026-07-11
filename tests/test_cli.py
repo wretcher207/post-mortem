@@ -15,6 +15,27 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from postmortem import bridge, cli  # noqa: E402
 from postmortem.providers.base import ProviderError, ProviderErrorCategory  # noqa: E402
+from postmortem.schemas import DiagnosisResult  # noqa: E402
+
+
+def _diagnosis_result():
+    return DiagnosisResult.model_validate(
+        {
+            "schema_version": 1,
+            "finding": {
+                "summary": "The upper mids are elevated.",
+                "probable_cause": "The measured spectrum rises around 3 kHz.",
+                "confidence": "medium",
+                "confidence_reason": "The spectrum supports a cautious finding.",
+                "evidence_refs": [{"path": "audio.spectrum_third_octave[0]"}],
+            },
+            "proposal": {
+                "operation": "none",
+                "reason": "No verified parameter move is available.",
+                "expected_direction": [],
+            },
+        }
+    )
 
 
 class TestResolveTrack(unittest.TestCase):
@@ -186,7 +207,7 @@ class TestSingleTrackCaptureSafety(unittest.TestCase):
             patch.object(cli.bridge, "get_track_routing", return_value=routing),
             patch.object(cli.bridge, "capture_track_audio", return_value=(capture, "/tmp/full-mix.wav")),
             patch.object(cli, "analyze_wav", return_value=stats),
-            patch.object(cli, "diagnose") as diagnose,
+            patch.object(cli, "diagnose_track") as diagnose,
             redirect_stdout(stdout),
         ):
             self.assertEqual(cli._run_single(args, {"project_name": "mix.RPP"}, "Guitar"), 0)
@@ -214,11 +235,40 @@ class TestSingleTrackCaptureSafety(unittest.TestCase):
             patch.object(cli.bridge, "get_track_routing", return_value=routing),
             patch.object(cli.bridge, "capture_track_audio", return_value=(capture, "/tmp/isolated.wav")),
             patch.object(cli, "analyze_wav", return_value=stats),
-            patch.object(cli, "diagnose", return_value="diagnosis") as diagnose,
+            patch.object(cli, "diagnose_track", return_value=_diagnosis_result()) as diagnose,
         ):
             self.assertEqual(cli._run_single(args, {"project_name": "mix.RPP"}, "Guitar"), 0)
 
         diagnose.assert_called_once()
+
+    def test_verified_single_track_uses_structured_track_check_and_text_output(self):
+        from postmortem.analysis import TrackStats
+
+        args = SimpleNamespace(seconds=30, payload_only=False, force=False, keep_wav=True)
+        track_scan = {"tracks": [{"name": "Guitar", "guid": "A", "fx": []}]}
+        routing = {"track": {"guid": "A"}}
+        capture = {
+            "track": {"guid": "A"},
+            "capture_scope": "isolated_track",
+            "isolation_verified": True,
+        }
+        stats = TrackStats(30.0, 48000, 2, -1.0, -12.0, 11.0)
+        stdout = StringIO()
+
+        with (
+            patch.object(cli.bridge, "scan_fx", return_value=track_scan),
+            patch.object(cli.bridge, "get_track_routing", return_value=routing),
+            patch.object(cli.bridge, "capture_track_audio", return_value=(capture, "/tmp/isolated.wav")),
+            patch.object(cli, "analyze_wav", return_value=stats),
+            patch.object(cli, "diagnose_track", return_value=_diagnosis_result()) as track_check,
+            redirect_stdout(stdout),
+        ):
+            self.assertEqual(cli._run_single(args, {"project_name": "mix.RPP"}, "Guitar"), 0)
+
+        track_check.assert_called_once()
+        output = stdout.getvalue()
+        self.assertIn("DIAGNOSIS: The upper mids are elevated.", output)
+        self.assertIn("SUGGESTED MOVE: No previewable move.", output)
 
 
 class TestMaskingCaptureSafety(unittest.TestCase):

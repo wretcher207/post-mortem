@@ -11,6 +11,7 @@ from postmortem import config, diagnose  # noqa: E402
 from postmortem.analysis import TrackStats  # noqa: E402
 from postmortem.providers import anthropic_provider  # noqa: E402
 from postmortem.providers.base import ProviderError, ProviderErrorCategory  # noqa: E402
+from postmortem.schemas import DiagnosisResult  # noqa: E402
 
 
 class _Block:
@@ -38,6 +39,41 @@ class _FakeClient:
                 return self._response
 
         self.messages = _Messages()
+
+
+class _StructuredProvider:
+    def __init__(self):
+        self.calls = []
+
+    def generate(self, **kwargs):
+        self.calls.append(kwargs)
+        return {
+            "schema_version": 1,
+            "finding": {
+                "summary": "The upper mids are elevated.",
+                "probable_cause": "The measured spectrum rises around 3 kHz.",
+                "confidence": "medium",
+                "confidence_reason": "The spectrum supports the finding, but context is limited.",
+                "evidence_refs": [
+                    {
+                        "path": "audio.spectrum_third_octave[0].level_db",
+                        "description": "Measured upper-mid band level.",
+                    }
+                ],
+            },
+            "proposal": {
+                "operation": "none",
+                "reason": "No safe verified parameter move is available.",
+                "expected_direction": [],
+            },
+        }
+
+
+class _RefusingProvider:
+    def generate(self, **kwargs):
+        raise ProviderError(
+            ProviderErrorCategory.REFUSAL, "the provider declined the request"
+        )
 
 
 def _stats():
@@ -129,6 +165,24 @@ class TestBuildPayload(unittest.TestCase):
         self.assertEqual(payload["track"]["name"], "Snare")
         self.assertEqual(payload["track"]["index"], 1)
 
+    def test_carries_stable_track_identity_into_structured_payload(self):
+        scan = {
+            "tracks": [
+                {
+                    "name": "Rhythm L",
+                    "index": 3,
+                    "guid": "{TRACK-GUID}",
+                    "fx": [],
+                }
+            ]
+        }
+
+        payload = diagnose.build_payload(
+            None, scan, self._routing(), {}, _stats(), target_name="Rhythm L"
+        )
+
+        self.assertEqual(payload["track"]["guid"], "{TRACK-GUID}")
+
 
 class TestParseRenderStats(unittest.TestCase):
     def test_none_and_empty_return_empty(self):
@@ -179,6 +233,33 @@ class TestDiagnoseReply(unittest.TestCase):
         with self.assertRaises(ProviderError) as ctx:
             diagnose.diagnose(self._payload(), client=client)
         self.assertIs(ctx.exception.category, ProviderErrorCategory.REFUSAL)
+
+    def test_track_check_uses_structured_contract_and_returns_typed_result(self):
+        provider = _StructuredProvider()
+        profile = diagnose.ModelProfile(model="test", thinking=False)
+
+        result = diagnose.diagnose_track(
+            self._payload(), provider=provider, profile=profile
+        )
+
+        self.assertIsInstance(result, DiagnosisResult)
+        self.assertEqual(result.proposal.operation, "none")
+        self.assertIs(provider.calls[0]["response_schema"], DiagnosisResult)
+        contract = " ".join(provider.calls[0]["system_contract"].lower().split())
+        self.assertIn("do not diagnose frequency masking", contract)
+        self.assertIn("evidence references", contract)
+        self.assertIn("operation: none", contract)
+
+    def test_track_check_turns_provider_refusal_into_non_actionable_result(self):
+        result = diagnose.diagnose_track(
+            self._payload(),
+            provider=_RefusingProvider(),
+            profile=diagnose.ModelProfile(model="test", thinking=False),
+        )
+
+        self.assertEqual(result.finding.confidence, "low")
+        self.assertEqual(result.proposal.operation, "none")
+        self.assertEqual(result.proposal.rejection_reason, "provider_refusal")
 
 
 class TestProviderProfile(unittest.TestCase):
