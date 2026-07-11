@@ -12,7 +12,10 @@ from .diagnose import (
     build_masking_payload,
     build_payload,
     diagnose,
+    diagnose_track,
+    render_diagnosis_text,
 )
+from .providers.base import ProviderError
 
 
 class TrackNotResolved(Exception):
@@ -128,6 +131,36 @@ def silence_gate(stats):
     return None
 
 
+def capture_isolation_gate(capture_data):
+    """Explain why a capture is unsafe for per-track model diagnosis.
+
+    Post Mortem can only make per-track or cross-track claims when Reaper
+    Daemon verifies that the WAV is an isolated track capture. Missing
+    provenance fails closed so an older daemon cannot silently reintroduce the
+    full-mix diagnosis bug.
+    """
+    scope = capture_data.get("capture_scope") or "unknown"
+    verified = capture_data.get("isolation_verified") is True
+    if scope == "isolated_track" and verified:
+        return None
+    if scope == "full_mix":
+        return (
+            "capture is the full master mix, not an isolated track. Post Mortem "
+            "will not diagnose it as per-track evidence. Use --payload-only for "
+            "debugging, or capture an item-less routing track until item-track "
+            "isolation is supported."
+        )
+    if scope == "master_output":
+        return (
+            "capture is the project master output, not an isolated track. Post "
+            "Mortem will not use it for a per-track diagnosis."
+        )
+    return (
+        "capture isolation could not be verified. Post Mortem will not diagnose "
+        "unproven per-track evidence. Upgrade Reaper Daemon, then rerun."
+    )
+
+
 def _capture_seconds(value):
     """argparse type: a capture length in [1, 600]. Rejects zero/negative up
     front instead of forwarding a nonsense render duration to the daemon."""
@@ -163,6 +196,12 @@ def main(argv=None):
     except bridge.BridgeError as e:
         print(f"[postmortem] {e}", file=sys.stderr)
         return 1
+    except ProviderError as error:
+        print(
+            f"[postmortem] provider/{error.category.value}: {error}",
+            file=sys.stderr,
+        )
+        return error.exit_code
 
 
 def _resolve_all(requested, names):
@@ -201,15 +240,21 @@ def _run_single(args, context, track):
     print(f"[postmortem] capturing {args.seconds}s post-FX stem...", file=sys.stderr)
     capture_data, wav_path = bridge.capture_track_audio(track, duration_seconds=args.seconds)
 
-    # Wrong-track guard: each command resolves the name independently, so a
-    # duplicate name or a mid-run reorder could make them hit different tracks.
-    # Where a track GUID is present, they must all agree before we diagnose.
-    _assert_same_track(track_scan, routing, capture_data)
-
     # We own wav_path (bridge verified it's the exact temp file we asked for);
-    # clean it up on every path unless --keep-wav, even if analysis or the model
-    # call raises. --keep-wav preserves it for inspection.
+    # clean it up on every path unless --keep-wav, including a wrong-track or
+    # non-isolated-capture rejection. --keep-wav preserves it for inspection.
     try:
+        # Each command resolves the name independently, so a duplicate name or
+        # a mid-run reorder could make them hit different tracks. Where a GUID
+        # is present, they must all agree before we diagnose.
+        _assert_same_track(track_scan, routing, capture_data)
+
+        if not args.payload_only:
+            gate = capture_isolation_gate(capture_data)
+            if gate:
+                print(f"[postmortem] {gate}", file=sys.stderr)
+                return 4
+
         print("[postmortem] analyzing...", file=sys.stderr)
         stats = analyze_wav(wav_path)
 
@@ -228,7 +273,7 @@ def _run_single(args, context, track):
             return 0
 
         print("[postmortem] diagnosing...", file=sys.stderr)
-        print(diagnose(payload))
+        print(render_diagnosis_text(diagnose_track(payload)))
         return 0
     finally:
         if not args.keep_wav:
@@ -262,6 +307,12 @@ def _run_masking(args, context, tracks):
             capture_data, wav_path = bridge.capture_track_audio(track, duration_seconds=args.seconds)
             wav_paths.append(wav_path)
             _assert_same_track(track_scan, routing, capture_data)
+
+            if not args.payload_only:
+                gate = capture_isolation_gate(capture_data)
+                if gate:
+                    print(f"[postmortem] '{track}': {gate}", file=sys.stderr)
+                    return 4
 
             print(f"[postmortem] analyzing '{track}'...", file=sys.stderr)
             stats = analyze_wav(wav_path)

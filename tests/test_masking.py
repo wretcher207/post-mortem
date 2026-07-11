@@ -88,6 +88,27 @@ class TestBuildMaskingPayload(unittest.TestCase):
         self.assertIn("pairs", payload["masking"])
         self.assertEqual(payload["tracks"][0]["audio"]["integrated_lufs"], -18.0)
 
+    def test_payload_carries_capture_provenance(self):
+        per_track = [self._pt("Kick", 0, _spectrum({63: -6.0}))]
+        per_track[0]["capture_data"].update(
+            {
+                "capture_scope": "full_mix",
+                "isolation_verified": False,
+                "note": "Full mix fallback.",
+            }
+        )
+        payload = diagnose.build_masking_payload(
+            {"project_name": "mix.RPP"}, per_track, {"pairs": []}
+        )
+        self.assertEqual(
+            payload["tracks"][0]["capture"],
+            {
+                "scope": "full_mix",
+                "isolation_verified": False,
+                "note": "Full mix fallback.",
+            },
+        )
+
 
 class TestMaskingDiagnoseUsesSiblingContract(unittest.TestCase):
     def test_masking_prompt_is_sent_not_single_track(self):

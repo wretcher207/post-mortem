@@ -21,6 +21,13 @@ essentially silence, it refuses to diagnose at all instead of inventing
 something. An honest "I'm not sure" beats a confident wrong answer. That
 contract lives in the prompt and it's not coming out.
 
+Capture safety is enforced before the model sees the audio. Reaper Daemon must
+report `capture_scope: "isolated_track"` and `isolation_verified: true`; a full
+mix, master-output, or unproven capture is refused for diagnosis. `--payload-only`
+can still show the raw data for debugging, but does not turn it into per-track
+evidence. Today, item-less routing tracks are supported; normal item-based
+tracks may be refused until REAPER isolation is solved.
+
 A Dead Pixel Design release.
 
 **Post Mortem can't touch REAPER on its own. It needs [Reaper Daemon](https://github.com/wretcher207/reaper-daemon).**
@@ -113,6 +120,9 @@ That's it. Options:
 --payload-only     print the data payload as JSON and skip the model call
 --force            diagnose even a capture the silence gate would refuse
 ```
+
+`--force` only overrides the silence gate. It never overrides capture
+isolation, because full-mix audio is not safe evidence for a track diagnosis.
 
 Two or more track names run a **cross-track masking diagnosis** instead:
 each track's stem is captured, the 1/3-octave overlap is computed, and the
