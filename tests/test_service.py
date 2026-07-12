@@ -171,6 +171,10 @@ def test_track_check_produces_a_diagnosis_result(svc):
     assert result["id"] == "pm-001"
     assert result["result"]["track"] == "Kick"
     assert result["result"]["diagnosis"]["finding"]["confidence"] == "high"
+    # The measured payload rides along so the panel's Evidence section can
+    # resolve finding.evidence_refs[].path without re-deriving anything.
+    assert result["result"]["payload"]["track"]["name"] == "Kick"
+    assert "audio" in result["result"]["payload"]
     # Progress file is cleaned up once the result exists.
     assert not os.path.exists(os.path.join(svc.outbox, f"{stem}.progress.json"))
     # Inbox and processing are both empty.

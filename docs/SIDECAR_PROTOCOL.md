@@ -160,11 +160,18 @@ Payload: `{ "track": "Kick", "seconds": 10, "force": false }` (`seconds`
 isolation gate). Result:
 
 ```json
-{ "track": "Kick", "diagnosis": { "schema_version": 1, "finding": {...}, "proposal": {...} } }
+{ "track": "Kick", "diagnosis": { "schema_version": 1, "finding": {...}, "proposal": {...} }, "payload": {...} }
 ```
 
 `diagnosis` is a complete `DiagnosisResult` (see STRUCTURED_RESULTS.md) —
 the panel feeds it back verbatim as `payload.diagnosis` for preview/commit.
+
+`payload` is the exact measured Track Check document the provider saw
+(project/track/fx_chain/routing/capture/audio). It exists so a thin client
+can render measured evidence — `finding.evidence_refs[].path` values such as
+`audio.sample_peak_db` resolve against this document — without re-deriving
+any measurement. Clients must treat it as display data, never as something
+to recompute or mutate.
 
 ### `preview_fix`
 

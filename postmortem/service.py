@@ -485,6 +485,11 @@ def _job_track_check(svc, job, stem, job_id):
         return {
             "track": resolved,
             "diagnosis": json.loads(result.model_dump_json()),
+            # The exact measured payload the provider saw. The panel's
+            # Evidence section resolves finding.evidence_refs[].path against
+            # this document; without it a thin client cannot show measured
+            # values without re-deriving them (which it must never do).
+            "payload": payload_doc,
         }
     finally:
         try:
