@@ -97,6 +97,30 @@ def app_data_root():
 
 
 def _pid_alive(pid):
+    if not isinstance(pid, int) or pid <= 0:
+        return False
+    if os.name == "nt":
+        # os.kill(pid, 0) is NOT a probe on Windows: it calls TerminateProcess
+        # (killing a live pid) and raises plain OSError for a dead one. Query
+        # the process instead.
+        import ctypes
+        import ctypes.wintypes
+
+        PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
+        ERROR_ACCESS_DENIED = 5
+        STILL_ACTIVE = 259
+        kernel32 = ctypes.windll.kernel32
+        handle = kernel32.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, False, pid)
+        if not handle:
+            # Access denied means SOMETHING owns that pid; anything else is dead.
+            return kernel32.GetLastError() == ERROR_ACCESS_DENIED
+        try:
+            exit_code = ctypes.wintypes.DWORD()
+            if kernel32.GetExitCodeProcess(handle, ctypes.byref(exit_code)):
+                return exit_code.value == STILL_ACTIVE
+            return True
+        finally:
+            kernel32.CloseHandle(handle)
     try:
         os.kill(pid, 0)
     except ProcessLookupError:
