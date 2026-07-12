@@ -192,6 +192,29 @@ def adjustment_bounds(proposal: Proposal):
     }
 
 
+def adjust_proposal(result: DiagnosisResult, requested_value: float) -> DiagnosisResult:
+    """Return a copied diagnosis with an engine-clamped numeric proposal value."""
+    if (
+        isinstance(requested_value, bool)
+        or not isinstance(requested_value, (int, float))
+        or not math.isfinite(float(requested_value))
+    ):
+        raise ValueError("requested adjustment must be a finite number")
+    bounds = adjustment_bounds(result.proposal)
+    if bounds is None:
+        raise ValueError("this proposal has no numeric adjustment range")
+    value = max(bounds["minimum"], min(bounds["maximum"], float(requested_value)))
+    value = bounds["minimum"] + round(
+        (value - bounds["minimum"]) / bounds["step"]
+    ) * bounds["step"]
+    value = max(bounds["minimum"], min(bounds["maximum"], value))
+    proposed = result.proposal.proposed_value.model_copy(
+        update={"value": value, "display": None}
+    )
+    proposal = result.proposal.model_copy(update={"proposed_value": proposed})
+    return result.model_copy(update={"proposal": proposal})
+
+
 def _reject_unverified_capture(result):
     finding = result.finding.model_copy(
         update={

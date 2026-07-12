@@ -54,6 +54,7 @@ class FakeBridge:
         self.fail_capture_at = None
         self.scan_guid = TRACK_GUID
         self.routing_volume_db = -3.0
+        self.preview_payloads = []
 
     def status(self):
         self.calls.append("status")
@@ -102,6 +103,7 @@ class FakeBridge:
     def cmd(self, cmd_type, payload, timeout_ms=10000):
         self.calls.append(cmd_type)
         if cmd_type == "preview_change":
+            self.preview_payloads.append(payload)
             return {"preview_token": "pv-1", "snapshot_id": "snap-1"}
         if cmd_type == "cancel_preview":
             return {"preview_token": payload["preview_token"], "restored": True}
@@ -247,6 +249,21 @@ def test_preview_fix_runs_the_loop_and_reports_restored(svc):
     assert calls.index("preview_change") < calls.index("cancel_preview")
 
 
+def test_preview_fix_adjustment_is_clamped_by_the_sidecar(svc):
+    stem = _submit(svc, {
+        "id": "pm-005-adjusted", "type": "preview_fix",
+        "payload": {
+            "diagnosis": json.loads(_diagnosis().model_dump_json()),
+            "proposed_value": -99.0,
+        },
+    })
+    svc.run_once()
+
+    result = _result(svc, stem)
+    assert result["ok"] is True
+    assert svc.fake_bridge.preview_payloads[-1]["proposed_value"] == -6.0
+
+
 def test_preview_fix_capture_death_still_restores(svc):
     svc.fake_bridge.fail_capture_at = 2
     stem = _submit(svc, {
@@ -271,6 +288,21 @@ def test_commit_fix_reports_the_undo_point(svc):
     result = _result(svc, stem)
     assert result["ok"] is True
     assert result["result"]["undo_point"] == "Post Mortem: set_track_volume on Kick"
+
+
+def test_commit_fix_reapplies_the_engine_clamped_adjustment(svc):
+    stem = _submit(svc, {
+        "id": "pm-007-adjusted", "type": "commit_fix",
+        "payload": {
+            "diagnosis": json.loads(_diagnosis().model_dump_json()),
+            "proposed_value": -99.0,
+        },
+    })
+    svc.run_once()
+
+    result = _result(svc, stem)
+    assert result["ok"] is True
+    assert svc.fake_bridge.preview_payloads[-1]["proposed_value"] == -6.0
 
 
 def test_cancel_removes_a_queued_job_before_it_runs(svc):

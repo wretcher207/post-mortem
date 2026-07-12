@@ -175,7 +175,10 @@ to recompute or mutate.
 
 ### `preview_fix`
 
-Payload: `{ "diagnosis": {...}, "seconds": 10, "keep_wav": false }`.
+Payload: `{ "diagnosis": {...}, "seconds": 10, "keep_wav": false,
+"proposed_value": null }`. `proposed_value` is optional. When present, the
+sidecar copies the diagnosis, clamps the requested numeric value to the
+engine-owned adjustment bounds, and then runs a fresh preview.
 Runs the Phase 2 preview loop: fresh revalidation, snapshot, temporary
 apply, candidate capture, ALWAYS restore. Result is the preview report
 (`restored`, `verification`, deltas, optional `wav_paths` when `keep_wav`).
@@ -186,8 +189,11 @@ Boolean FX-bypass proposals carry `adjustment: null`.
 
 ### `commit_fix`
 
-Payload: `{ "diagnosis": {...} }`. Explicit apply with fresh re-verification;
-exactly one named undo point. Result carries `committed` and `undo_point`.
+Payload: `{ "diagnosis": {...}, "proposed_value": null }`. The optional
+`proposed_value` uses the same engine-side clamping as `preview_fix`, so an
+adjusted preview can be applied without the client rewriting the diagnosis.
+Explicit apply uses fresh re-verification and exactly one named undo point.
+Result carries `committed` and `undo_point`.
 
 ### `cancel_job`
 

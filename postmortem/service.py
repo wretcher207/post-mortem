@@ -49,6 +49,7 @@ from .cli import (
 )
 from .constants import DEFAULT_CAPTURE_SECONDS
 from .diagnose import build_payload, diagnose_track
+from .proposals import adjust_proposal
 from .providers.base import ProviderError
 
 _HEARTBEAT_INTERVAL_SECONDS = 2.0
@@ -507,9 +508,19 @@ def _loaded_diagnosis(payload):
     return preview_mod.load_diagnosis(json.dumps(diagnosis))
 
 
+def _loaded_adjusted_diagnosis(payload):
+    result = _loaded_diagnosis(payload)
+    if "proposed_value" not in payload:
+        return result
+    try:
+        return adjust_proposal(result, payload["proposed_value"])
+    except ValueError as error:
+        raise JobRefused("bad_adjustment", str(error)) from None
+
+
 def _job_preview_fix(svc, job, stem, job_id):
     payload = job.get("payload") or {}
-    result = _loaded_diagnosis(payload)
+    result = _loaded_adjusted_diagnosis(payload)
     seconds = _validated_seconds(payload)
     # Cancellation is honored here and never again: once preview_change runs,
     # the apply -> capture -> restore sequence must finish so restore-always
@@ -523,7 +534,7 @@ def _job_preview_fix(svc, job, stem, job_id):
 
 def _job_commit_fix(svc, job, stem, job_id):
     payload = job.get("payload") or {}
-    result = _loaded_diagnosis(payload)
+    result = _loaded_adjusted_diagnosis(payload)
     svc._check_cancel(job_id)
     svc._write_progress(stem, job_id, "committing")
     return preview_mod.run_commit(result)

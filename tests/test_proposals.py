@@ -2,7 +2,11 @@
 
 import pytest
 
-from postmortem.proposals import adjustment_bounds, validate_proposal
+from postmortem.proposals import (
+    adjust_proposal,
+    adjustment_bounds,
+    validate_proposal,
+)
 from postmortem.diagnose import render_diagnosis_text
 from postmortem.schemas import DiagnosisResult, Proposal
 
@@ -185,6 +189,16 @@ def test_boolean_bypass_proposal_has_no_numeric_adjustment_bounds():
     ).proposal
 
     assert adjustment_bounds(proposal) is None
+
+
+def test_adjust_proposal_clamps_without_mutating_the_diagnosis():
+    result = _track_volume_result()
+
+    adjusted = adjust_proposal(result, -99.0)
+
+    assert adjusted.proposal.proposed_value.value == -6.0
+    assert adjusted.proposal.proposed_value.display is None
+    assert result.proposal.proposed_value.value == -5.0
 
 
 def test_valid_conservative_track_volume_proposal_remains_previewable():
