@@ -138,11 +138,18 @@ def svc(tmp_path, monkeypatch):
 
     monkeypatch.setattr(service, "analyze_wav", fake_analyze)
     monkeypatch.setattr(preview, "analyze_wav", fake_analyze)
-    monkeypatch.setattr(service, "diagnose_track", lambda payload: _diagnosis())
+    diagnose_payloads = []
+
+    def fake_diagnose(payload):
+        diagnose_payloads.append(payload)
+        return _diagnosis()
+
+    monkeypatch.setattr(service, "diagnose_track", fake_diagnose)
 
     instance = service.Service(root=str(tmp_path))
     instance.fake_bridge = fake_bridge
     instance.stats_overrides = stats_overrides
+    instance.diagnose_payloads = diagnose_payloads
     return instance
 
 
@@ -171,6 +178,18 @@ def test_track_check_produces_a_diagnosis_result(svc):
     assert result["id"] == "pm-001"
     assert result["result"]["track"] == "Kick"
     assert result["result"]["diagnosis"]["finding"]["confidence"] == "high"
+    # The measured payload rides along so the panel's Evidence section can
+    # resolve finding.evidence_refs[].path without re-deriving anything.
+    assert result["result"]["payload"]["track"]["name"] == "Kick"
+    assert result["result"]["payload"]["audio"]["sample_peak_db"] == -1.0
+    assert result["result"]["payload"]["audio"]["rms_db"] == -18.0
+    assert result["result"]["payload"]["audio"]["spectrum_third_octave"] == [
+        {"freq_hz": 100, "level_db": -18.0}
+    ]
+    assert result["result"]["payload"] == svc.diagnose_payloads[-1]
+    evidence_path = result["result"]["diagnosis"]["finding"]["evidence_refs"][0]["path"]
+    section, field = evidence_path.split(".")
+    assert result["result"]["payload"][section][field] == -1.0
     # Progress file is cleaned up once the result exists.
     assert not os.path.exists(os.path.join(svc.outbox, f"{stem}.progress.json"))
     # Inbox and processing are both empty.
