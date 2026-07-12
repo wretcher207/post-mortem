@@ -617,6 +617,13 @@ Exit criteria:
 
 ### Phase 2 — Verified Fix Preview
 
+**Completed 2026-07-12** at CLI scope (the terminal proof loop from §17; the
+docked panel and A/B transport controls remain Phase 3). All four exit
+criteria live-verified on a real project; evidence in
+`docs/PHASE_2_IMPLEMENTATION.md` P2-005. "Adjust" ships with the panel — the
+CLI covers Apply (`postmortem commit`) and Keep Original (the preview's
+automatic restore).
+
 Deliverables:
 
 - Daemon preview lifecycle commands.

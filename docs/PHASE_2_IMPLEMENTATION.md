@@ -1,6 +1,6 @@
 # Phase 2 Implementation Backlog: Verified Fix Preview
 
-**Status:** P2-001..P2-004 complete (2026-07-12); P2-005 live verification pending
+**Status:** COMPLETE — live-verified on a real project 2026-07-12
 **Date:** 2026-07-11
 **Target:** CLI-only proof of the hero promise (PRODUCT_PLAN §17)
 **Depends on:** Phase 1 complete (model gate closed 2026-07-11, MiniMax M3);
@@ -233,7 +233,24 @@ Acceptance criteria:
 **Repository:** both
 **Priority:** High
 **Depends on:** P2-001 through P2-004
-**Status:** Not started — needs a REAPER bridge reload; checklist below
+**Status:** Completed 2026-07-12 on `everybody-eats.RPP` (bridge v3.10.0 live):
+
+- Full preview loop on the Kick routing track: baseline -6.58 dBFS, temporary
+  -1 dB trim, candidate -7.73 dBFS, automatic restore verified by routing
+  equality (fader back at exactly 0.0).
+- Crash recovery: a deliberately hung `preview_change` was restored at bridge
+  startup (log: `preview pv-20260712T015329Z-2e514b restored (recovered at
+  startup)`), state files cleaned. Note: the recovery marker rides the
+  recovering instance's heartbeat; a subsequent restart clears it, the log is
+  the durable record.
+- Commit: one named undo point (`Post Mortem: set_track_volume on Kick`);
+  a single Ctrl+Z returned the kick to 0.0 (confirmed by David).
+- Stale refusals, all pre-mutation: renamed track (`NO_TARGET_TRACK` at the
+  fresh scan), drifted fader (`current_value_mismatch`), silent capture
+  (`insufficient_signal`).
+- Known limitation confirmed live: item-based amp-sim guitar folders (GEETS)
+  capture silent under solo isolation — the pre-existing bridge capture
+  limitation, refused safely, not a preview defect.
 
 Scripted live pass on a real project (the Phase 1 A/B rig: ReaEQ boost is
 proven detectable):
@@ -254,7 +271,7 @@ Remember the repo rule: a capture is verified only by checking the WAV file
 **Repository:** both
 **Priority:** Medium
 **Depends on:** all prior
-**Status:** Partially complete (README, STRUCTURED_RESULTS, command schema); PRODUCT_PLAN checkoff waits on P2-005
+**Status:** Completed 2026-07-12
 
 - README preview/commit examples with honest language (preview restores;
   commit is explicit; one undo point).
