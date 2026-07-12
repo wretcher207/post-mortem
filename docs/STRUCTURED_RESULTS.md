@@ -123,6 +123,13 @@ safe low-confidence finding and `rejection_reason: "cross_track_claim"`.
   improvement without the goal metric moving past its noise floor in the
   intended direction, and the word "better" never appears.
 
+The sidecar's `preview_fix` result wraps this object in a preview report. For
+numeric proposals that envelope also includes `adjustment` (`minimum`,
+`maximum`, `step`, `value`, `unit`) derived from the same move-limit constants
+used by deterministic validation. Optional `proposed_value` inputs to
+`preview_fix` and `commit_fix` are clamped by the sidecar; clients do not
+rewrite `DiagnosisResult` or duplicate the limits.
+
 ## Compatibility policy
 
 Consumers must inspect `schema_version` before reading the rest of the object.

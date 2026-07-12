@@ -122,6 +122,7 @@ machine code plus a human message the panel can show verbatim:
 | Code | Meaning |
 |---|---|
 | `bad_job` | malformed job file or payload |
+| `bad_adjustment` | requested preview/apply value is not numeric or the proposal cannot be adjusted |
 | `unknown_job_type` | `type` not in the supported set |
 | `track_not_resolved` | track name matched zero or several tracks |
 | `isolation_gate` | capture is not verified isolated-track evidence |
@@ -176,14 +177,24 @@ to recompute or mutate.
 ### `preview_fix`
 
 Payload: `{ "diagnosis": {...}, "seconds": 10, "keep_wav": false }`.
+`proposed_value` is optional. When present, the
+sidecar copies the diagnosis, clamps the requested numeric value to the
+engine-owned adjustment bounds, and then runs a fresh preview.
 Runs the Phase 2 preview loop: fresh revalidation, snapshot, temporary
 apply, candidate capture, ALWAYS restore. Result is the preview report
 (`restored`, `verification`, deltas, optional `wav_paths` when `keep_wav`).
+Numeric proposals also carry `adjustment` with engine-owned `minimum`,
+`maximum`, `step`, `value`, and `unit` fields. Thin clients must use these
+bounds for adjustment controls instead of duplicating validator move limits.
+Boolean FX-bypass proposals carry `adjustment: null`.
 
 ### `commit_fix`
 
-Payload: `{ "diagnosis": {...} }`. Explicit apply with fresh re-verification;
-exactly one named undo point. Result carries `committed` and `undo_point`.
+Payload: `{ "diagnosis": {...} }`. The optional
+`proposed_value` uses the same engine-side clamping as `preview_fix`, so an
+adjusted preview can be applied without the client rewriting the diagnosis.
+Explicit apply uses fresh re-verification and exactly one named undo point.
+Result carries `committed` and `undo_point`.
 
 ### `cancel_job`
 
