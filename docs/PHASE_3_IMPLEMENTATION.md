@@ -1,6 +1,6 @@
 # Phase 3 Implementation Backlog: Product Shell and Installer ("Kill the Terminal")
 
-**Status:** PLANNED
+**Status:** IN PROGRESS — P3-001 through P3-005 complete; P3-006 next
 **Date:** 2026-07-12
 **Target:** PRODUCT_PLAN §12 Phase 3 — a fresh user installs, restarts REAPER,
 and finishes their first Track Check without ever opening a terminal
