@@ -1,0 +1,595 @@
+"""Job-folder sidecar service (Phase 3, P3-001).
+
+A long-running process that watches an inbox of atomic JSON job files and
+executes engine calls — the same no-socket architecture as the bridge, because
+it is proven, debuggable, and firewall-inert. The ReaImGui panel is a THIN
+client of this service: it writes job files and renders result files, nothing
+more. The protocol contract lives in docs/SIDECAR_PROTOCOL.md.
+
+Layout under the app-data root (never the repo folder):
+
+    PostMortem/
+      jobs/inbox/        panel writes job files here
+      jobs/processing/   service moves a job here while executing it
+      jobs/outbox/       results and progress files
+      captures/          reserved for panel-owned stems (keep_wav previews)
+      logs/service.log   internal errors land here, never in result files
+      heartbeat.json     pid, version, updated_at, in_flight_job
+      lock.json          single-instance lock (JSON, pid-liveness checked)
+
+Safety rules carried from Phase 2:
+- The service adds NO mutation path. preview_fix/commit_fix call the same
+  preview.py orchestration the CLI uses, restore-in-finally included.
+- A job interrupted by a crash is NEVER re-executed on startup; it gets a
+  typed `interrupted` error. The bridge's own startup recovery restores any
+  half-open preview.
+- Cancellation is only honored at stage boundaries BEFORE the model call,
+  and never between preview apply and restore.
+"""
+
+import argparse
+import json
+import os
+import re
+import sys
+import time
+import traceback
+from datetime import datetime, timezone
+
+from . import __version__, bridge, config
+from . import preview as preview_mod
+from .analysis import analyze_wav
+from .cli import (
+    TrackNotResolved,
+    _assert_same_track,
+    _track_names,
+    capture_isolation_gate,
+    resolve_track,
+    silence_gate,
+)
+from .constants import DEFAULT_CAPTURE_SECONDS
+from .diagnose import build_payload, diagnose_track
+from .providers.base import ProviderError
+
+_HEARTBEAT_INTERVAL_SECONDS = 2.0
+_POLL_SECONDS = 0.25
+_SAFE_ID = re.compile(r"^[A-Za-z0-9._-]+$")
+
+JOB_TYPES = (
+    "get_status",
+    "track_check",
+    "preview_fix",
+    "commit_fix",
+    "cancel_job",
+    "record_feedback",
+)
+
+
+class JobRefused(Exception):
+    """A refusal with a stable machine-readable code and a human message."""
+
+    def __init__(self, code, message):
+        super().__init__(message)
+        self.code = code
+
+
+class JobCancelled(Exception):
+    """The panel cancelled this job at a safe stage boundary."""
+
+
+def _utc_now():
+    return datetime.now(timezone.utc).isoformat()
+
+
+def app_data_root():
+    """Platform-appropriate application data directory (PRODUCT_PLAN §9).
+    POSTMORTEM_DATA_DIR (env or config file) overrides, mainly for tests."""
+    override = config.get("POSTMORTEM_DATA_DIR")
+    if override:
+        return os.path.expanduser(override)
+    if sys.platform == "darwin":
+        return os.path.expanduser("~/Library/Application Support/PostMortem")
+    if os.name == "nt":
+        base = os.environ.get("APPDATA") or os.path.expanduser("~")
+        return os.path.join(base, "PostMortem")
+    base = os.environ.get("XDG_DATA_HOME") or os.path.expanduser("~/.local/share")
+    return os.path.join(base, "postmortem")
+
+
+def _pid_alive(pid):
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except OSError:
+        # Permission/edge errors mean SOMETHING owns that pid; assume alive.
+        return True
+    return True
+
+
+class Service:
+    def __init__(self, root=None):
+        self.root = root or app_data_root()
+        self.inbox = os.path.join(self.root, "jobs", "inbox")
+        self.processing = os.path.join(self.root, "jobs", "processing")
+        self.outbox = os.path.join(self.root, "jobs", "outbox")
+        self.captures = os.path.join(self.root, "captures")
+        self.logs = os.path.join(self.root, "logs")
+        self._last_heartbeat = 0.0
+        self._ensure_layout()
+
+    # -- filesystem plumbing -------------------------------------------------
+
+    def _ensure_layout(self):
+        for path in (self.inbox, self.processing, self.outbox, self.captures, self.logs):
+            os.makedirs(path, exist_ok=True)
+
+    def _atomic_write_json(self, path, obj):
+        tmp = path + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(obj, f, indent=2)
+        os.replace(tmp, path)
+
+    def _log(self, message):
+        line = f"{_utc_now()} {message}\n"
+        try:
+            with open(os.path.join(self.logs, "service.log"), "a", encoding="utf-8") as f:
+                f.write(line)
+        except OSError:
+            pass
+
+    def write_heartbeat(self, in_flight_job=None, force=False):
+        now = time.monotonic()
+        if not force and now - self._last_heartbeat < _HEARTBEAT_INTERVAL_SECONDS:
+            return
+        self._last_heartbeat = now
+        self._atomic_write_json(
+            os.path.join(self.root, "heartbeat.json"),
+            {
+                "pid": os.getpid(),
+                "service_version": __version__,
+                "updated_at": _utc_now(),
+                "in_flight_job": in_flight_job,
+            },
+        )
+
+    def _progress_path(self, stem):
+        return os.path.join(self.outbox, f"{stem}.progress.json")
+
+    def _write_progress(self, stem, job_id, stage):
+        self._atomic_write_json(
+            self._progress_path(stem),
+            {"id": job_id, "stage": stage, "updated_at": _utc_now()},
+        )
+
+    def _write_result(self, stem, job_id, ok, result=None, error=None):
+        """Final result for a job. The reply filename is ALWAYS derived from
+        the inbox filename, never from the job's own id field — a hostile id
+        must not choose where its reply lands (bridge finding 13)."""
+        self._atomic_write_json(
+            os.path.join(self.outbox, f"{stem}.json"),
+            {
+                "id": job_id,
+                "ok": ok,
+                "result": result,
+                "error": error,
+                "finished_at": _utc_now(),
+            },
+        )
+        try:
+            os.unlink(self._progress_path(stem))
+        except OSError:
+            pass
+
+    # -- single-instance lock ------------------------------------------------
+
+    def acquire_lock(self):
+        """JSON lock with pid-liveness reclaim. This is the lesson from the
+        __startup.lua watchdog bug: a lock nobody can parse or age out bricks
+        auto-recovery."""
+        lock_path = os.path.join(self.root, "lock.json")
+        try:
+            with open(lock_path, encoding="utf-8") as f:
+                held = json.load(f)
+            pid = held.get("pid")
+            if isinstance(pid, int) and pid != os.getpid() and _pid_alive(pid):
+                raise JobRefused(
+                    "already_running",
+                    f"another sidecar (pid {pid}) holds {lock_path}",
+                )
+        except (OSError, ValueError):
+            pass  # missing or unreadable lock is reclaimable
+        self._atomic_write_json(
+            lock_path, {"pid": os.getpid(), "created_at": _utc_now()}
+        )
+
+    def release_lock(self):
+        try:
+            os.unlink(os.path.join(self.root, "lock.json"))
+        except OSError:
+            pass
+
+    # -- startup -------------------------------------------------------------
+
+    def sweep_interrupted(self):
+        """Jobs stranded in processing/ died with a previous service instance.
+        Never re-execute them (preview_fix may have mutated the project; the
+        bridge's own startup recovery restores it). Report them typed."""
+        for name in sorted(os.listdir(self.processing)):
+            if not name.endswith(".json"):
+                continue
+            stem = name[: -len(".json")]
+            path = os.path.join(self.processing, name)
+            job_id = stem
+            try:
+                with open(path, encoding="utf-8") as f:
+                    loaded = json.load(f)
+                if isinstance(loaded, dict) and isinstance(loaded.get("id"), str):
+                    job_id = loaded["id"]
+            except (OSError, ValueError):
+                pass
+            self._write_result(
+                stem,
+                job_id,
+                ok=False,
+                error={
+                    "code": "interrupted",
+                    "message": "the sidecar restarted while this job was running; "
+                    "it was not re-executed. Submit it again.",
+                },
+            )
+            self._log(f"interrupted job swept: {stem}")
+            try:
+                os.unlink(path)
+            except OSError:
+                pass
+
+    # -- cancellation --------------------------------------------------------
+
+    def _consume_cancels_for(self, target_id):
+        """Consume any queued cancel_job files aimed at target_id. Returns True
+        when at least one was found (each gets its own ok result)."""
+        found = False
+        for name in sorted(os.listdir(self.inbox)):
+            if not name.endswith(".json"):
+                continue
+            path = os.path.join(self.inbox, name)
+            try:
+                with open(path, encoding="utf-8") as f:
+                    job = json.load(f)
+            except (OSError, ValueError):
+                continue
+            if not isinstance(job, dict) or job.get("type") != "cancel_job":
+                continue
+            if (job.get("payload") or {}).get("target_id") != target_id:
+                continue
+            stem = name[: -len(".json")]
+            self._write_result(
+                stem, self._job_id(job, stem), ok=True,
+                result={"cancelled": target_id},
+            )
+            try:
+                os.unlink(path)
+            except OSError:
+                pass
+            found = True
+        return found
+
+    def _check_cancel(self, job_id):
+        if self._consume_cancels_for(job_id):
+            raise JobCancelled()
+
+    # -- job execution -------------------------------------------------------
+
+    @staticmethod
+    def _job_id(job, stem):
+        job_id = job.get("id")
+        if isinstance(job_id, str) and _SAFE_ID.match(job_id):
+            return job_id
+        return stem
+
+    def run_once(self):
+        """Drain the inbox (oldest filename first), one job at a time.
+        Returns the number of jobs processed."""
+        processed = 0
+        for name in sorted(os.listdir(self.inbox)):
+            if not name.endswith(".json"):
+                continue
+            inbox_path = os.path.join(self.inbox, name)
+            if not os.path.exists(inbox_path):
+                continue  # consumed by a cancel scan mid-drain
+            processing_path = os.path.join(self.processing, name)
+            try:
+                os.replace(inbox_path, processing_path)
+            except OSError:
+                continue
+            self._process_file(name, processing_path)
+            processed += 1
+        return processed
+
+    def _process_file(self, name, path):
+        stem = name[: -len(".json")]
+        job_id = stem
+        try:
+            with open(path, encoding="utf-8") as f:
+                job = json.load(f)
+            if not isinstance(job, dict):
+                raise JobRefused("bad_job", "job file is not a JSON object")
+            job_id = self._job_id(job, stem)
+            job_type = job.get("type")
+            if job_type not in JOB_TYPES:
+                raise JobRefused(
+                    "unknown_job_type",
+                    f"unknown job type {job_type!r}; supported: {', '.join(JOB_TYPES)}",
+                )
+            self.write_heartbeat(in_flight_job=job_id, force=True)
+            self._write_progress(stem, job_id, "started")
+            handler = _HANDLERS[job_type]
+            result = handler(self, job, stem, job_id)
+            self._write_result(stem, job_id, ok=True, result=result)
+        except JobCancelled:
+            self._write_result(
+                stem, job_id, ok=False,
+                error={"code": "cancelled", "message": "cancelled before completion"},
+            )
+        except JobRefused as e:
+            self._write_result(
+                stem, job_id, ok=False, error={"code": e.code, "message": str(e)}
+            )
+        except TrackNotResolved as e:
+            self._write_result(
+                stem, job_id, ok=False,
+                error={"code": "track_not_resolved", "message": str(e)},
+            )
+        except preview_mod.PreviewRefused as e:
+            self._write_result(
+                stem, job_id, ok=False, error={"code": e.code, "message": str(e)}
+            )
+        except bridge.BridgeError as e:
+            self._write_result(
+                stem, job_id, ok=False,
+                error={"code": "bridge_error", "message": str(e)},
+            )
+        except ProviderError as e:
+            self._write_result(
+                stem, job_id, ok=False,
+                error={"code": f"provider_{e.category.value}", "message": str(e)},
+            )
+        except ValueError as e:
+            self._write_result(
+                stem, job_id, ok=False,
+                error={"code": "bad_job", "message": f"unreadable job file: {e}"},
+            )
+        except Exception:
+            # Unknown failures never leak tracebacks into the panel; the log
+            # holds the detail, the result holds a typed pointer to it.
+            self._log(f"internal_error on {stem}:\n{traceback.format_exc()}")
+            self._write_result(
+                stem, job_id, ok=False,
+                error={
+                    "code": "internal_error",
+                    "message": "unexpected failure; see logs/service.log",
+                },
+            )
+        finally:
+            self.write_heartbeat(in_flight_job=None, force=True)
+            try:
+                os.unlink(path)
+            except OSError:
+                pass
+
+    def run_forever(self, poll_seconds=_POLL_SECONDS):
+        self.acquire_lock()
+        try:
+            self.sweep_interrupted()
+            self.write_heartbeat(force=True)
+            self._log(f"sidecar {__version__} started (pid {os.getpid()})")
+            while True:
+                self.run_once()
+                self.write_heartbeat()
+                time.sleep(poll_seconds)
+        finally:
+            self.release_lock()
+
+
+# -- handlers ------------------------------------------------------------
+
+
+def _validated_seconds(payload):
+    seconds = payload.get("seconds", DEFAULT_CAPTURE_SECONDS)
+    if not isinstance(seconds, int) or not 1 <= seconds <= 600:
+        raise JobRefused("bad_job", "payload.seconds must be an integer 1-600")
+    return seconds
+
+
+def _job_get_status(svc, job, stem, job_id):
+    try:
+        line = bridge.status()
+        bridge_ok = True
+    except bridge.BridgeError as e:
+        line = str(e)
+        bridge_ok = False
+    return {
+        "service_version": __version__,
+        "data_root": svc.root,
+        "bridge_ok": bridge_ok,
+        "bridge_status": line,
+        "model": config.get("POSTMORTEM_MODEL"),
+    }
+
+
+def _job_track_check(svc, job, stem, job_id):
+    payload = job.get("payload") or {}
+    track = payload.get("track")
+    if not isinstance(track, str) or not track:
+        raise JobRefused("bad_job", "payload.track (string) is required")
+    seconds = _validated_seconds(payload)
+
+    svc._check_cancel(job_id)
+    svc._write_progress(stem, job_id, "reading_track")
+    context = bridge.get_context()
+    resolved = resolve_track(track, _track_names(context))
+    track_scan = bridge.scan_fx(resolved)
+    routing = bridge.get_track_routing(resolved)
+
+    svc._check_cancel(job_id)
+    svc._write_progress(stem, job_id, "capturing")
+    capture_data, wav_path = bridge.capture_track_audio(
+        resolved, duration_seconds=seconds
+    )
+    try:
+        _assert_same_track(track_scan, routing, capture_data)
+        gate = capture_isolation_gate(capture_data)
+        if gate:
+            raise JobRefused("isolation_gate", gate)
+
+        svc._check_cancel(job_id)
+        svc._write_progress(stem, job_id, "measuring")
+        stats = analyze_wav(wav_path)
+        if not payload.get("force"):
+            gate = silence_gate(stats)
+            if gate:
+                raise JobRefused("silence_gate", gate)
+        payload_doc = build_payload(
+            context, track_scan, routing, capture_data, stats, target_name=resolved
+        )
+
+        # Last safe exit: past here the model call is in flight.
+        svc._check_cancel(job_id)
+        svc._write_progress(stem, job_id, "diagnosing")
+        result = diagnose_track(payload_doc)
+        return {
+            "track": resolved,
+            "diagnosis": json.loads(result.model_dump_json()),
+        }
+    finally:
+        try:
+            os.unlink(wav_path)
+        except OSError:
+            pass
+
+
+def _loaded_diagnosis(payload):
+    diagnosis = payload.get("diagnosis")
+    if not isinstance(diagnosis, dict):
+        raise JobRefused(
+            "bad_job", "payload.diagnosis (a DiagnosisResult object) is required"
+        )
+    return preview_mod.load_diagnosis(json.dumps(diagnosis))
+
+
+def _job_preview_fix(svc, job, stem, job_id):
+    payload = job.get("payload") or {}
+    result = _loaded_diagnosis(payload)
+    seconds = _validated_seconds(payload)
+    # Cancellation is honored here and never again: once preview_change runs,
+    # the apply -> capture -> restore sequence must finish so restore-always
+    # holds. run_preview's try/finally owns the project state from here.
+    svc._check_cancel(job_id)
+    svc._write_progress(stem, job_id, "previewing")
+    return preview_mod.run_preview(
+        result, seconds=seconds, keep_wav=bool(payload.get("keep_wav"))
+    )
+
+
+def _job_commit_fix(svc, job, stem, job_id):
+    payload = job.get("payload") or {}
+    result = _loaded_diagnosis(payload)
+    svc._check_cancel(job_id)
+    svc._write_progress(stem, job_id, "committing")
+    return preview_mod.run_commit(result)
+
+
+def _job_cancel_job(svc, job, stem, job_id):
+    """A cancel that reaches the FRONT of the queue: its target is neither
+    running nor ahead of it, so look for the target in the inbox. In-flight
+    cancellation is handled by _check_cancel scans between stages."""
+    target_id = (job.get("payload") or {}).get("target_id")
+    if not isinstance(target_id, str) or not target_id:
+        raise JobRefused("bad_job", "payload.target_id (string) is required")
+    for name in sorted(os.listdir(svc.inbox)):
+        if not name.endswith(".json"):
+            continue
+        path = os.path.join(svc.inbox, name)
+        target_stem = name[: -len(".json")]
+        try:
+            with open(path, encoding="utf-8") as f:
+                queued = json.load(f)
+        except (OSError, ValueError):
+            continue
+        queued_id = (
+            svc._job_id(queued, target_stem) if isinstance(queued, dict) else target_stem
+        )
+        if queued_id != target_id:
+            continue
+        try:
+            os.unlink(path)
+        except OSError:
+            continue
+        svc._write_result(
+            target_stem, target_id, ok=False,
+            error={"code": "cancelled", "message": "cancelled while queued"},
+        )
+        return {"cancelled": target_id}
+    raise JobRefused(
+        "nothing_to_cancel",
+        f"no queued or running job with id {target_id!r}; it may have finished.",
+    )
+
+
+def _job_record_feedback(svc, job, stem, job_id):
+    """Phase 5 stub: no feedback is lost, no history UI yet. Appends one JSONL
+    line per job to feedback.jsonl in the app-data root."""
+    payload = job.get("payload")
+    if not isinstance(payload, dict) or not payload:
+        raise JobRefused("bad_job", "payload (a non-empty object) is required")
+    entry = {"recorded_at": _utc_now(), "job_id": job_id, **payload}
+    path = os.path.join(svc.root, "feedback.jsonl")
+    with open(path, "a", encoding="utf-8") as f:
+        f.write(json.dumps(entry) + "\n")
+    return {"recorded": True}
+
+
+_HANDLERS = {
+    "get_status": _job_get_status,
+    "track_check": _job_track_check,
+    "preview_fix": _job_preview_fix,
+    "commit_fix": _job_commit_fix,
+    "cancel_job": _job_cancel_job,
+    "record_feedback": _job_record_feedback,
+}
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(
+        prog="postmortem-service",
+        description="Post Mortem sidecar: watches a jobs folder and runs "
+        "engine calls for the panel. See docs/SIDECAR_PROTOCOL.md.",
+    )
+    parser.add_argument(
+        "--data-dir", help="override the app-data root (default: platform dir)"
+    )
+    parser.add_argument(
+        "--once", action="store_true",
+        help="process pending jobs and exit (no lock, no loop)",
+    )
+    args = parser.parse_args(argv)
+
+    service = Service(root=os.path.expanduser(args.data_dir) if args.data_dir else None)
+    if args.once:
+        service.sweep_interrupted()
+        count = service.run_once()
+        print(f"[postmortem-service] processed {count} job(s)", file=sys.stderr)
+        return 0
+    try:
+        service.run_forever()
+    except JobRefused as e:
+        print(f"[postmortem-service] {e}", file=sys.stderr)
+        return 1
+    except KeyboardInterrupt:
+        return 0
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
