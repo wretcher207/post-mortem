@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "Stereo image is wide (side 14 dB above mid, correlation -0.25) consistent with the track name 'Wide Synth' and the chorus FX; headroom (-5.5 dBTP), dynamics (12 dB crest factor, 8 LU LRA), and spectrum (gentle 6 dB/oct rolloff above 100 Hz) are healthy. No clear problem detected.",
+    "probable_cause": "Wide content aligns with the chorus plugin's intended widening on a synth track; correlation -0.25 sits above the typical -0.3 mono-compatibility concern threshold, and dynamics/loudness statistics indicate no over-compression or clipping.",
+    "confidence": "high",
+    "confidence_reason": "Capture isolation verified, silence_fraction 0.05 makes the level statistics reliable, and the observations match the track name and FX chain intent.",
+    "evidence_refs": [
+      {
+        "path": "audio.stereo.correlation",
+        "description": "Correlation -0.25; wide but above the -0.3 mono-compatibility warning threshold."
+      },
+      {
+        "path": "audio.stereo.mid_rms_db",
+        "description": "Mid RMS -28 dB."
+      },
+      {
+        "path": "audio.stereo.side_rms_db",
+        "description": "Side RMS -14 dB, 14 dB above mid — side-dominant image."
+      },
+      {
+        "path": "audio.crest_factor_db",
+        "description": "12 dB — moderate, not over-compressed."
+      },
+      {
+        "path": "audio.loudness_range_lu",
+        "description": "8 LU — moderate dynamic range, not crushed."
+      },
+      {
+        "path": "audio.true_peak_db",
+        "description": "-5.5 dBTP — ample headroom below 0 dBTP."
+      },
+      {
+        "path": "audio.silence_fraction",
+        "description": "0.05 — audio statistics are reliable."
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "none",
+    "reason": "No clear problem is supported by this capture, so no safe move is proposed. A chorus parameter change is not safe because chorus parameter values are not reported in the payload.",
+    "target": null,
+    "current_value": null,
+    "proposed_value": null,
+    "goal": null,
+    "expected_direction": [],
+    "rejection_reason": null
+  }
+}

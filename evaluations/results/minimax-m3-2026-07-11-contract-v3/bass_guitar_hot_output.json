@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "True peak is at -0.3 dBFS, leaving only 0.3 dB of headroom on a track with a +5.0 dB fader level and no FX chain or parent bus in view.",
+    "probable_cause": "Track volume is boosted to +5.0 dB (track.volume_db), pushing audio.true_peak_db to -0.3 dBFS with minimal headroom for downstream processing or intersample peaks.",
+    "confidence": "high",
+    "confidence_reason": "Track volume and true peak are both directly measured; the linear relationship between fader and output level is verified with no FX in the chain to confound it.",
+    "evidence_refs": [
+      {
+        "path": "audio.true_peak_db",
+        "description": "True peak at -0.3 dBFS — only 0.3 dB of headroom remaining."
+      },
+      {
+        "path": "track.volume_db",
+        "description": "Fader at +5.0 dB is the driver of the elevated output level."
+      },
+      {
+        "path": "audio.sample_peak_db",
+        "description": "Sample peak at -0.7 dBFS confirms near-full-scale levels."
+      },
+      {
+        "path": "audio.silence_fraction",
+        "description": "0.05 — capture is nearly all signal, so level statistics are reliable."
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "set_track_volume",
+    "reason": "Preview changing track volume from 5.000 dB to 3.000 dB to test whether true_peak_db decreases.",
+    "target": {
+      "track_guid": "{TRACK-BASS-01}",
+      "track_name": "Bass Guitar",
+      "fx_guid": null,
+      "fx_index": null,
+      "fx_scope": null,
+      "fx_name": null,
+      "parameter_index": null,
+      "parameter_name": null
+    },
+    "current_value": {
+      "value": 5.0,
+      "unit": "db",
+      "display": null
+    },
+    "proposed_value": {
+      "value": 3.0,
+      "unit": "db",
+      "display": null
+    },
+    "goal": "true_peak_db",
+    "expected_direction": [
+      {
+        "metric": "true_peak_db",
+        "direction": "decrease"
+      }
+    ],
+    "rejection_reason": null
+  }
+}

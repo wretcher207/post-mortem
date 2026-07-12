@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "The provider response exceeded the single-track evidence boundary.",
+    "probable_cause": "A single isolated track cannot establish cross-track relationships.",
+    "confidence": "low",
+    "confidence_reason": "The unsupported cross-track claim was removed by validation.",
+    "evidence_refs": []
+  },
+  "proposal": {
+    "operation": "none",
+    "reason": "A single-track capture cannot support a cross-track change.",
+    "target": null,
+    "current_value": null,
+    "proposed_value": null,
+    "goal": null,
+    "expected_direction": [],
+    "rejection_reason": "cross_track_claim"
+  }
+}

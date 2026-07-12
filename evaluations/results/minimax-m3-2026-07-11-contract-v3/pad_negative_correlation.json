@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "No clear problem. The track has healthy dynamics (crest 12.0 dB, LRA 8.0 LU), safe headroom (true peak -5.5 dB), and appropriately wide stereo for a pad (correlation -0.42, side RMS -15.0 dB well above mid RMS -27.0 dB). The 1/3-octave spectrum shows a ~12 dB low-to-high tilt (100 Hz at -18.0 dB to 4 kHz at -30.0 dB), which is a natural shape for a pad and not flagged as problematic from only three bands.",
+    "probable_cause": "Track is unprocessed (empty fx_chain) and the measured audio is well-behaved: gain staging has ~5 dB of true-peak headroom, integrated loudness is -20.0 LUFS, and the stereo width is consistent with a pad. The low-frequency emphasis in spectrum_third_octave is consistent with pad instrumentation rather than a corrective-EQ problem.",
+    "confidence": "medium",
+    "confidence_reason": "Capture isolation is verified and silence_fraction is low (0.05), so measurements are reliable. Only three spectrum bands are reported, limiting any tonal-balance judgment.",
+    "evidence_refs": [
+      {
+        "path": "audio.crest_factor_db",
+        "description": "12.0 dB crest factor indicates healthy, non-overcompressed dynamics."
+      },
+      {
+        "path": "audio.loudness_range_lu",
+        "description": "LRA 8.0 LU is moderate, consistent with natural pad dynamics."
+      },
+      {
+        "path": "audio.true_peak_db",
+        "description": "-5.5 dB true peak leaves safe headroom; no clipping risk."
+      },
+      {
+        "path": "audio.stereo.correlation",
+        "description": "-0.42 indicates decorrelated/wide content, appropriate for a pad; not a phase problem."
+      },
+      {
+        "path": "audio.stereo.mid_rms_db",
+        "description": "-27.0 dB mid RMS."
+      },
+      {
+        "path": "audio.stereo.side_rms_db",
+        "description": "-15.0 dB side RMS confirms wide stereo image."
+      },
+      {
+        "path": "audio.spectrum_third_octave[0].level_db",
+        "description": "100 Hz band at -18.0 dB (low-frequency emphasis)."
+      },
+      {
+        "path": "audio.spectrum_third_octave[2].level_db",
+        "description": "4000 Hz band at -30.0 dB (12 dB below the 100 Hz band)."
+      },
+      {
+        "path": "fx_chain",
+        "description": "Empty fx_chain — no processing to misconfigure."
+      },
+      {
+        "path": "capture.isolation_verified",
+        "description": "Isolation verified, measurements are reliable."
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "none",
+    "reason": "There is no clear problem and no safe move is supported by this capture. Dynamics, headroom, stereo width, and loudness are all healthy; the fx_chain is empty so there is nothing to bypass or adjust; the spectral tilt is within a natural pad shape and not safely correctable without more bands.",
+    "target": null,
+    "current_value": null,
+    "proposed_value": null,
+    "goal": null,
+    "expected_direction": [],
+    "rejection_reason": null
+  }
+}

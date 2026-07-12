@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "Spectrum tilts low-end-heavy for a clean electric guitar: 100 Hz at -18 dB sits 6 dB above 1 kHz (-24 dB) and 12 dB above 4 kHz (-30 dB). Dynamics (crest 12 dB, LRA 8 LU) and headroom (true peak -5.5 dB) are healthy, so no dynamics or gain issue is evident. No safe single-track move can be proposed because no FX chain is present on this track and its parent bus (Guitar Bus) processing is unmeasured.",
+    "probable_cause": "Likely a tonal characteristic from pickup type, playing style, or low-end shaping applied on the unmeasured Guitar Bus parent. The capture alone cannot distinguish pickup character from downstream bus EQ.",
+    "confidence": "low",
+    "confidence_reason": "track.parent_track is \"Guitar Bus\" whose processing is not in this payload, so this capture cannot establish the track's bus context; confidence capped at low per routing rule. fx_chain is empty, so any in-FX move is unsupported.",
+    "evidence_refs": [
+      {
+        "path": "audio.spectrum_third_octave[0].level_db",
+        "description": "100 Hz band at -18.0 dB, the loudest of the reported bands"
+      },
+      {
+        "path": "audio.spectrum_third_octave[1].level_db",
+        "description": "1 kHz band at -24.0 dB, 6 dB below the 100 Hz band"
+      },
+      {
+        "path": "audio.spectrum_third_octave[2].level_db",
+        "description": "4 kHz band at -30.0 dB, 12 dB below the 100 Hz band"
+      },
+      {
+        "path": "track.parent_track",
+        "description": "Track feeds parent bus \"Guitar Bus\" whose processing is not in this payload"
+      },
+      {
+        "path": "fx_chain",
+        "description": "Empty FX chain on this track; no EQ/compressor visible to attribute the tilt to"
+      },
+      {
+        "path": "audio.crest_factor_db",
+        "description": "12.0 dB crest factor indicates healthy, non-compressed dynamics"
+      },
+      {
+        "path": "audio.true_peak_db",
+        "description": "-5.5 dB true peak leaves comfortable headroom"
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "none",
+    "reason": "With no FX on the track and the Guitar Bus parent processing unmeasured, no verifiable single-track move is supported. Flag the low-end tilt for review on the parent bus instead.",
+    "target": null,
+    "current_value": null,
+    "proposed_value": null,
+    "goal": null,
+    "expected_direction": [],
+    "rejection_reason": null
+  }
+}

@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "Crest factor of 2.5 dB and loudness range of 1.5 LU show this bass is heavily squashed — typical unprocessed bass sits around 6–10 dB crest and 4–6 LU.",
+    "probable_cause": "The single enabled limiter (fx_chain[0]) is the likely cause, but its parameter values are not reported in the payload so the specific control (threshold/release) cannot be identified.",
+    "confidence": "medium",
+    "confidence_reason": "The dynamic reduction is measured directly, but the limiter's parameter values are empty in fx_chain[0].parameters, so the causal control cannot be verified — caps at medium per the FX-parameter rule.",
+    "evidence_refs": [
+      {
+        "path": "audio.crest_factor_db",
+        "description": "2.5 dB crest factor — extremely low, indicating heavy limiting."
+      },
+      {
+        "path": "audio.loudness_range_lu",
+        "description": "1.5 LU LRA — extremely narrow dynamic range, confirming squashing."
+      },
+      {
+        "path": "fx_chain[0].name",
+        "description": "'VST3: Generic Limiter' is the only processor in the chain and is enabled."
+      },
+      {
+        "path": "fx_chain[0].enabled",
+        "description": "true — limiter is active and affecting the signal."
+      },
+      {
+        "path": "fx_chain[0].parameters",
+        "description": "Empty array — no parameter values reported, so no specific control can be safely adjusted."
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "set_fx_bypass",
+    "reason": "Preview bypassing VST3: Generic Limiter; this does not remove or delete the plugin; to test whether crest_factor_db increases.",
+    "target": {
+      "track_guid": "{TRACK-BASS-02}",
+      "track_name": "Compressed Bass",
+      "fx_guid": "{FX-COMP-02}",
+      "fx_index": 0,
+      "fx_scope": "track",
+      "fx_name": "VST3: Generic Limiter",
+      "parameter_index": null,
+      "parameter_name": null
+    },
+    "current_value": {
+      "value": false,
+      "unit": "boolean",
+      "display": "bypass = off (limiter active)"
+    },
+    "proposed_value": {
+      "value": true,
+      "unit": "boolean",
+      "display": "bypass = on (preview)"
+    },
+    "goal": "crest_factor_db",
+    "expected_direction": [
+      {
+        "metric": "crest_factor_db",
+        "direction": "increase"
+      },
+      {
+        "metric": "loudness_range_lu",
+        "direction": "increase"
+      }
+    ],
+    "rejection_reason": null
+  }
+}

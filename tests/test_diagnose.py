@@ -261,6 +261,20 @@ class TestDiagnoseReply(unittest.TestCase):
         self.assertTrue(diagnose.SYSTEM_PROMPT.startswith(canonical))
         self.assertTrue(diagnose.TRACK_CHECK_SYSTEM_PROMPT.startswith(canonical))
         self.assertIn("Do not diagnose frequency masking", canonical)
+        self.assertIn("Never use cross-track relationship words", canonical)
+
+    def test_structured_contract_states_ceilings_limits_and_brevity(self):
+        contract = " ".join(diagnose.TRACK_CHECK_SYSTEM_PROMPT.lower().split())
+
+        self.assertIn("cap confidence at medium", contract)
+        self.assertIn("cap confidence at low", contract)
+        self.assertIn("audio.crest_factor_db or audio.loudness_range_lu", contract)
+        self.assertIn("a single formatted point is not a mapping", contract)
+        self.assertIn("start with a top-level payload key", contract)
+        self.assertIn("no clear problem and no safe move", contract)
+        self.assertIn("track volume moves at most 3 db", contract)
+        self.assertIn("at most 0.10 when the display mapping is not verified", contract)
+        self.assertIn("rejected over 1000 characters", contract)
 
     def test_joins_multiple_text_blocks(self):
         client = _FakeClient(_Response([_Block("part one"), _Block("part two")]))

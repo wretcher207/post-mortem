@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "No clear problem. Levels are healthy: 12 dB crest factor, true peak at -0.4 dB, integrated LUFS at -20, LRA 8 LU, sample peak -0.8. Spectrum tilts from 100 Hz (-18 dB) through 1 kHz (-24) to 4 kHz (-30), a plausible low-emphasis tilt for a pluck synth. The single delay plugin is enabled but its parameter values are not reported, so its contribution cannot be verified from this capture.",
+    "probable_cause": "Track runs at unity gain with conservative headroom and natural dynamics for plucked material. The FX chain cannot be evaluated further because the delay's parameter values are not in the payload, and no other chain elements or routing context exist.",
+    "confidence": "medium",
+    "confidence_reason": "Levels, dynamics, and spectrum are all measured and within reasonable ranges. Confidence is capped because the delay plugin's parameters are not reported, so its effect on the signal cannot be confirmed.",
+    "evidence_refs": [
+      {
+        "path": "audio.crest_factor_db",
+        "description": "12.0 dB — healthy dynamic range, no overcompression."
+      },
+      {
+        "path": "audio.true_peak_db",
+        "description": "-0.4 dB true peak — safe headroom, no clipping risk."
+      },
+      {
+        "path": "audio.integrated_lufs",
+        "description": "-20 LUFS integrated — appropriate for an individual track."
+      },
+      {
+        "path": "audio.loudness_range_lu",
+        "description": "8 LU LRA — moderate range consistent with plucked content."
+      },
+      {
+        "path": "audio.silence_fraction",
+        "description": "0.05 — capture is largely active audio, so level stats are reliable."
+      },
+      {
+        "path": "audio.spectrum_third_octave",
+        "description": "100 Hz -18, 1 kHz -24, 4 kHz -30 — gradual tilt consistent with a synth pluck."
+      },
+      {
+        "path": "fx_chain[0].parameters",
+        "description": "Empty parameter array — delay FX parameters not reported."
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "none",
+    "reason": "No clear problem is supported by this capture. Levels, dynamics, and tonal balance are all within reasonable ranges, and the delay plugin's parameters are unreported, so any FX modification would be unverified. There is no safe move supported here.",
+    "target": null,
+    "current_value": null,
+    "proposed_value": null,
+    "goal": null,
+    "expected_direction": [],
+    "rejection_reason": null
+  }
+}

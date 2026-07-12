@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "Kick track is healthy: dynamics are intact (crest 12 dB, LRA 8 LU), peaks sit below digital full-scale, and the 1/3-octave spectrum shows the expected low-frequency dominance (100 Hz at -18 dB) rolling off toward 4 kHz. No FX chain is loaded, routing is clean (no sends, no receives, no parent bus), and silence is only 5% so the level statistics are reliable. There is no clear problem and no safe single move is supported by this capture.",
+    "probable_cause": "No defect detected. A true peak of -0.1 dBFS is close to ceiling but not clipping; crest 12 dB indicates the transient of a kick is preserved rather than crushed. The spectrum slope (100 Hz > 1 kHz > 4 kHz) is consistent with a typical kick. Without an FX chain, no plugin parameter or bypass is actionable, and with no parent bus or receives in evidence, the track's downstream context cannot be evaluated here.",
+    "confidence": "high",
+    "confidence_reason": "Capture isolation is verified, silence_fraction is 0.05 (measurements are not diluted by silence), and the relevant dynamics and level metrics are all populated with non-null values.",
+    "evidence_refs": [
+      {
+        "path": "audio.crest_factor_db",
+        "description": "12.0 dB crest factor indicates preserved transient, not overcompressed."
+      },
+      {
+        "path": "audio.loudness_range_lu",
+        "description": "8.0 LU LRA is moderate, consistent with a punchy unmastered kick."
+      },
+      {
+        "path": "audio.true_peak_db",
+        "description": "-0.1 dBFS true peak is below 0 (no clip) but close to ceiling."
+      },
+      {
+        "path": "audio.silence_fraction",
+        "description": "0.05 silence — capture is mostly signal, so level stats are reliable."
+      },
+      {
+        "path": "audio.spectrum_third_octave[0].level_db",
+        "description": "100 Hz at -18.0 dB is the strongest band, expected for a kick fundamental."
+      },
+      {
+        "path": "fx_chain",
+        "description": "Empty FX chain — no plugin parameter or bypass move is supportable."
+      },
+      {
+        "path": "routing.sends",
+        "description": "Empty sends list; no send-level move is supportable."
+      },
+      {
+        "path": "routing.receives",
+        "description": "Empty receives list; track context is fully captured here."
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "none",
+    "reason": "No clear problem is supported by this capture: levels and dynamics are healthy, the FX chain is empty, and routing has no sends, receives, or parent bus to act on. Any change would be speculative and is not warranted by the evidence.",
+    "target": null,
+    "current_value": null,
+    "proposed_value": null,
+    "goal": null,
+    "expected_direction": [],
+    "rejection_reason": null
+  }
+}

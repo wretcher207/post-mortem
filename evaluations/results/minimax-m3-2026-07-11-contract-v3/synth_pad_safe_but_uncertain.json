@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "finding": {
+    "summary": "The track has no FX chain, healthy dynamics (crest factor 12 dB, LRA 8 LU), reasonable levels, and a typical soft-pad spectral profile. The capture is 38% silence, which dilutes every level statistic and limits confidence.",
+    "probable_cause": "Evidence does not point to a clear defect. The empty FX chain (fx_chain) means there is no processing to mis-tune. Crest factor and LRA show no excessive compression. The 10.5 dB gap between sample_peak_db and true_peak_db is large but cannot be safely attributed to a specific cause from this payload.",
+    "confidence": "low",
+    "confidence_reason": "audio.silence_fraction of 0.38 dilutes all level-based statistics, and there is no actionable evidence of a problem to address on a single track.",
+    "evidence_refs": [
+      {
+        "path": "audio.silence_fraction",
+        "description": "0.38 of the capture is silence, lowering confidence on level-based findings."
+      },
+      {
+        "path": "audio.crest_factor_db",
+        "description": "12.0 dB, consistent with healthy pad dynamics, not overcompressed."
+      },
+      {
+        "path": "audio.loudness_range_lu",
+        "description": "8.0 LU, consistent with healthy dynamics."
+      },
+      {
+        "path": "fx_chain",
+        "description": "Empty FX chain - no processing to misconfigure."
+      },
+      {
+        "path": "audio.sample_peak_db",
+        "description": "-16.0 dB with track volume_db 0.0; reasonable headroom."
+      },
+      {
+        "path": "audio.stereo.correlation",
+        "description": "0.68, reasonable stereo width, not phase-problematic."
+      }
+    ]
+  },
+  "proposal": {
+    "operation": "none",
+    "reason": "No clear problem is supported by this capture. The FX chain is empty so there is no parameter to set, dynamics are healthy, levels are reasonable, and the 38% silence fraction makes any level-based proposal unreliable.",
+    "target": null,
+    "current_value": null,
+    "proposed_value": null,
+    "goal": null,
+    "expected_direction": [],
+    "rejection_reason": null
+  }
+}

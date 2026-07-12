@@ -1,6 +1,6 @@
 # Phase 1 Implementation Backlog: Structured Track Check
 
-**Status:** Implementation complete; model-selection gate remains open
+**Status:** Complete; model-selection gate closed 2026-07-11 (MiniMax M3)
 **Date:** 2026-07-10
 **Target:** Cross-platform, open-core engine milestone
 **Depends on:** Reaper Daemon `cbff8d5` or later; Post Mortem `3184131` or later
@@ -462,9 +462,18 @@ schema from public `DiagnosisResult`, reserved rejection state for deterministic
 code, constrained metric names, strengthened evidence-path instructions, and
 added runtime confidence/cross-track guards. A same-corpus rerun improved
 MiniMax M3 to 19/25 useful findings and 15/25 full-contract passes, DeepSeek V4
-Pro to 12/25 and 8/25, and DeepSeek V4 Flash to 11/25 and 8/25. MiniMax remains
-one useful finding short of the selection gate, so the configured default is
-unchanged. See `evaluations/results/2026-07-11-model-contract-v2-benchmark.md`.
+Pro to 12/25 and 8/25, and DeepSeek V4 Flash to 11/25 and 8/25. MiniMax remained
+one useful finding short of the selection gate at that point, so the configured
+default was unchanged. See
+`evaluations/results/2026-07-11-model-contract-v2-benchmark.md`.
+
+A third contract iteration (v3) then banned cross-track relationship vocabulary
+outright, stated the schema string limits, and encoded confidence ceilings,
+evidence rules, and numeric move limits directly in the structured contract.
+MiniMax M3 reached 20/25 useful findings (80%) and 19/25 full-contract passes on
+the pinned `minimax-m3-2026-07-11-contract-v3` snapshot, meeting the selection
+gate with zero margin. MiniMax M3 is now the configured default model. See
+`evaluations/results/2026-07-11-model-contract-v3-benchmark.md`.
 
 ## 7. Recommended pull request sequence
 
