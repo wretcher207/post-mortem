@@ -79,8 +79,8 @@ class AnthropicProvider:
     def __init__(self, client):
         self._client = client
 
-    def _request_text(self, request):
-        """Execute one provider request and return complete text content."""
+    def _request(self, request):
+        """Execute one provider request with stable, safe error mapping."""
         try:
             response = self._client.messages.create(**request)
         except (anthropic.AuthenticationError, anthropic.PermissionDeniedError) as error:
@@ -116,6 +116,11 @@ class AnthropicProvider:
                 category = ProviderErrorCategory.NETWORK
                 message = f"the provider request failed with status {status or 'unknown'}"
             raise ProviderError(category, message) from error
+        return response
+
+    def _request_text(self, request):
+        """Execute one provider request and return complete text content."""
+        response = self._request(request)
         if response.stop_reason == "refusal":
             raise ProviderError(
                 ProviderErrorCategory.REFUSAL,
@@ -138,6 +143,16 @@ class AnthropicProvider:
             )
         return text
 
+    def validate_access(self, model_profile):
+        """Validate endpoint, key, and model with one deliberately tiny call."""
+        self._request(
+            {
+                "model": model_profile.model,
+                "max_tokens": 1,
+                "messages": [{"role": "user", "content": "Reply with OK."}],
+            }
+        )
+
     @staticmethod
     def _create_client(**kwargs):
         try:
@@ -154,6 +169,24 @@ class AnthropicProvider:
             model=config.get("POSTMORTEM_MODEL") or default_model,
             thinking=_thinking_enabled(),
         )
+
+    @classmethod
+    def from_api_key(cls, api_key):
+        """Build the configured provider with a candidate onboarding key."""
+        if not isinstance(api_key, str) or not api_key.strip():
+            raise ProviderError(
+                ProviderErrorCategory.AUTHENTICATION,
+                "an API key is required",
+            )
+        key = api_key.strip()
+        base_url = config.get("ANTHROPIC_BASE_URL")
+        if _is_anthropic_endpoint(base_url):
+            client = cls._create_client(api_key=key)
+            key_name = "ANTHROPIC_API_KEY"
+        else:
+            client = cls._create_client(api_key=key, base_url=base_url)
+            key_name = "POSTMORTEM_API_KEY"
+        return cls(client), cls.model_profile_from_config(), key_name
 
     @classmethod
     def from_config(cls):

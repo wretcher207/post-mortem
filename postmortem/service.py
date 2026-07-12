@@ -50,6 +50,7 @@ from .cli import (
 from .constants import DEFAULT_CAPTURE_SECONDS
 from .diagnose import build_payload, diagnose_track
 from .proposals import adjust_proposal
+from .providers.anthropic_provider import AnthropicProvider
 from .providers.base import ProviderError
 
 _HEARTBEAT_INTERVAL_SECONDS = 2.0
@@ -58,6 +59,8 @@ _SAFE_ID = re.compile(r"^[A-Za-z0-9._-]+$")
 
 JOB_TYPES = (
     "get_status",
+    "enable_capture",
+    "validate_provider",
     "track_check",
     "preview_fix",
     "commit_fix",
@@ -431,15 +434,26 @@ def _job_get_status(svc, job, stem, job_id):
     try:
         line = bridge.status()
         bridge_ok = True
+        capture_preflight = bridge.get_capture_preflight()
     except bridge.BridgeError as e:
         line = str(e)
         bridge_ok = False
+        capture_preflight = None
+    try:
+        _, profile = AnthropicProvider.from_config()
+        provider_configured = True
+        model = profile.model
+    except ProviderError:
+        provider_configured = False
+        model = config.get("POSTMORTEM_MODEL")
     return {
         "service_version": __version__,
         "data_root": svc.root,
         "bridge_ok": bridge_ok,
         "bridge_status": line,
-        "model": config.get("POSTMORTEM_MODEL"),
+        "capture_preflight": capture_preflight,
+        "provider_configured": provider_configured,
+        "model": model,
     }
 
 
@@ -497,6 +511,28 @@ def _job_track_check(svc, job, stem, job_id):
             os.unlink(wav_path)
         except OSError:
             pass
+
+
+def _job_enable_capture(svc, job, stem, job_id):
+    return bridge.enable_capture()
+
+
+def _job_validate_provider(svc, job, stem, job_id):
+    payload = job.get("payload") or {}
+    api_key = payload.get("api_key")
+    if api_key is None:
+        provider, profile = AnthropicProvider.from_config()
+        key_name = None
+    elif isinstance(api_key, str) and api_key.strip():
+        api_key = api_key.strip()
+        provider, profile, key_name = AnthropicProvider.from_api_key(api_key)
+    else:
+        raise JobRefused("bad_job", "payload.api_key must be a non-empty string")
+    svc._write_progress(stem, job_id, "validating_access")
+    provider.validate_access(profile)
+    if key_name is not None:
+        config.set_file_value(key_name, api_key)
+    return {"validated": True, "model": profile.model}
 
 
 def _loaded_diagnosis(payload):
@@ -592,6 +628,8 @@ def _job_record_feedback(svc, job, stem, job_id):
 
 _HANDLERS = {
     "get_status": _job_get_status,
+    "enable_capture": _job_enable_capture,
+    "validate_provider": _job_validate_provider,
     "track_check": _job_track_check,
     "preview_fix": _job_preview_fix,
     "commit_fix": _job_commit_fix,

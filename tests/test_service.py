@@ -15,6 +15,7 @@ import pytest
 from postmortem import bridge, preview, service
 from postmortem.analysis import TrackStats
 from postmortem.schemas import DiagnosisResult
+from postmortem.providers.base import ModelProfile, ProviderError, ProviderErrorCategory
 
 TRACK_GUID = "{TRACK-KICK}"
 
@@ -59,6 +60,29 @@ class FakeBridge:
     def status(self):
         self.calls.append("status")
         return "bridge alive"
+
+    def get_capture_preflight(self):
+        self.calls.append("get_capture_preflight")
+        return {
+            "capture_allowed": True,
+            "blockers": [],
+            "warnings": [],
+            "risk_gate": {
+                "allow_risk_level_3": True,
+                "requires_restart_to_change": True,
+            },
+            "sws_installed": True,
+            "render_autoclose": True,
+            "target": None,
+        }
+
+    def enable_capture(self):
+        self.calls.append("enable_capture")
+        return {
+            "enabled": True,
+            "restart_required": True,
+            "config_path": "/test/bridge/bridge_config.json",
+        }
 
     def get_context(self):
         self.calls.append("get_context")
@@ -119,8 +143,8 @@ class FakeBridge:
 @pytest.fixture
 def svc(tmp_path, monkeypatch):
     fake_bridge = FakeBridge()
-    for name in ("status", "get_context", "scan_fx", "get_track_routing",
-                 "capture_track_audio", "cmd"):
+    for name in ("status", "get_capture_preflight", "enable_capture", "get_context",
+                 "scan_fx", "get_track_routing", "capture_track_audio", "cmd"):
         monkeypatch.setattr(bridge, name, getattr(fake_bridge, name))
 
     stats_overrides = {}
@@ -344,7 +368,13 @@ def test_reply_filename_comes_from_the_inbox_filename_not_the_id(svc):
     assert not os.path.exists(os.path.join(svc.outbox, "..", "..", "evil.json"))
 
 
-def test_get_status_reports_versions_and_bridge(svc):
+def test_get_status_reports_versions_bridge_capture_and_provider(svc, monkeypatch):
+    class ConfiguredProvider:
+        @classmethod
+        def from_config(cls):
+            return cls(), ModelProfile("configured-model")
+
+    monkeypatch.setattr(service, "AnthropicProvider", ConfiguredProvider)
     stem = _submit(svc, {"id": "pm-009", "type": "get_status"})
     svc.run_once()
 
@@ -352,6 +382,120 @@ def test_get_status_reports_versions_and_bridge(svc):
     assert result["ok"] is True
     assert result["result"]["bridge_ok"] is True
     assert result["result"]["service_version"]
+    assert result["result"]["capture_preflight"]["capture_allowed"] is True
+    assert result["result"]["provider_configured"] is True
+    assert result["result"]["model"] == "configured-model"
+    assert "get_capture_preflight" in svc.fake_bridge.calls
+
+
+def test_enable_capture_updates_bridge_config_and_requires_restart(svc):
+    stem = _submit(svc, {"id": "pm-enable", "type": "enable_capture"})
+    svc.run_once()
+
+    result = _result(svc, stem)
+    assert result["ok"] is True
+    assert result["result"]["enabled"] is True
+    assert result["result"]["restart_required"] is True
+    assert "enable_capture" in svc.fake_bridge.calls
+
+
+def test_validate_provider_checks_live_access_before_saving_key(
+    svc, monkeypatch, tmp_path
+):
+    events = []
+
+    class FakeProvider:
+        @classmethod
+        def from_api_key(cls, api_key):
+            events.append(("construct", api_key))
+            return cls(), ModelProfile("configured-model"), "POSTMORTEM_API_KEY"
+
+        def validate_access(self, profile):
+            events.append(("validate", profile.model))
+
+    def fake_set_file_value(key, value):
+        events.append(("save", key, value))
+
+    monkeypatch.setattr(service, "AnthropicProvider", FakeProvider)
+    monkeypatch.setattr(service.config, "set_file_value", fake_set_file_value)
+
+    stem = _submit(svc, {
+        "id": "pm-provider", "type": "validate_provider",
+        "payload": {"api_key": "private-key"},
+    })
+    svc.run_once()
+
+    result = _result(svc, stem)
+    assert result["ok"] is True
+    assert result["result"] == {
+        "validated": True,
+        "model": "configured-model",
+    }
+    assert events == [
+        ("construct", "private-key"),
+        ("validate", "configured-model"),
+        ("save", "POSTMORTEM_API_KEY", "private-key"),
+    ]
+
+
+def test_validate_provider_can_check_an_existing_config_without_rewriting_it(
+    svc, monkeypatch
+):
+    events = []
+
+    class FakeProvider:
+        @classmethod
+        def from_config(cls):
+            events.append("construct")
+            return cls(), ModelProfile("configured-model")
+
+        def validate_access(self, profile):
+            events.append(("validate", profile.model))
+
+    monkeypatch.setattr(service, "AnthropicProvider", FakeProvider)
+    monkeypatch.setattr(
+        service.config, "set_file_value",
+        lambda *args: (_ for _ in ()).throw(AssertionError("must not rewrite config")),
+    )
+
+    stem = _submit(svc, {
+        "id": "pm-provider-existing", "type": "validate_provider", "payload": {},
+    })
+    svc.run_once()
+
+    assert _result(svc, stem)["ok"] is True
+    assert events == ["construct", ("validate", "configured-model")]
+
+
+def test_validate_provider_does_not_save_a_rejected_key(svc, monkeypatch):
+    events = []
+
+    class RejectingProvider:
+        @classmethod
+        def from_api_key(cls, api_key):
+            return cls(), ModelProfile("configured-model"), "POSTMORTEM_API_KEY"
+
+        def validate_access(self, profile):
+            raise ProviderError(
+                ProviderErrorCategory.AUTHENTICATION,
+                "provider authentication or configuration failed",
+            )
+
+    monkeypatch.setattr(service, "AnthropicProvider", RejectingProvider)
+    monkeypatch.setattr(
+        service.config, "set_file_value",
+        lambda *args: events.append(args),
+    )
+    stem = _submit(svc, {
+        "id": "pm-provider-rejected", "type": "validate_provider",
+        "payload": {"api_key": "bad-key"},
+    })
+    svc.run_once()
+
+    result = _result(svc, stem)
+    assert result["ok"] is False
+    assert result["error"]["code"] == "provider_authentication"
+    assert events == []
 
 
 def test_interrupted_job_is_reported_and_never_reexecuted(svc):

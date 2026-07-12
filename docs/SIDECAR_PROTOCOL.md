@@ -91,6 +91,7 @@ steps):
   `diagnosing`
 - `preview_fix`: `started` → `previewing`
 - `commit_fix`: `started` → `committing`
+- `validate_provider`: `started` → `validating_access`
 - others: `started` only
 
 The progress file is deleted when the final result is written. Result-file
@@ -150,9 +151,58 @@ Payload: none. Result:
   "data_root": "/Users/x/Library/Application Support/PostMortem",
   "bridge_ok": true,
   "bridge_status": "bridge alive (...)",
+  "capture_preflight": {
+    "capture_allowed": true,
+    "blockers": [],
+    "warnings": [],
+    "risk_gate": {
+      "allow_risk_level_3": true,
+      "requires_restart_to_change": true
+    },
+    "sws_installed": true,
+    "render_autoclose": true,
+    "target": null
+  },
+  "provider_configured": true,
   "model": "MiniMax-M3"
 }
 ```
+
+`capture_preflight` is the Reaper Daemon `get_capture_preflight` reply. It is
+`null` when the bridge is unavailable. `provider_configured` means the local
+endpoint, key, and model can be constructed; it does not replace the live
+validation required during first-run onboarding.
+
+### `enable_capture`
+
+Payload: none. Atomically sets only `allow_risk_level_3: true` in Reaper
+Daemon's existing `bridge_config.json`, preserving every other setting.
+Result:
+
+```json
+{
+  "enabled": true,
+  "restart_required": true,
+  "config_path": "/path/to/reaper-daemon/bridge/bridge_config.json"
+}
+```
+
+The bridge reads this flag once at REAPER startup. Clients must instruct the
+user to restart REAPER and test again; there is no reload operation.
+
+### `validate_provider`
+
+Payload: `{ "api_key": "..." }`, or `{}` to validate an already configured
+key. Executes one live provider call with `max_tokens: 1`. A supplied key is
+written atomically to the matching provider config field only after that call
+succeeds. The key is never included in the result or service log. Result:
+
+```json
+{ "validated": true, "model": "MiniMax-M3" }
+```
+
+Provider failures use the existing `provider_<category>` error codes. The
+processed job file is deleted whether validation succeeds or fails.
 
 ### `track_check`
 

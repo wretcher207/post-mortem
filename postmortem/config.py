@@ -42,3 +42,54 @@ def file_get(key, default=None):
     a key co-located with a base_url in the config from a bare env key that was
     set for a different endpoint."""
     return _load_file().get(key) or default
+
+
+def set_file_value(key, value):
+    """Atomically set one config value while preserving unrelated lines."""
+    global _file_values
+    if not key or any(char in key for char in "=\r\n"):
+        raise ValueError("config key is invalid")
+    if not isinstance(value, str) or any(char in value for char in "\r\n"):
+        raise ValueError("config value must be a single line")
+
+    lines = []
+    try:
+        with open(CONFIG_PATH, encoding="utf-8") as file:
+            lines = file.read().splitlines()
+    except OSError:
+        pass
+
+    replacement = f"{key}={value}"
+    found = False
+    updated = []
+    for line in lines:
+        stripped = line.strip()
+        if not stripped.startswith("#") and "=" in stripped:
+            existing_key = stripped.split("=", 1)[0].strip()
+            if existing_key == key:
+                if not found:
+                    updated.append(replacement)
+                    found = True
+                continue
+        updated.append(line)
+    if not found:
+        updated.append(replacement)
+
+    directory = os.path.dirname(CONFIG_PATH)
+    os.makedirs(directory, exist_ok=True)
+    tmp = CONFIG_PATH + ".tmp"
+    try:
+        with open(tmp, "w", encoding="utf-8") as file:
+            file.write("\n".join(updated) + "\n")
+        try:
+            os.chmod(tmp, 0o600)
+        except OSError:
+            pass
+        os.replace(tmp, CONFIG_PATH)
+    except OSError:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        raise
+    _file_values = None
