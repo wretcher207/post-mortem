@@ -66,7 +66,6 @@ JOB_TYPES = (
     "commit_fix",
     "cancel_job",
     "record_feedback",
-    "record_mcp_measurement",
     "record_mcp_handoff",
 )
 
@@ -884,7 +883,7 @@ def _job_record_mcp_handoff(svc, job, stem, job_id):
     payload = job.get("payload") or {}
     tracks = payload.get("tracks")
     summary = payload.get("diagnosis_summary")
-    receipt_id = payload.get("receipt_id")
+    seconds = payload.get("seconds")
     if (
         not isinstance(tracks, list)
         or len(tracks) != 1
@@ -898,62 +897,15 @@ def _job_record_mcp_handoff(svc, job, stem, job_id):
         raise JobRefused(
             "bad_job", "payload.diagnosis_summary must be at least 20 characters"
         )
-    try:
-        with open(os.path.join(svc.root, "mcp-receipt.json"), encoding="utf-8") as f:
-            receipt = json.load(f)
-        received = datetime.fromisoformat(
-            str(receipt.get("received_at", "")).replace("Z", "+00:00")
-        )
-    except (OSError, ValueError, AttributeError):
-        raise JobRefused(
-            "mcp_receipt_missing", "no measured MCP Track Check receipt is available"
-        ) from None
-    age = (datetime.now(timezone.utc) - received).total_seconds()
-    if (
-        not isinstance(receipt_id, str)
-        or receipt_id != receipt.get("receipt_id")
-        or receipt.get("tracks") != [tracks[0].strip()]
-        or receipt.get("seconds") != 10
-        or age < 0 or age > 15 * 60
-    ):
-        raise JobRefused(
-            "mcp_receipt_invalid",
-            "the MCP diagnosis does not match a fresh 10-second Track Check",
-        )
+    if seconds != 10:
+        raise JobRefused("bad_job", "MCP onboarding requires a 10-second Track Check")
     handoff = {
         "tracks": [tracks[0].strip()],
         "diagnosis_summary": summary.strip(),
         "delivered_at": _utc_now(),
     }
     svc._atomic_write_json(os.path.join(svc.root, "mcp-handoff.json"), handoff)
-    try:
-        os.unlink(os.path.join(svc.root, "mcp-receipt.json"))
-    except OSError:
-        pass
     return handoff
-
-
-def _job_record_mcp_measurement(svc, job, stem, job_id):
-    payload = job.get("payload") or {}
-    receipt_id = payload.get("receipt_id")
-    tracks = payload.get("tracks")
-    seconds = payload.get("seconds")
-    if not isinstance(receipt_id, str) or not re.fullmatch(r"[a-f0-9]{32,128}", receipt_id):
-        raise JobRefused("bad_job", "payload.receipt_id must be an unguessable hex token")
-    if (
-        not isinstance(tracks, list) or len(tracks) != 1
-        or not isinstance(tracks[0], str) or not tracks[0].strip()
-    ):
-        raise JobRefused("bad_job", "payload.tracks must contain exactly one track name")
-    if seconds != 10:
-        raise JobRefused("bad_job", "MCP onboarding requires a 10-second Track Check")
-    svc._atomic_write_json(os.path.join(svc.root, "mcp-receipt.json"), {
-        "receipt_id": receipt_id,
-        "tracks": [tracks[0].strip()],
-        "seconds": 10,
-        "received_at": _utc_now(),
-    })
-    return {"recorded": True}
 
 
 _HANDLERS = {
@@ -965,7 +917,6 @@ _HANDLERS = {
     "commit_fix": _job_commit_fix,
     "cancel_job": _job_cancel_job,
     "record_feedback": _job_record_feedback,
-    "record_mcp_measurement": _job_record_mcp_measurement,
     "record_mcp_handoff": _job_record_mcp_handoff,
 }
 

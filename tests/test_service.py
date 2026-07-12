@@ -632,16 +632,9 @@ def test_record_feedback_appends_jsonl(svc):
 
 
 def test_mcp_handoff_is_validated_and_returned_by_status(svc, monkeypatch):
-    receipt_id = "a" * 32
-    measured = _submit(svc, {
-        "id": "pm-mcp-measured", "type": "record_mcp_measurement",
-        "payload": {"receipt_id": receipt_id, "tracks": ["Kick"], "seconds": 10},
-    })
-    svc.run_once()
-    assert _result(svc, measured)["ok"] is True
     delivered = _submit(svc, {
         "id": "pm-mcp-delivered", "type": "record_mcp_handoff",
-        "payload": {"receipt_id": receipt_id, "tracks": ["Kick"],
+        "payload": {"tracks": ["Kick"], "seconds": 10,
             "diagnosis_summary": "The kick has a measured buildup around 200 Hz."},
     })
     svc.run_once()
@@ -662,16 +655,16 @@ def test_mcp_handoff_is_validated_and_returned_by_status(svc, monkeypatch):
     assert "200 Hz" in handoff["diagnosis_summary"]
 
 
-def test_mcp_handoff_requires_sidecar_measurement_receipt(svc):
+def test_mcp_handoff_requires_ten_second_measurement(svc):
     stem = _submit(svc, {
         "id": "pm-mcp-unmeasured", "type": "record_mcp_handoff",
-        "payload": {"receipt_id": "b" * 32, "tracks": ["Kick"],
+        "payload": {"tracks": ["Kick"], "seconds": 30,
             "diagnosis_summary": "This diagnosis is long enough but has no measurement."},
     })
     svc.run_once()
     result = _result(svc, stem)
     assert result["ok"] is False
-    assert result["error"]["code"] == "mcp_receipt_missing"
+    assert result["error"]["code"] == "bad_job"
 
 
 def test_heartbeat_carries_pid_and_version(svc):

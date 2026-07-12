@@ -35,18 +35,18 @@ PostMortem/
   feedback.jsonl     record_feedback stub (Phase 5 reads this)
   heartbeat.json     liveness: pid, service_version, updated_at, in_flight_job
   lock.json          single-instance lock
-  mcp-receipt.json   one-time measured Track Check receipt
   mcp-handoff.json   sidecar-owned diagnosis returned by an MCP client
 ```
 
-After `analyze_track` passes Post Mortem's isolation gate, Reaper Daemon submits
-`record_mcp_measurement` with an unguessable receipt id. For first-run
-onboarding, the client model calls `complete_postmortem_onboarding` with its
-diagnosis. The sidecar alone verifies that the one-time receipt is fresh,
-single-track, 10 seconds, and matches the diagnosis track before atomically
-writing `mcp-handoff.json`. The panel receives only the sidecar's `get_status`
-readiness verdict. A missing, stale, reused, comparison, or non-10-second
-receipt cannot complete onboarding.
+After `analyze_track` passes Post Mortem's isolation gate, Reaper Daemon keeps a
+process-local receipt proving that a single-track, 10-second measurement reached
+the MCP client. For first-run onboarding, the client model then calls
+`complete_postmortem_onboarding` with its diagnosis. That tool validates the
+fresh matching receipt and submits `record_mcp_handoff` through the normal
+sidecar inbox. The sidecar validates the job and atomically writes
+`mcp-handoff.json`. The panel receives it only through `get_status`, renders the
+diagnosis, and then offers the Track screen. A missing, stale, comparison, or
+non-10-second receipt cannot complete onboarding.
 
 ## File discipline
 
@@ -245,30 +245,23 @@ succeeds. The key is never included in the result or service log. Result:
 Provider failures use the existing `provider_<category>` error codes. The
 processed job file is deleted whether validation succeeds or fails.
 
-### `record_mcp_measurement`
-
-Payload: `{ "receipt_id": "64-random-hex-characters", "tracks": ["Kick"],
-"seconds": 10 }`. Reaper Daemon submits this only after verified isolated
-measurements reach the MCP client. The sidecar stores it as a short-lived,
-one-time receipt.
-
 ### `record_mcp_handoff`
 
 Payload:
 
 ```json
 {
-  "receipt_id": "matching-measurement-receipt",
   "tracks": ["Kick"],
+  "seconds": 10,
   "diagnosis_summary": "The kick has a measured buildup around 200 Hz."
 }
 ```
 
 This is submitted by Reaper Daemon's `complete_postmortem_onboarding` MCP tool,
 not by the panel. It requires exactly one non-empty track name and a diagnosis
-summary of at least 20 characters. The sidecar consumes a fresh matching
-`mcp-receipt.json`; a caller-controlled duration is not accepted as proof. It
-atomically stores the result and returns
+summary of at least 20 characters, with `seconds` exactly 10. Reaper Daemon
+submits it only after validating its process-local measurement receipt. The
+sidecar atomically stores the result and returns
 `{tracks, diagnosis_summary, delivered_at}`. The panel polls
 `get_status`; it never reads or validates a second file protocol itself.
 
