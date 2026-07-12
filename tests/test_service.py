@@ -231,6 +231,7 @@ def test_malformed_job_file_writes_typed_error_and_survives(svc):
     result = _result(svc, "broken")
     assert result["ok"] is False
     assert result["error"]["code"] == "bad_job"
+    assert result["error"]["recovery"]["action"]
 
 
 def test_unknown_job_type_is_typed(svc):
@@ -385,7 +386,116 @@ def test_get_status_reports_versions_bridge_capture_and_provider(svc, monkeypatc
     assert result["result"]["capture_preflight"]["capture_allowed"] is True
     assert result["result"]["provider_configured"] is True
     assert result["result"]["model"] == "configured-model"
+    assert result["result"]["setup"] == {
+        "ready": True,
+        "provider_configured": True,
+        "checks": {"bridge_running": True, "capture_enabled": True},
+        "recovery": None,
+        "detail": None,
+    }
+    assert result["result"]["setup"] == {
+        "ready": True,
+        "provider_configured": True,
+        "checks": {"bridge_running": True, "capture_enabled": True},
+        "recovery": None,
+        "detail": None,
+    }
     assert "get_capture_preflight" in svc.fake_bridge.calls
+
+
+@pytest.mark.parametrize(
+    "code",
+    [
+        "isolation_gate", "isolation_gate_preview", "capture_not_isolated",
+        "silence_gate", "insufficient_signal", "track_not_resolved",
+        "bridge_error", "cancelled", "interrupted", "bad_job",
+        "bad_adjustment", "unknown_job_type", "nothing_to_cancel",
+        "provider_authentication", "provider_rate_limit", "provider_network",
+        "provider_refusal", "provider_incomplete_response",
+        "provider_invalid_response", "not_actionable", "bad_diagnosis",
+        "cross_track_claim", "proposed_value_unchanged",
+        "current_value_drift", "stale_identity", "track_identity_mismatch",
+        "current_value_mismatch", "fx_identity_mismatch",
+        "parameter_identity_mismatch", "revalidation_failed",
+        "evidence_missing", "evidence_path_missing", "evidence_value_null",
+        "fx_bypass_evidence_missing", "move_limit_exceeded",
+        "unsupported_goal", "unsupported_metric", "fx_bypass_not_preview",
+    ],
+)
+def test_every_stable_failure_has_engine_owned_recovery(code):
+    recovery = service._error_recovery(code)
+
+    assert recovery["explanation"]
+    assert recovery["copy_diagnostics"] is False
+    if code != "nothing_to_cancel":
+        assert recovery["action"]
+
+
+def test_unknown_failure_keeps_typed_code_and_copy_diagnostics():
+    recovery = service._error_recovery("future_failure")
+
+    assert "future_failure" in recovery["explanation"]
+    assert recovery["copy_diagnostics"] is True
+
+
+def test_internal_error_has_specific_copy_diagnostics_recovery():
+    recovery = service._error_recovery("internal_error")
+
+    assert recovery["explanation"] == "Post Mortem hit an internal error."
+    assert recovery["copy_diagnostics"] is True
+
+
+@pytest.mark.parametrize(
+    ("bridge_ok", "preflight", "expected"),
+    [
+        (False, None, "bridge_dead"),
+        (True, None, "preflight_missing"),
+        (True, {
+            "capture_allowed": False,
+            "blockers": [{"code": "capture_gated", "message": "off"}],
+            "warnings": [],
+        }, "capture_gated"),
+        (True, {
+            "capture_allowed": True,
+            "blockers": [],
+            "warnings": [{"code": "render_hang_risk", "message": "risk"}],
+        }, "render_hang_risk"),
+        (True, {"capture_allowed": False, "blockers": [], "warnings": []},
+         "capture_blocked"),
+    ],
+)
+def test_setup_matrix_has_a_specific_recovery(bridge_ok, preflight, expected):
+    setup = service._setup_state(bridge_ok, "bridge detail", preflight, False)
+
+    assert setup["ready"] is False
+    assert setup["recovery"]["code"] == expected
+    assert setup["recovery"]["message"]
+    assert setup["recovery"]["action"]
+
+
+@pytest.mark.parametrize(
+    ("bridge_ok", "preflight", "expected"),
+    [
+        (False, None, "bridge_dead"),
+        (True, None, "preflight_missing"),
+        (True, {
+            "capture_allowed": False,
+            "blockers": [{"code": "capture_gated", "message": "x"}],
+            "warnings": [],
+        }, "capture_gated"),
+        (True, {
+            "capture_allowed": True,
+            "blockers": [],
+            "warnings": [{"code": "render_hang_risk", "message": "x"}],
+        }, "render_hang_risk"),
+    ],
+)
+def test_setup_verdict_owns_each_known_recovery(bridge_ok, preflight, expected):
+    setup = service._setup_state(bridge_ok, "detail", preflight, False)
+    assert setup["ready"] is False
+    assert setup["recovery"]["code"] == expected
+    assert setup["recovery"]["message"]
+    assert setup["recovery"]["action"]
 
 
 def test_enable_capture_updates_bridge_config_and_requires_restart(svc):
