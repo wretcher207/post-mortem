@@ -35,7 +35,14 @@ PostMortem/
   feedback.jsonl     record_feedback stub (Phase 5 reads this)
   heartbeat.json     liveness: pid, service_version, updated_at, in_flight_job
   lock.json          single-instance lock
+  mcp-handoff.json   proof that verified measurements reached an MCP client
 ```
+
+`mcp-handoff.json` is written atomically by Reaper Daemon's MCP server after
+`analyze_track` or `compare_tracks` has passed Post Mortem's isolation gate and
+returned verified measurements to the client model. P3-006 uses a fresh marker
+plus the user's confirmation that the diagnosis rendered in that client; a
+stale marker can never complete onboarding.
 
 ## File discipline
 

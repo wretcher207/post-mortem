@@ -1,6 +1,6 @@
 # Phase 3 Implementation Backlog: Product Shell and Installer ("Kill the Terminal")
 
-**Status:** IN PROGRESS — P3-001 through P3-005 complete; P3-006 next
+**Status:** IN PROGRESS — P3-001 through P3-006 complete; P3-007 next
 **Date:** 2026-07-12
 **Target:** PRODUCT_PLAN §12 Phase 3 — a fresh user installs, restarts REAPER,
 and finishes their first Track Check without ever opening a terminal
@@ -325,6 +325,20 @@ Acceptance criteria:
   unless setup breaks.
 - Onboarding strings reviewed against the voice rules (no "workflow", no
   empty superlatives, plain musician language).
+
+**Completed 2026-07-12.** The private panel now runs the four-step first-use
+flow and reopens setup only when a completed install loses bridge, sidecar, or
+capture readiness. The public sidecar adds preflight-backed status,
+capture-gate configuration with an explicit REAPER restart, and one-token live
+provider validation before a supplied key is saved. The MCP path is functional:
+Reaper Daemon records a fresh verified-measurement handoff, and the panel only
+offers completion confirmation after that proof exists. Known service,
+provider, capture, identity, evidence, and proposal failures have distinct
+plain-language next actions; unknown typed codes alone offer Copy Diagnostics.
+The scripted setup matrix and recovery mapping pass in 189 panel checks. Public
+engine verification passes 281 tests plus 8 subtests, compileall, and package
+build. Reaper Daemon's JSON-lock-aware startup watchdog and MCP handoff pass 121
+Python tests plus 175 Lua checks; release v3.11.1 carries the watchdog fix.
 
 ### P3-007 — Packaged sidecar builds
 
