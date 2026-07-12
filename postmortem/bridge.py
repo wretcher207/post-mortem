@@ -39,10 +39,17 @@ def _reaperd():
     return reaperd
 
 
+def reaperd_command(args):
+    """Command prefix that also works inside the frozen sidecar executable."""
+    if getattr(sys, "frozen", False):
+        return [sys.executable, "reaperd", _reaperd(), *args]
+    return [sys.executable, _reaperd(), *args]
+
+
 def _run(args, timeout_seconds):
     try:
         proc = subprocess.run(
-            [sys.executable, _reaperd(), *args],
+            reaperd_command(args),
             capture_output=True,
             text=True,
             timeout=timeout_seconds,
@@ -80,7 +87,7 @@ def status():
     reaperd status prints human text and signals via exit code (0 = alive)."""
     try:
         proc = subprocess.run(
-            [sys.executable, _reaperd(), "status"],
+            reaperd_command(["status"]),
             capture_output=True,
             text=True,
             timeout=15,
