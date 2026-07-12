@@ -135,6 +135,23 @@ def test_anthropic_adapter_returns_validated_data_without_leaking_sdk_objects():
     assert client.calls[0]["thinking"] == {"type": "adaptive"}
 
 
+def test_provider_access_check_is_one_minimal_live_call():
+    client = _FakeAnthropicClient(
+        _Response([_Block("O")], stop_reason="max_tokens")
+    )
+    provider = AnthropicProvider(client)
+
+    provider.validate_access(ModelProfile(model="configured-model"))
+
+    assert client.calls == [
+        {
+            "model": "configured-model",
+            "max_tokens": 1,
+            "messages": [{"role": "user", "content": "Reply with OK."}],
+        }
+    ]
+
+
 def test_structured_adapter_extracts_one_json_object_from_provider_preamble():
     provider = AnthropicProvider(
         _FakeAnthropicClient(
@@ -493,6 +510,45 @@ def test_anthropic_and_compatible_configurations_resolve_profiles(
 
     ctor.assert_called_once_with(**expected_kwargs)
     assert profile == ModelProfile(model="configured-model", thinking=False)
+
+
+def test_onboarding_key_uses_the_configured_endpoint_without_persisting_it(
+    monkeypatch,
+):
+    monkeypatch.setattr(config, "_file_values", {})
+    monkeypatch.setenv("ANTHROPIC_BASE_URL", "https://api.minimax.io/anthropic")
+    monkeypatch.setenv("POSTMORTEM_MODEL", "MiniMax-M3")
+
+    with patch(
+        "postmortem.providers.anthropic_provider.anthropic.Anthropic",
+        return_value=object(),
+    ) as ctor:
+        _, profile, key_name = AnthropicProvider.from_api_key("new-key")
+
+    ctor.assert_called_once_with(
+        api_key="new-key", base_url="https://api.minimax.io/anthropic"
+    )
+    assert profile.model == "MiniMax-M3"
+    assert key_name == "POSTMORTEM_API_KEY"
+
+
+def test_config_writer_preserves_comments_and_unrelated_values(monkeypatch, tmp_path):
+    path = tmp_path / "config"
+    path.write_text(
+        "# keep this\nANTHROPIC_BASE_URL=https://api.minimax.io/anthropic\n"
+        "POSTMORTEM_API_KEY=old-key\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(config, "CONFIG_PATH", str(path))
+    monkeypatch.setattr(config, "_file_values", None)
+
+    config.set_file_value("POSTMORTEM_API_KEY", "new-key")
+
+    assert path.read_text(encoding="utf-8") == (
+        "# keep this\nANTHROPIC_BASE_URL=https://api.minimax.io/anthropic\n"
+        "POSTMORTEM_API_KEY=new-key\n"
+    )
+    assert config.file_get("POSTMORTEM_API_KEY") == "new-key"
 
 
 def test_config_file_key_is_not_forwarded_to_an_environment_endpoint_override(

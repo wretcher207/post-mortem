@@ -117,6 +117,47 @@ def get_track_routing(track_name):
     return cmd("get_track_routing", {"target_track_name": track_name})
 
 
+def get_capture_preflight():
+    """Read-only capture readiness report for onboarding."""
+    return cmd("get_capture_preflight", {})
+
+
+def enable_capture():
+    """Enable the daemon's level-3 capture gate without pretending it reloads.
+
+    The bridge reads this flag once when REAPER starts. The caller must show
+    the returned restart requirement instead of offering a fake live reload.
+    """
+    root = os.path.dirname(_reaperd())
+    path = os.path.join(root, "bridge", "bridge_config.json")
+    values = {}
+    try:
+        with open(path, encoding="utf-8") as file:
+            loaded = json.load(file)
+        if not isinstance(loaded, dict):
+            raise BridgeError(f"bridge config is not a JSON object: {path}")
+        values = loaded
+    except FileNotFoundError:
+        pass
+    except json.JSONDecodeError as error:
+        raise BridgeError(f"bridge config is not valid JSON: {path}") from error
+    values["allow_risk_level_3"] = True
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    tmp = path + ".tmp"
+    try:
+        with open(tmp, "w", encoding="utf-8") as file:
+            json.dump(values, file, indent=2)
+            file.write("\n")
+        os.replace(tmp, path)
+    except OSError as error:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        raise BridgeError(f"could not update bridge config at {path}: {error}") from error
+    return {"enabled": True, "restart_required": True, "config_path": path}
+
+
 def capture_track_audio(
     track_name,
     duration_seconds=DEFAULT_CAPTURE_SECONDS,

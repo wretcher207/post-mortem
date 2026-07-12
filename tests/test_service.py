@@ -15,6 +15,7 @@ import pytest
 from postmortem import bridge, preview, service
 from postmortem.analysis import TrackStats
 from postmortem.schemas import DiagnosisResult
+from postmortem.providers.base import ModelProfile, ProviderError, ProviderErrorCategory
 
 TRACK_GUID = "{TRACK-KICK}"
 
@@ -59,6 +60,29 @@ class FakeBridge:
     def status(self):
         self.calls.append("status")
         return "bridge alive"
+
+    def get_capture_preflight(self):
+        self.calls.append("get_capture_preflight")
+        return {
+            "capture_allowed": True,
+            "blockers": [],
+            "warnings": [],
+            "risk_gate": {
+                "allow_risk_level_3": True,
+                "requires_restart_to_change": True,
+            },
+            "sws_installed": True,
+            "render_autoclose": True,
+            "target": None,
+        }
+
+    def enable_capture(self):
+        self.calls.append("enable_capture")
+        return {
+            "enabled": True,
+            "restart_required": True,
+            "config_path": "/test/bridge/bridge_config.json",
+        }
 
     def get_context(self):
         self.calls.append("get_context")
@@ -119,8 +143,8 @@ class FakeBridge:
 @pytest.fixture
 def svc(tmp_path, monkeypatch):
     fake_bridge = FakeBridge()
-    for name in ("status", "get_context", "scan_fx", "get_track_routing",
-                 "capture_track_audio", "cmd"):
+    for name in ("status", "get_capture_preflight", "enable_capture", "get_context",
+                 "scan_fx", "get_track_routing", "capture_track_audio", "cmd"):
         monkeypatch.setattr(bridge, name, getattr(fake_bridge, name))
 
     stats_overrides = {}
@@ -207,6 +231,7 @@ def test_malformed_job_file_writes_typed_error_and_survives(svc):
     result = _result(svc, "broken")
     assert result["ok"] is False
     assert result["error"]["code"] == "bad_job"
+    assert result["error"]["recovery"]["action"]
 
 
 def test_unknown_job_type_is_typed(svc):
@@ -344,14 +369,238 @@ def test_reply_filename_comes_from_the_inbox_filename_not_the_id(svc):
     assert not os.path.exists(os.path.join(svc.outbox, "..", "..", "evil.json"))
 
 
-def test_get_status_reports_versions_and_bridge(svc):
-    stem = _submit(svc, {"id": "pm-009", "type": "get_status"})
+def test_get_status_reports_versions_bridge_capture_and_provider(svc, monkeypatch):
+    class ConfiguredProvider:
+        @classmethod
+        def from_config(cls):
+            return cls(), ModelProfile("configured-model")
+
+    monkeypatch.setattr(service, "AnthropicProvider", ConfiguredProvider)
+    stem = _submit(svc, {"id": "pm-009", "type": "get_status",
+        "payload": {"panel_registered": True}})
     svc.run_once()
 
     result = _result(svc, stem)
     assert result["ok"] is True
     assert result["result"]["bridge_ok"] is True
     assert result["result"]["service_version"]
+    assert result["result"]["capture_preflight"]["capture_allowed"] is True
+    assert result["result"]["provider_configured"] is True
+    assert result["result"]["model"] == "configured-model"
+    assert result["result"]["setup"] == {
+        "ready": True,
+        "provider_configured": True,
+        "checks": {"bridge_running": True, "capture_enabled": True,
+                   "panel_registered": True},
+        "recovery": None,
+        "detail": None,
+    }
+    assert "get_capture_preflight" in svc.fake_bridge.calls
+
+
+@pytest.mark.parametrize(
+    "code",
+    [
+        "isolation_gate", "isolation_gate_preview", "capture_not_isolated",
+        "silence_gate", "insufficient_signal", "track_not_resolved",
+        "bridge_error", "cancelled", "interrupted", "bad_job",
+        "bad_adjustment", "unknown_job_type", "nothing_to_cancel",
+        "provider_authentication", "provider_rate_limit", "provider_network",
+        "provider_refusal", "provider_incomplete_response",
+        "provider_invalid_response", "not_actionable", "bad_diagnosis",
+        "cross_track_claim", "proposed_value_unchanged",
+        "current_value_drift", "stale_identity", "track_identity_mismatch",
+        "current_value_mismatch", "fx_identity_mismatch",
+        "parameter_identity_mismatch", "revalidation_failed",
+        "evidence_missing", "evidence_path_missing", "evidence_value_null",
+        "fx_bypass_evidence_missing", "move_limit_exceeded",
+        "unsupported_goal", "unsupported_metric", "fx_bypass_not_preview",
+    ],
+)
+def test_every_stable_failure_has_engine_owned_recovery(code):
+    recovery = service._error_recovery(code)
+
+    assert recovery["explanation"]
+    assert recovery["copy_diagnostics"] is False
+    if code != "nothing_to_cancel":
+        assert recovery["action"]
+
+
+def test_unknown_failure_keeps_typed_code_and_copy_diagnostics():
+    recovery = service._error_recovery("future_failure")
+
+    assert "future_failure" in recovery["explanation"]
+    assert recovery["copy_diagnostics"] is True
+
+
+def test_internal_error_has_specific_copy_diagnostics_recovery():
+    recovery = service._error_recovery("internal_error")
+
+    assert recovery["explanation"] == "Post Mortem hit an internal error."
+    assert recovery["copy_diagnostics"] is True
+
+
+@pytest.mark.parametrize(
+    ("bridge_ok", "preflight", "expected"),
+    [
+        (False, None, "bridge_dead"),
+        (True, None, "preflight_missing"),
+        (True, {
+            "capture_allowed": False,
+            "blockers": [{"code": "capture_gated", "message": "off"}],
+            "warnings": [],
+        }, "capture_gated"),
+        (True, {
+            "capture_allowed": True,
+            "blockers": [],
+            "warnings": [{"code": "render_hang_risk", "message": "risk"}],
+        }, "render_hang_risk"),
+        (True, {"capture_allowed": False, "blockers": [], "warnings": []},
+         "capture_blocked"),
+    ],
+)
+def test_setup_matrix_has_a_specific_recovery(bridge_ok, preflight, expected):
+    setup = service._setup_state(bridge_ok, "bridge detail", preflight, False)
+
+    assert setup["ready"] is False
+    assert setup["recovery"]["code"] == expected
+    assert setup["recovery"]["message"]
+    assert setup["recovery"]["action"]
+
+
+@pytest.mark.parametrize(
+    ("bridge_ok", "preflight", "expected"),
+    [
+        (False, None, "bridge_dead"),
+        (True, None, "preflight_missing"),
+        (True, {
+            "capture_allowed": False,
+            "blockers": [{"code": "capture_gated", "message": "x"}],
+            "warnings": [],
+        }, "capture_gated"),
+        (True, {
+            "capture_allowed": True,
+            "blockers": [],
+            "warnings": [{"code": "render_hang_risk", "message": "x"}],
+        }, "render_hang_risk"),
+    ],
+)
+def test_setup_verdict_owns_each_known_recovery(bridge_ok, preflight, expected):
+    setup = service._setup_state(bridge_ok, "detail", preflight, False)
+    assert setup["ready"] is False
+    assert setup["recovery"]["code"] == expected
+    assert setup["recovery"]["message"]
+    assert setup["recovery"]["action"]
+
+
+def test_enable_capture_updates_bridge_config_and_requires_restart(svc):
+    stem = _submit(svc, {"id": "pm-enable", "type": "enable_capture"})
+    svc.run_once()
+
+    result = _result(svc, stem)
+    assert result["ok"] is True
+    assert result["result"]["enabled"] is True
+    assert result["result"]["restart_required"] is True
+    assert "enable_capture" in svc.fake_bridge.calls
+
+
+def test_validate_provider_checks_live_access_before_saving_key(
+    svc, monkeypatch, tmp_path
+):
+    events = []
+
+    class FakeProvider:
+        @classmethod
+        def from_api_key(cls, api_key):
+            events.append(("construct", api_key))
+            return cls(), ModelProfile("configured-model"), "POSTMORTEM_API_KEY"
+
+        def validate_access(self, profile):
+            events.append(("validate", profile.model))
+
+    def fake_set_file_value(key, value):
+        events.append(("save", key, value))
+
+    monkeypatch.setattr(service, "AnthropicProvider", FakeProvider)
+    monkeypatch.setattr(service.config, "set_file_value", fake_set_file_value)
+
+    stem = _submit(svc, {
+        "id": "pm-provider", "type": "validate_provider",
+        "payload": {"api_key": "private-key"},
+    })
+    svc.run_once()
+
+    result = _result(svc, stem)
+    assert result["ok"] is True
+    assert result["result"] == {
+        "validated": True,
+        "model": "configured-model",
+    }
+    assert events == [
+        ("construct", "private-key"),
+        ("validate", "configured-model"),
+        ("save", "POSTMORTEM_API_KEY", "private-key"),
+    ]
+
+
+def test_validate_provider_can_check_an_existing_config_without_rewriting_it(
+    svc, monkeypatch
+):
+    events = []
+
+    class FakeProvider:
+        @classmethod
+        def from_config(cls):
+            events.append("construct")
+            return cls(), ModelProfile("configured-model")
+
+        def validate_access(self, profile):
+            events.append(("validate", profile.model))
+
+    monkeypatch.setattr(service, "AnthropicProvider", FakeProvider)
+    monkeypatch.setattr(
+        service.config, "set_file_value",
+        lambda *args: (_ for _ in ()).throw(AssertionError("must not rewrite config")),
+    )
+
+    stem = _submit(svc, {
+        "id": "pm-provider-existing", "type": "validate_provider", "payload": {},
+    })
+    svc.run_once()
+
+    assert _result(svc, stem)["ok"] is True
+    assert events == ["construct", ("validate", "configured-model")]
+
+
+def test_validate_provider_does_not_save_a_rejected_key(svc, monkeypatch):
+    events = []
+
+    class RejectingProvider:
+        @classmethod
+        def from_api_key(cls, api_key):
+            return cls(), ModelProfile("configured-model"), "POSTMORTEM_API_KEY"
+
+        def validate_access(self, profile):
+            raise ProviderError(
+                ProviderErrorCategory.AUTHENTICATION,
+                "provider authentication or configuration failed",
+            )
+
+    monkeypatch.setattr(service, "AnthropicProvider", RejectingProvider)
+    monkeypatch.setattr(
+        service.config, "set_file_value",
+        lambda *args: events.append(args),
+    )
+    stem = _submit(svc, {
+        "id": "pm-provider-rejected", "type": "validate_provider",
+        "payload": {"api_key": "bad-key"},
+    })
+    svc.run_once()
+
+    result = _result(svc, stem)
+    assert result["ok"] is False
+    assert result["error"]["code"] == "provider_authentication"
+    assert events == []
 
 
 def test_interrupted_job_is_reported_and_never_reexecuted(svc):
@@ -380,6 +629,42 @@ def test_record_feedback_appends_jsonl(svc):
         lines = [json.loads(line) for line in f if line.strip()]
     assert lines[0]["kind"] == "not_helpful"
     assert lines[0]["job_id"] == "pm-011"
+
+
+def test_mcp_handoff_is_validated_and_returned_by_status(svc, monkeypatch):
+    delivered = _submit(svc, {
+        "id": "pm-mcp-delivered", "type": "record_mcp_handoff",
+        "payload": {"tracks": ["Kick"], "seconds": 10,
+            "diagnosis_summary": "The kick has a measured buildup around 200 Hz."},
+    })
+    svc.run_once()
+    assert _result(svc, delivered)["ok"] is True
+
+    class ConfiguredProvider:
+        @classmethod
+        def from_config(cls):
+            return cls(), ModelProfile("configured-model")
+
+    monkeypatch.setattr(service, "AnthropicProvider", ConfiguredProvider)
+    status = _submit(svc, {"id": "pm-mcp-status", "type": "get_status",
+        "payload": {"mcp_started_at": "2026-07-12T00:00:00+00:00"}})
+    svc.run_once()
+    handoff = _result(svc, status)["result"]["mcp_handoff"]
+    assert handoff["ready"] is True
+    assert handoff["tracks"] == ["Kick"]
+    assert "200 Hz" in handoff["diagnosis_summary"]
+
+
+def test_mcp_handoff_requires_ten_second_measurement(svc):
+    stem = _submit(svc, {
+        "id": "pm-mcp-unmeasured", "type": "record_mcp_handoff",
+        "payload": {"tracks": ["Kick"], "seconds": 30,
+            "diagnosis_summary": "This diagnosis is long enough but has no measurement."},
+    })
+    svc.run_once()
+    result = _result(svc, stem)
+    assert result["ok"] is False
+    assert result["error"]["code"] == "bad_job"
 
 
 def test_heartbeat_carries_pid_and_version(svc):

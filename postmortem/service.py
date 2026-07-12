@@ -50,6 +50,7 @@ from .cli import (
 from .constants import DEFAULT_CAPTURE_SECONDS
 from .diagnose import build_payload, diagnose_track
 from .proposals import adjust_proposal
+from .providers.anthropic_provider import AnthropicProvider
 from .providers.base import ProviderError
 
 _HEARTBEAT_INTERVAL_SECONDS = 2.0
@@ -58,11 +59,14 @@ _SAFE_ID = re.compile(r"^[A-Za-z0-9._-]+$")
 
 JOB_TYPES = (
     "get_status",
+    "enable_capture",
+    "validate_provider",
     "track_check",
     "preview_fix",
     "commit_fix",
     "cancel_job",
     "record_feedback",
+    "record_mcp_handoff",
 )
 
 
@@ -80,6 +84,225 @@ class JobCancelled(Exception):
 
 def _utc_now():
     return datetime.now(timezone.utc).isoformat()
+
+
+_FRESH_CHECK_CODES = {
+    "current_value_drift", "stale_identity", "track_identity_mismatch",
+    "current_value_mismatch", "fx_identity_mismatch",
+    "parameter_identity_mismatch", "revalidation_failed",
+}
+_EVIDENCE_CODES = {
+    "evidence_missing", "evidence_path_missing", "evidence_value_null",
+    "fx_bypass_evidence_missing",
+}
+_UNSUPPORTED_MOVE_CODES = {
+    "move_limit_exceeded", "unsupported_goal", "unsupported_metric",
+    "fx_bypass_not_preview",
+}
+
+
+def _error_recovery(code):
+    """Engine-owned explanation and next action for every stable error code."""
+    if code == "internal_error":
+        return {
+            "explanation": "Post Mortem hit an internal error.",
+            "action": "Copy the diagnostics and include them with a bug report.",
+            "copy_diagnostics": True,
+        }
+    known = {
+        "isolation_gate": (
+            "This track cannot produce verified isolated evidence yet.",
+            "Choose an item-less routing stem for now.",
+        ),
+        "isolation_gate_preview": (
+            "This track cannot produce verified isolated evidence yet.",
+            "Choose an item-less routing stem for now.",
+        ),
+        "capture_not_isolated": (
+            "This track cannot produce verified isolated evidence yet.",
+            "Choose an item-less routing stem for now.",
+        ),
+        "silence_gate": (
+            "The capture came back essentially silent.",
+            "Move the edit cursor to a section where the track is playing, then check it again.",
+        ),
+        "insufficient_signal": (
+            "The capture did not contain enough signal to measure safely.",
+            "Move the edit cursor to a section where the track is playing, then check it again.",
+        ),
+        "track_not_resolved": (
+            "Post Mortem could not pin down one track.",
+            "Select exactly one track, then check it again.",
+        ),
+        "bridge_error": (
+            "REAPER did not answer the way it should have.",
+            "Wait for the watchdog to reconnect. If it does not, restart REAPER once and test again.",
+        ),
+        "cancelled": ("Cancelled. Nothing was changed.", "Try the check again when ready."),
+        "interrupted": (
+            "The engine restarted mid-check. Nothing was re-run.",
+            "Run a fresh Track Check.",
+        ),
+        "bad_job": (
+            "The panel and engine disagreed about this request.",
+            "Update Post Mortem, then try again.",
+        ),
+        "bad_adjustment": (
+            "The requested adjustment was not valid.",
+            "Run a fresh preview before adjusting again.",
+        ),
+        "unknown_job_type": (
+            "The panel and engine versions do not agree.",
+            "Update Post Mortem, then try again.",
+        ),
+        "nothing_to_cancel": ("That check already finished or stopped.", None),
+        "provider_authentication": (
+            "The key, endpoint, or configured model was rejected.",
+            "Reconnect the API key, then test it again.",
+        ),
+        "provider_rate_limit": (
+            "The provider is out of credit or rate-limited.",
+            "Add credit or wait for the limit to clear, then try again.",
+        ),
+        "provider_network": (
+            "The provider could not be reached.",
+            "Check the internet connection, then try again.",
+        ),
+        "provider_refusal": (
+            "The provider declined this check.",
+            "Try once more. If it repeats, use a different connected provider.",
+        ),
+        "provider_incomplete_response": (
+            "The provider did not return a complete diagnosis.",
+            "Run a fresh Track Check. If it repeats, reconnect the provider.",
+        ),
+        "provider_invalid_response": (
+            "The provider returned a diagnosis Post Mortem could not validate.",
+            "Run a fresh Track Check. If it repeats, reconnect the provider.",
+        ),
+        "not_actionable": (
+            "There is no previewable move in this result.",
+            "Use the explanation as guidance or run a fresh Track Check after making changes.",
+        ),
+        "bad_diagnosis": (
+            "This diagnosis cannot be previewed safely.",
+            "Run a fresh Track Check before trying another move.",
+        ),
+        "cross_track_claim": (
+            "A single-track check cannot support a claim about another track.",
+            "Run a fresh check and treat this result as advice only.",
+        ),
+        "proposed_value_unchanged": (
+            "The proposed value is already set.", "No preview is needed.",
+        ),
+        "mcp_receipt_missing": (
+            "No measured MCP Track Check is ready for this diagnosis.",
+            "Run analyze_track for one track, then return its diagnosis.",
+        ),
+        "mcp_receipt_invalid": (
+            "This MCP diagnosis does not match the latest measured Track Check.",
+            "Run a fresh 10-second analyze_track check, then return that diagnosis.",
+        ),
+    }
+    if code in _FRESH_CHECK_CODES:
+        known[code] = (
+            "The track, plug-in, parameter, or value changed after the check.",
+            "Run a fresh Track Check against the current project state.",
+        )
+    elif code in _EVIDENCE_CODES:
+        known[code] = (
+            "The proposed move does not point to verified measured evidence.",
+            "Run a fresh Track Check. Post Mortem will not preview it as-is.",
+        )
+    elif code in _UNSUPPORTED_MOVE_CODES:
+        known[code] = (
+            "The proposed move is unsupported or outside the safe preview limit.",
+            "Use the finding as advice or make a smaller change yourself.",
+        )
+    if code in known:
+        explanation, action = known[code]
+        return {"explanation": explanation, "action": action, "copy_diagnostics": False}
+    return {
+        "explanation": f"Post Mortem returned error code: {code}",
+        "action": "Copy the diagnostics and include them with a bug report.",
+        "copy_diagnostics": True,
+    }
+
+
+def _setup_state(
+    bridge_ok, bridge_status, preflight, provider_configured,
+    panel_registered=True,
+):
+    """Engine-owned onboarding verdict. The panel only renders this object."""
+    checks = {
+        "bridge_running": bridge_ok is True,
+        "capture_enabled": bool(
+            isinstance(preflight, dict) and preflight.get("capture_allowed") is True
+        ),
+        "panel_registered": panel_registered is True,
+    }
+    recovery = None
+    if not bridge_ok:
+        recovery = {
+            "code": "bridge_dead",
+            "message": "Reaper Daemon is not answering. The watchdog normally restarts it.",
+            "action": "If REAPER is already open and it does not reconnect, restart REAPER once, then test again.",
+            "primary_action": {"label": "Test Again", "job_type": "get_status", "payload": {}},
+        }
+    elif not isinstance(preflight, dict):
+        recovery = {
+            "code": "preflight_missing",
+            "message": "Reaper Daemon did not include the capture check this panel needs.",
+            "action": "Update Reaper Daemon, restart REAPER, then test again.",
+            "primary_action": {"label": "Test Again", "job_type": "get_status", "payload": {}},
+        }
+    else:
+        blockers = {
+            item.get("code"): item
+            for item in preflight.get("blockers", [])
+            if isinstance(item, dict)
+        }
+        warnings = {
+            item.get("code"): item
+            for item in preflight.get("warnings", [])
+            if isinstance(item, dict)
+        }
+        if "capture_gated" in blockers:
+            recovery = {
+                "code": "capture_gated",
+                "message": "Safe track capture is off.",
+                "action": "Enable Safe Capture, restart REAPER, then test again.",
+                "primary_action": {"label": "Enable Safe Capture", "job_type": "enable_capture", "payload": {}},
+            }
+        elif "render_hang_risk" in warnings:
+            recovery = {
+                "code": "render_hang_risk",
+                "message": "One REAPER setting must be switched on before the first capture.",
+                "action": "Open any render window, tick 'Automatically close when finished' once, close the window, then test again. Installing SWS also handles this automatically.",
+                "manual_steps": ["Automatically close when finished"],
+                "primary_action": {"label": "Test Again", "job_type": "get_status", "payload": {}},
+            }
+        elif preflight.get("capture_allowed") is not True:
+            recovery = {
+                "code": "capture_blocked",
+                "message": "Safe capture is still blocked without a supported blocker code.",
+                "action": "Update Reaper Daemon, then test again before running audio.",
+                "primary_action": {"label": "Test Again", "job_type": "get_status", "payload": {}},
+            }
+        elif panel_registered is not True:
+            recovery = {
+                "code": "panel_not_registered",
+                "message": "Post Mortem is open, but REAPER has not registered its action.",
+                "action": "Add Post Mortem to the Actions list, run it there once, then Test Again.",
+                "primary_action": {"label": "Test Again", "job_type": "get_status", "payload": {}},
+            }
+    return {
+        "ready": recovery is None,
+        "provider_configured": provider_configured is True,
+        "checks": checks,
+        "recovery": recovery,
+        "detail": bridge_status if not bridge_ok else None,
+    }
 
 
 def app_data_root():
@@ -191,6 +414,8 @@ class Service:
         """Final result for a job. The reply filename is ALWAYS derived from
         the inbox filename, never from the job's own id field — a hostile id
         must not choose where its reply lands (bridge finding 13)."""
+        if isinstance(error, dict) and "recovery" not in error:
+            error = {**error, "recovery": _error_recovery(str(error.get("code") or "unknown"))}
         self._atomic_write_json(
             os.path.join(self.outbox, f"{stem}.json"),
             {
@@ -431,15 +656,52 @@ def _job_get_status(svc, job, stem, job_id):
     try:
         line = bridge.status()
         bridge_ok = True
+        capture_preflight = bridge.get_capture_preflight()
     except bridge.BridgeError as e:
         line = str(e)
         bridge_ok = False
+        capture_preflight = None
+    try:
+        _, profile = AnthropicProvider.from_config()
+        provider_configured = True
+        model = profile.model
+    except ProviderError:
+        provider_configured = False
+        model = config.get("POSTMORTEM_MODEL")
+    mcp_handoff = {"ready": False}
+    started_at = (job.get("payload") or {}).get("mcp_started_at")
+    try:
+        with open(os.path.join(svc.root, "mcp-handoff.json"), encoding="utf-8") as f:
+            candidate = json.load(f)
+        delivered = datetime.fromisoformat(
+            str(candidate.get("delivered_at", "")).replace("Z", "+00:00")
+        )
+        started = datetime.fromisoformat(str(started_at).replace("Z", "+00:00"))
+        tracks = candidate.get("tracks")
+        summary = candidate.get("diagnosis_summary")
+        if (
+            delivered.tzinfo is not None and started.tzinfo is not None
+            and delivered >= started
+            and isinstance(tracks, list) and len(tracks) == 1
+            and isinstance(tracks[0], str) and bool(tracks[0].strip())
+            and isinstance(summary, str) and len(summary.strip()) >= 20
+        ):
+            mcp_handoff = {**candidate, "ready": True}
+    except (OSError, ValueError, AttributeError):
+        pass
     return {
         "service_version": __version__,
         "data_root": svc.root,
         "bridge_ok": bridge_ok,
         "bridge_status": line,
-        "model": config.get("POSTMORTEM_MODEL"),
+        "capture_preflight": capture_preflight,
+        "provider_configured": provider_configured,
+        "model": model,
+        "setup": _setup_state(
+            bridge_ok, line, capture_preflight, provider_configured,
+            (job.get("payload") or {}).get("panel_registered", True) is True,
+        ),
+        "mcp_handoff": mcp_handoff,
     }
 
 
@@ -497,6 +759,28 @@ def _job_track_check(svc, job, stem, job_id):
             os.unlink(wav_path)
         except OSError:
             pass
+
+
+def _job_enable_capture(svc, job, stem, job_id):
+    return bridge.enable_capture()
+
+
+def _job_validate_provider(svc, job, stem, job_id):
+    payload = job.get("payload") or {}
+    api_key = payload.get("api_key")
+    if api_key is None:
+        provider, profile = AnthropicProvider.from_config()
+        key_name = None
+    elif isinstance(api_key, str) and api_key.strip():
+        api_key = api_key.strip()
+        provider, profile, key_name = AnthropicProvider.from_api_key(api_key)
+    else:
+        raise JobRefused("bad_job", "payload.api_key must be a non-empty string")
+    svc._write_progress(stem, job_id, "validating_access")
+    provider.validate_access(profile)
+    if key_name is not None:
+        config.set_file_value(key_name, api_key)
+    return {"validated": True, "model": profile.model}
 
 
 def _loaded_diagnosis(payload):
@@ -590,13 +874,50 @@ def _job_record_feedback(svc, job, stem, job_id):
     return {"recorded": True}
 
 
+def _job_record_mcp_handoff(svc, job, stem, job_id):
+    """Accept the MCP client's completed diagnosis through the sidecar.
+
+    The panel reads this only through get_status, so the sidecar remains the
+    sole owner of onboarding state and validation.
+    """
+    payload = job.get("payload") or {}
+    tracks = payload.get("tracks")
+    summary = payload.get("diagnosis_summary")
+    seconds = payload.get("seconds")
+    if (
+        not isinstance(tracks, list)
+        or len(tracks) != 1
+        or not isinstance(tracks[0], str)
+        or not tracks[0].strip()
+    ):
+        raise JobRefused(
+            "bad_job", "payload.tracks must contain exactly one track name"
+        )
+    if not isinstance(summary, str) or len(summary.strip()) < 20:
+        raise JobRefused(
+            "bad_job", "payload.diagnosis_summary must be at least 20 characters"
+        )
+    if seconds != 10:
+        raise JobRefused("bad_job", "MCP onboarding requires a 10-second Track Check")
+    handoff = {
+        "tracks": [tracks[0].strip()],
+        "diagnosis_summary": summary.strip(),
+        "delivered_at": _utc_now(),
+    }
+    svc._atomic_write_json(os.path.join(svc.root, "mcp-handoff.json"), handoff)
+    return handoff
+
+
 _HANDLERS = {
     "get_status": _job_get_status,
+    "enable_capture": _job_enable_capture,
+    "validate_provider": _job_validate_provider,
     "track_check": _job_track_check,
     "preview_fix": _job_preview_fix,
     "commit_fix": _job_commit_fix,
     "cancel_job": _job_cancel_job,
     "record_feedback": _job_record_feedback,
+    "record_mcp_handoff": _job_record_mcp_handoff,
 }
 
 

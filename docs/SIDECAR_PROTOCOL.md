@@ -35,7 +35,18 @@ PostMortem/
   feedback.jsonl     record_feedback stub (Phase 5 reads this)
   heartbeat.json     liveness: pid, service_version, updated_at, in_flight_job
   lock.json          single-instance lock
+  mcp-handoff.json   sidecar-owned diagnosis returned by an MCP client
 ```
+
+After `analyze_track` passes Post Mortem's isolation gate, Reaper Daemon keeps a
+process-local receipt proving that a single-track, 10-second measurement reached
+the MCP client. For first-run onboarding, the client model then calls
+`complete_postmortem_onboarding` with its diagnosis. That tool validates the
+fresh matching receipt and submits `record_mcp_handoff` through the normal
+sidecar inbox. The sidecar validates the job and atomically writes
+`mcp-handoff.json`. The panel receives it only through `get_status`, renders the
+diagnosis, and then offers the Track screen. A missing, stale, comparison, or
+non-10-second receipt cannot complete onboarding.
 
 ## File discipline
 
@@ -91,6 +102,7 @@ steps):
   `diagnosing`
 - `preview_fix`: `started` → `previewing`
 - `commit_fix`: `started` → `committing`
+- `validate_provider`: `started` → `validating_access`
 - others: `started` only
 
 The progress file is deleted when the final result is written. Result-file
@@ -111,10 +123,18 @@ existence, not progress absence, means done.
 ```
 
 On failure `ok` is `false`, `result` is `null`, and `error` carries a stable
-machine code plus a human message the panel can show verbatim:
+machine code, the engine detail, and an engine-owned recovery object:
 
 ```json
-{ "code": "silence_gate", "message": "capture is essentially silent (...)" }
+{
+  "code": "silence_gate",
+  "message": "capture is essentially silent (...)",
+  "recovery": {
+    "explanation": "The capture came back essentially silent.",
+    "action": "Move the edit cursor to a section where the track is playing, then check it again.",
+    "copy_diagnostics": false
+  }
+}
 ```
 
 ### Error codes
@@ -136,7 +156,9 @@ machine code plus a human message the panel can show verbatim:
 | `internal_error` | unexpected failure; detail in `logs/service.log` |
 
 Refusals are product behavior, not failures to hide: the panel renders the
-message, hedges intact.
+message and recovery fields verbatim, hedges intact. Every stable error code
+has a specific recovery. Unknown codes keep the typed code and set
+`copy_diagnostics: true` rather than inventing an explanation.
 
 ## Job types
 
@@ -150,9 +172,98 @@ Payload: none. Result:
   "data_root": "/Users/x/Library/Application Support/PostMortem",
   "bridge_ok": true,
   "bridge_status": "bridge alive (...)",
-  "model": "MiniMax-M3"
+  "capture_preflight": {
+    "capture_allowed": true,
+    "blockers": [],
+    "warnings": [],
+    "risk_gate": {
+      "allow_risk_level_3": true,
+      "requires_restart_to_change": true
+    },
+    "sws_installed": true,
+    "render_autoclose": true,
+    "target": null
+  },
+  "provider_configured": true,
+  "setup": {
+    "ready": true,
+    "provider_configured": true,
+    "checks": { "bridge_running": true, "capture_enabled": true },
+    "recovery": null,
+    "detail": null
+  },
+  "model": "MiniMax-M3",
+  "mcp_handoff": { "ready": false }
 }
 ```
+
+`capture_preflight` is the Reaper Daemon `get_capture_preflight` reply. It is
+`null` when the bridge is unavailable. `provider_configured` means the local
+endpoint, key, and model can be constructed; it does not replace the live
+validation required during first-run onboarding.
+`setup` is the engine-owned onboarding verdict. When `ready` is false,
+`recovery` carries `{code, message, action, primary_action}` for `bridge_dead`,
+`preflight_missing`, `capture_gated`, `render_hang_risk`, or
+`capture_blocked`. The panel supplies only its directly observed "Found
+REAPER" and "panel registered" checks; it does not recreate bridge logic.
+`primary_action` is an engine-owned `{label, job_type, payload}` descriptor;
+`manual_steps` is present when the client should render a manual checklist.
+The panel renders and dispatches these fields generically.
+`mcp_handoff` always includes `ready`. The client supplies
+`payload.mcp_started_at` while polling. Only a structurally valid handoff newer
+than that timestamp returns `ready: true` with
+`{tracks, diagnosis_summary, delivered_at}`.
+
+### `enable_capture`
+
+Payload: none. Atomically sets only `allow_risk_level_3: true` in Reaper
+Daemon's existing `bridge_config.json`, preserving every other setting.
+Result:
+
+```json
+{
+  "enabled": true,
+  "restart_required": true,
+  "config_path": "/path/to/reaper-daemon/bridge/bridge_config.json"
+}
+```
+
+The bridge reads this flag once at REAPER startup. Clients must instruct the
+user to restart REAPER and test again; there is no reload operation.
+
+### `validate_provider`
+
+Payload: `{ "api_key": "..." }`, or `{}` to validate an already configured
+key. Executes one live provider call with `max_tokens: 1`. A supplied key is
+written atomically to the matching provider config field only after that call
+succeeds. The key is never included in the result or service log. Result:
+
+```json
+{ "validated": true, "model": "MiniMax-M3" }
+```
+
+Provider failures use the existing `provider_<category>` error codes. The
+processed job file is deleted whether validation succeeds or fails.
+
+### `record_mcp_handoff`
+
+Payload:
+
+```json
+{
+  "tracks": ["Kick"],
+  "seconds": 10,
+  "diagnosis_summary": "The kick has a measured buildup around 200 Hz."
+}
+```
+
+This is submitted by Reaper Daemon's `complete_postmortem_onboarding` MCP tool,
+not by the panel. It requires exactly one non-empty track name and a diagnosis
+summary of at least 20 characters, with `seconds` exactly 10. Reaper Daemon
+submits it only after validating its process-local measurement receipt. The
+sidecar atomically stores the result and returns
+`{tracks, diagnosis_summary, delivered_at}`. The panel polls
+`get_status`; it never reads or validates a second file protocol itself.
 
 ### `track_check`
 
