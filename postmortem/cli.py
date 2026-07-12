@@ -175,7 +175,82 @@ def _capture_seconds(value):
     return seconds
 
 
+def _preview_main(argv):
+    """postmortem preview <diagnosis.json|-> / postmortem commit <diagnosis.json|->.
+
+    Routed by the literal first argument so the legacy track-name invocation
+    is untouched (a track literally named "preview" can be reached with a
+    unique substring or by renaming).
+    """
+    from . import preview as preview_mod
+
+    parser = argparse.ArgumentParser(
+        prog=f"postmortem {argv[0]}",
+        description=(
+            "Preview a validated proposal (temporary, always restored) or "
+            "commit it (explicit, one undo point)."
+        ),
+    )
+    parser.add_argument(
+        "diagnosis",
+        help="path to a DiagnosisResult JSON file (from --format json), or - for stdin",
+    )
+    if argv[0] == "preview":
+        parser.add_argument(
+            "--seconds",
+            type=_capture_seconds,
+            default=DEFAULT_CAPTURE_SECONDS,
+            help=f"capture length 1-600 (default {DEFAULT_CAPTURE_SECONDS}, from cursor)",
+        )
+        parser.add_argument(
+            "--keep-wav", action="store_true",
+            help="keep the baseline/candidate stems for listening",
+        )
+    parser.add_argument(
+        "--format", choices=("text", "json"), default="text",
+        help="report output format (default: text)",
+    )
+    args = parser.parse_args(argv[1:])
+
+    text = sys.stdin.read() if args.diagnosis == "-" else None
+    if text is None:
+        try:
+            with open(args.diagnosis, encoding="utf-8") as f:
+                text = f.read()
+        except OSError as e:
+            print(f"[postmortem] cannot read {args.diagnosis}: {e}", file=sys.stderr)
+            return 2
+
+    try:
+        result = preview_mod.load_diagnosis(text)
+        print(f"[postmortem] {bridge.status()}", file=sys.stderr)
+        if argv[0] == "preview":
+            report = preview_mod.run_preview(
+                result, seconds=args.seconds, keep_wav=args.keep_wav
+            )
+            renderer = preview_mod.render_preview_text
+        else:
+            report = preview_mod.run_commit(result)
+            renderer = preview_mod.render_commit_text
+    except preview_mod.PreviewRefused as e:
+        print(f"[postmortem] refused ({e.code}): {e}", file=sys.stderr)
+        return 5
+    except bridge.BridgeError as e:
+        print(f"[postmortem] {e}", file=sys.stderr)
+        return 1
+
+    if args.format == "json":
+        print(json.dumps(report, indent=2))
+    else:
+        print(renderer(report))
+    return 0
+
+
 def main(argv=None):
+    if argv is None:
+        argv = sys.argv[1:]
+    if argv and argv[0] in ("preview", "commit"):
+        return _preview_main(argv)
     parser = argparse.ArgumentParser(
         prog="postmortem",
         description="Post Mortem: AI mix diagnosis for REAPER tracks. One track "

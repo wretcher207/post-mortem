@@ -17,8 +17,14 @@ postmortem "Kick" --format json > diagnosis.json
 postmortem preview diagnosis.json     # snapshot → baseline capture → temp
                                       # change → candidate capture → restore →
                                       # before/after proof report
-postmortem commit <preview_token>     # explicit, creates ONE named undo point
+postmortem commit diagnosis.json      # explicit, creates ONE named undo point
 ```
+
+(Design note, settled during P2-004: `preview` always restores and deletes the
+bridge preview state, so `commit` takes the diagnosis file, re-verifies
+identities and current values fresh, and runs `preview_change` +
+`commit_preview` back-to-back. A token from a cancelled preview has nothing
+left to commit.)
 
 `preview` always ends with the project back in its original state. `commit` is
 the only operation that leaves a change behind, and it must be explicit.
@@ -208,8 +214,9 @@ Create `postmortem/preview.py` orchestrating the PRODUCT_PLAN §6.3 sequence:
    preview token is printed only after the restore succeeded.
 6. Evaluate with `verification.py`, print the proof report (text and
    `--format json` from one structured result, same pattern as Phase 1).
-7. `postmortem commit <token>` re-verifies identities and calls
-   `commit_preview`. Nothing else ever commits.
+7. `postmortem commit <diagnosis.json>` re-verifies identities and current
+   values against a fresh scan, then runs `preview_change` + `commit_preview`
+   back-to-back. Nothing else ever commits.
 
 Acceptance criteria:
 
