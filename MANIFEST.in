@@ -3,3 +3,4 @@ include evaluations/results/2026-07-11-model-benchmark.md
 include evaluations/results/2026-07-11-model-contract-v2-benchmark.md
 include tests/fixtures/diagnoses/corpus.json
 recursive-include docs *.md *.json
+recursive-include packaging *.md *.py *.spec

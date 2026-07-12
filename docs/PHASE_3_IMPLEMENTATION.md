@@ -1,6 +1,6 @@
 # Phase 3 Implementation Backlog: Product Shell and Installer ("Kill the Terminal")
 
-**Status:** IN PROGRESS — P3-001 through P3-006 complete; P3-007 next
+**Status:** IN PROGRESS — P3-001 through P3-007 complete; P3-008 next
 **Date:** 2026-07-12
 **Target:** PRODUCT_PLAN §12 Phase 3 — a fresh user installs, restarts REAPER,
 and finishes their first Track Check without ever opening a terminal
@@ -369,6 +369,18 @@ Acceptance criteria:
   absent from PATH.
 - Binary size and cold-start time recorded in the PR (baseline for updater
   decisions).
+
+**Completed 2026-07-12.** The public repo now ships a PyInstaller onedir spec
+and unified `postmortem-sidecar` launcher. The frozen binary runs the service by
+default, exposes the existing CLI through `postmortem-sidecar cli ...`, reports
+the stamped engine version, and executes the separately installed `reaperd.py`
+inside its bundled Python runtime. Release tags build macOS, Windows, and Linux
+artifacts, run the complete source suite plus the frozen-binary smoke, archive
+each onedir folder, and upload SHA-256 and metrics files. The macOS arm64 bundle
+passes payload-only capture and the 1 kHz WAV golden test with system Python
+absent from `PATH`: 53,399,299 bytes on disk, 21 MB compressed, and 0.6345s
+median cold start. Public verification passes 338 tests plus 8 subtests; the
+panel reports the sidecar's `0.1.0` engine version and passes 163 Lua checks.
 
 ### P3-008 — Installer, updater, uninstaller
 

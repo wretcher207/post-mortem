@@ -1,0 +1,60 @@
+name: release sidecar bundles
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  bundle:
+    name: bundled sidecar (${{ matrix.platform }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux-x64
+            binary: dist/postmortem-sidecar/postmortem-sidecar
+            archive_format: gztar
+          - os: macos-latest
+            platform: macos-arm64
+            binary: dist/postmortem-sidecar/postmortem-sidecar
+            archive_format: gztar
+          - os: windows-latest
+            platform: windows-x64
+            binary: dist/postmortem-sidecar/postmortem-sidecar.exe
+            archive_format: zip
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - name: Install package, bundler, and tests
+        run: python -m pip install ".[packaging]" pytest
+      - name: Run source unit suite
+        run: python -m pytest -q
+      - name: Build onedir sidecar
+        run: pyinstaller --clean --noconfirm packaging/postmortem-sidecar.spec
+      - name: Smoke bundled binary without system Python on PATH
+        run: python packaging/smoke_bundle.py "${{ matrix.binary }}" --metrics-out bundle-metrics.json
+      - name: Archive bundle and write SHA-256
+        run: >-
+          python packaging/archive_bundle.py dist/postmortem-sidecar
+          artifacts/postmortem-sidecar-${{ github.ref_name }}-${{ matrix.platform }}
+          --format ${{ matrix.archive_format }}
+      - name: Copy bundle metrics into artifact
+        shell: bash
+        run: cp bundle-metrics.json artifacts/postmortem-sidecar-${{ github.ref_name }}-${{ matrix.platform }}.metrics.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: postmortem-sidecar-${{ github.ref_name }}-${{ matrix.platform }}
+          path: artifacts/
+          if-no-files-found: error
+
