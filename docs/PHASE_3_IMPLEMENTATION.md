@@ -71,7 +71,7 @@ reproducible from the terminal, which is also how we test it.
 | ReaImGui panel | `post-mortem` | `panel/` (new top-level dir, Lua) |
 | Onboarding + guided recovery | `post-mortem` | `panel/`, `postmortem/service.py` |
 | Packaging (PyInstaller) | `post-mortem` | `packaging/`, CI workflows |
-| Installer / updater / uninstaller | `post-mortem` | `packaging/installer/` |
+| Installer / updater / uninstaller | `post-mortem-panel` (private) | `installer/` |
 | Licensing | `post-mortem` | `postmortem/licensing.py`, `tests/test_licensing.py` |
 | Docs | both | README, command schema, this backlog |
 
@@ -109,7 +109,7 @@ reproducible from the terminal, which is also how we test it.
 
 ### P3-001 — Sidecar service and job-folder protocol
 
-**Repository:** `post-mortem`
+**Repository:** `post-mortem-panel` (private paid-product boundary)
 **Priority:** Blocking (everything panel-side builds on this)
 
 Create `postmortem/service.py`: a long-running process that watches a jobs
@@ -419,6 +419,16 @@ Acceptance criteria:
   cleanly re-runnable.
 - Installer refuses politely (with the reason) on unsupported REAPER
   versions rather than half-installing.
+
+**In progress 2026-07-12.** The private panel repo now contains the
+transactional installer core, updater, uninstaller, payload assembler and
+SHA-256 manifest validation. It preserves existing product and bridge config,
+restores a pre-existing standalone Reaper Daemon startup block on uninstall,
+keeps unrelated Actions entries, and has macOS, Windows, and Linux CI coverage
+configured in the private repo.
+The native wrappers, ReaPack dependency setup, REAPER version gate, live
+preflight/capture smoke, and fresh-machine acceptance remain open; P3-008 is
+not complete until those gates pass.
 
 ### P3-009 — License validation
 
