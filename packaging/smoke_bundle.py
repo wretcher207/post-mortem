@@ -103,7 +103,9 @@ def main(argv=None):
     rendered = json.dumps(metrics, indent=2) + "\n"
     print(rendered, end="")
     if args.metrics_out:
-        Path(args.metrics_out).write_text(rendered, encoding="utf-8")
+        metrics_path = Path(args.metrics_out)
+        metrics_path.parent.mkdir(parents=True, exist_ok=True)
+        metrics_path.write_text(rendered, encoding="utf-8")
     return 0
 
 
