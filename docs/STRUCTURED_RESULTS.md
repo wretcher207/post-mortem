@@ -97,6 +97,32 @@ greater caps confidence at `low` and rejects an actionable proposal. A response
 that introduces a cross-track claim in the single-track path is replaced with a
 safe low-confidence finding and `rejection_reason: "cross_track_claim"`.
 
+## VerificationResult (Phase 2)
+
+`postmortem preview` evaluates a candidate capture against its baseline with
+`postmortem.verification.evaluate`, returning a `VerificationResult`
+(`schema_version: 1`, strict shape, finite-only floats):
+
+- `available` — false when the candidate capture is ≥ 0.75 silence; nothing
+  else is claimed in that case.
+- `goal_metric` / `goal_outcome` — `moved_as_intended`,
+  `moved_insufficiently` (below the per-metric noise floor: 0.5 dB, 0.5 LU,
+  0.05 correlation, 1.0 dB per spectrum band), `moved_against`, or
+  `not_measured` (missing or null in either capture; null is never zero).
+- `deltas[]` — per-metric baseline/candidate/delta; the
+  `spectrum_third_octave` entry reports the largest-magnitude band change
+  across bands present in both captures, with its `band_hz`.
+- `expected[]` — one outcome per proposal `expected_direction` entry.
+- `guardrails[]` — `new_clipping` (fail above −0.3 dBFS when the baseline was
+  below; pre-existing clipping is not "new"), `loudness_shift` (warn > 3 LU;
+  blocks the intended-direction sentence because the A/B becomes unfair),
+  `phase` (warn on a 0.25 correlation drop or a positive→negative flip),
+  `stereo_balance` (warn > 3 dB), `silence` (fail ≥ 0.75).
+- `outcome_sentence` — exactly one of the three locked sentences from the
+  product plan, or the explicit unavailable sentence. No code path can claim
+  improvement without the goal metric moving past its noise floor in the
+  intended direction, and the word "better" never appears.
+
 ## Compatibility policy
 
 Consumers must inspect `schema_version` before reading the rest of the object.

@@ -157,6 +157,32 @@ Post Mortem refuses to diagnose it (a diagnosis of dead air would be accurate
 and useless), tells you to move the cursor, and exits with code 3. `--force`
 overrides the gate.
 
+## Verified Fix Preview (Phase 2, terminal)
+
+A diagnosis with an actionable proposal can be auditioned safely and then
+applied explicitly. Requires Reaper Daemon v3.10.0 or later.
+
+```bash
+postmortem "Kick" --format json > diagnosis.json
+postmortem preview diagnosis.json
+postmortem commit diagnosis.json
+```
+
+`preview` re-validates the proposal against a fresh scan (a renamed track,
+moved FX, or drifted knob refuses before anything is touched), captures a
+baseline, applies the change temporarily, captures the candidate, and **always
+restores the original** — including on errors, and via the bridge's own crash
+recovery if the process dies mid-preview. The report states measured deltas,
+guardrails (new clipping, loudness shift, phase, stereo balance, silence),
+and one of three honest outcomes; it never calls the candidate "better". Use
+`--keep-wav` to keep both stems and A/B them with your ears — the numbers only
+frame the comparison, they don't decide it.
+
+`commit` is the only operation that keeps a change. It re-verifies identities
+and current values fresh, applies through the bridge, and creates exactly one
+named undo point — one Ctrl+Z returns the project to its pre-preview state.
+Refusals exit with code 5 and a machine-readable reason on stderr.
+
 ## Prefer chat? Use it through MCP
 
 Reaper Daemon ships an MCP server (`reaper_mcp.py`) whose `analyze_track` and
@@ -170,10 +196,10 @@ output.
 
 ## What it won't do (yet)
 
-No real-time monitoring, no automatic fix application, and no preview panel.
-Phase 1 can describe a validated, policy-checked proposal, but it cannot execute
-or audition that proposal. Console output gives you one diagnosis; you apply
-the move with your own hands and ears.
+No real-time monitoring, no automatic fixes, and no docked preview panel yet.
+Preview and commit are explicit terminal commands: nothing changes without
+your command, previews always restore, and commit leaves exactly one undo
+point. The panel UI is Phase 3.
 
 ## Open-core boundary
 
