@@ -375,11 +375,13 @@ and unified `postmortem-sidecar` launcher. The frozen binary runs the service by
 default, exposes the existing CLI through `postmortem-sidecar cli ...`, reports
 the stamped engine version, and executes the separately installed `reaperd.py`
 inside its bundled Python runtime. Release tags build macOS, Windows, and Linux
-artifacts, run the complete source suite plus the frozen-binary smoke, archive
+artifacts, run the complete suite inside the frozen interpreter plus the
+black-box frozen-binary smoke, archive
 each onedir folder, and upload SHA-256 and metrics files. The macOS arm64 bundle
 passes payload-only capture and the 1 kHz WAV golden test with system Python
-absent from `PATH`: 53,399,299 bytes on disk, 21 MB compressed, and 0.6345s
-median cold start. Public verification passes 338 tests plus 8 subtests; the
+absent from `PATH`: 54,389,155 bytes on disk, 22 MB compressed, and 0.1495s
+median process cold start. Both the source and frozen interpreters pass 340
+tests plus 8 subtests; the
 panel reports the sidecar's `0.1.0` engine version and passes 163 Lua checks.
 
 ### P3-008 — Installer, updater, uninstaller

@@ -8,6 +8,7 @@ postmortem-sidecar                 # run the sidecar service
 postmortem-sidecar service --once  # explicit service command
 postmortem-sidecar cli Kick --payload-only
 postmortem-sidecar --version
+postmortem-sidecar test-bundle -q tests  # release acceptance gate
 ```
 
 The bundle still uses the separately installed Reaper Daemon `reaperd.py`.
@@ -25,9 +26,10 @@ python packaging/smoke_bundle.py \
   --metrics-out bundle-metrics.json
 ```
 
-The smoke suite clears `PATH`, checks the stamped binary version, runs a
-payload-only Track Check against a fake file bridge, and validates the bundled
-WAV analyzer against a 1 kHz golden tone.
+The smoke suite clears `PATH`, runs the full pytest suite inside the bundled
+interpreter, checks the stamped binary version, runs a payload-only Track Check
+against a fake file bridge, and validates the bundled WAV analyzer against a
+1 kHz golden tone.
 
 ## Release artifacts
 
@@ -40,10 +42,11 @@ records bundle metrics, and uploads all three files as one platform artifact.
 
 Recorded locally on 2026-07-12 with Python 3.14.6 and PyInstaller 6.21.0:
 
-- onedir size: 53,399,299 bytes (53.4 MB)
-- compressed `.tar.gz`: 21 MB
-- median cold start (`--version`, three launches): 0.6345 seconds
+- onedir size: 54,389,155 bytes (54.4 MB)
+- compressed `.tar.gz`: 22 MB
+- median process cold start (`--version`, three launches): 0.1495 seconds
 - system Python on child `PATH`: absent
 
-These numbers are a baseline for P3-008 installer and updater decisions, not a
-release budget. Each release artifact carries its own `bundle-metrics.json`.
+These numbers are a warm-filesystem baseline for P3-008 installer and updater
+decisions, not a release budget. Each release artifact carries its own
+`bundle-metrics.json`.

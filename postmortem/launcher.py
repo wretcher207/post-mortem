@@ -3,7 +3,7 @@
 import runpy
 import sys
 
-from . import __version__, bridge, cli, service
+from . import __version__
 
 
 def _run_reaperd(argv):
@@ -23,17 +23,37 @@ def _run_reaperd(argv):
     return 0
 
 
+def _run_bundle_tests(argv):
+    import pytest
+
+    return pytest.main(argv or ["-q", "tests"])
+
+
+def _run_code(source):
+    namespace = {"__name__": "__main__", "__builtins__": __builtins__}
+    exec(compile(source, "<string>", "exec"), namespace, namespace)
+    return 0
+
+
 def main(argv=None):
     argv = list(sys.argv[1:] if argv is None else argv)
     if argv == ["--version"]:
         print(f"postmortem-sidecar {__version__}")
         return 0
     if argv and argv[0] == "cli":
+        from . import cli
+
         return cli.main(argv[1:])
     if argv and argv[0] == "reaperd":
         return _run_reaperd(argv[1:])
+    if argv and argv[0] == "test-bundle":
+        return _run_bundle_tests(argv[1:])
+    if len(argv) == 2 and argv[0] == "-c":
+        return _run_code(argv[1])
     if argv and argv[0] == "service":
         argv = argv[1:]
+    from . import service
+
     return service.main(argv)
 
 

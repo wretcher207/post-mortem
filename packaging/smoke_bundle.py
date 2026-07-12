@@ -50,15 +50,17 @@ def smoke(binary):
     if not binary.is_file():
         raise AssertionError(f"bundle executable not found: {binary}")
     with tempfile.TemporaryDirectory(prefix="postmortem-bundle-smoke-") as temp:
-        env = os.environ.copy()
-        env.update({
+        test_env = os.environ.copy()
+        test_env.update({
             "PATH": "",
-            "REAPER_DAEMON_ROOT": str(FAKE_DAEMON),
             "POSTMORTEM_DATA_DIR": temp,
         })
-        version = _run(binary, ["--version"], env).stdout.strip()
+        version = _run(binary, ["--version"], test_env).stdout.strip()
         if not version.startswith("postmortem-sidecar "):
             raise AssertionError(f"unexpected version output: {version!r}")
+
+        _run(binary, ["test-bundle", "-q", str(ROOT / "tests")], test_env)
+        env = {**test_env, "REAPER_DAEMON_ROOT": str(FAKE_DAEMON)}
 
         completed = _run(
             binary,

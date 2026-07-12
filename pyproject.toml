@@ -24,7 +24,7 @@ postmortem = "postmortem.cli:main"
 postmortem-sidecar = "postmortem.launcher:main"
 
 [project.optional-dependencies]
-packaging = ["pyinstaller>=6.16,<7"]
+packaging = ["pyinstaller>=6.16,<7", "pytest>=8,<10"]
 
 [tool.setuptools]
 packages = ["postmortem", "postmortem.providers"]

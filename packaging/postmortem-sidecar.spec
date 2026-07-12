@@ -1,6 +1,7 @@
 # -*- mode: python ; coding: utf-8 -*-
 
 import os
+from PyInstaller.utils.hooks import collect_submodules
 
 root = os.path.dirname(SPECPATH)
 
@@ -9,9 +10,10 @@ a = Analysis(
     pathex=[root],
     binaries=[],
     datas=[],
-    hiddenimports=[
+    hiddenimports=collect_submodules("postmortem") + [
         "anthropic",
         "pydantic",
+        "pytest",
         "postmortem.providers.anthropic_provider",
         # reaperd.py is installed separately and executed with runpy inside
         # the frozen interpreter, so PyInstaller cannot discover its imports.
