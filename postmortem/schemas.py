@@ -208,3 +208,53 @@ class ProviderDiagnosisResult(_ContractModel):
     schema_version: StrictInt = Field(ge=1, le=1)
     finding: Finding
     proposal: ProviderProposal
+
+
+GoalOutcome: TypeAlias = Literal[
+    "moved_as_intended",
+    "moved_insufficiently",
+    "moved_against",
+    "not_measured",
+]
+GuardrailName: TypeAlias = Literal[
+    "new_clipping",
+    "loudness_shift",
+    "phase",
+    "stereo_balance",
+    "silence",
+]
+GuardrailStatus: TypeAlias = Literal["pass", "warn", "fail"]
+
+
+class MetricDelta(_ContractModel):
+    metric: SupportedMetric
+    baseline: StrictFiniteFloat | None = None
+    candidate: StrictFiniteFloat | None = None
+    delta: StrictFiniteFloat | None = None
+    # Spectrum entries only: the 1/3-octave band the delta describes.
+    band_hz: StrictFiniteFloat | None = None
+
+
+class DirectionOutcome(_ContractModel):
+    metric: SupportedMetric
+    direction: MetricDirection
+    outcome: GoalOutcome
+
+
+class Guardrail(_ContractModel):
+    name: GuardrailName
+    status: GuardrailStatus
+    detail: str = Field(min_length=1, max_length=300)
+
+
+class VerificationResult(_ContractModel):
+    """Deterministic before/after evaluation of one previewed proposal."""
+
+    schema_version: StrictInt = Field(ge=1, le=1)
+    available: StrictBool
+    goal_metric: SupportedMetric | None = None
+    goal_outcome: GoalOutcome
+    deltas: list[MetricDelta] = Field(max_length=64)
+    expected: list[DirectionOutcome] = Field(max_length=10)
+    guardrails: list[Guardrail] = Field(max_length=5)
+    outcome_sentence: str = Field(min_length=1, max_length=300)
