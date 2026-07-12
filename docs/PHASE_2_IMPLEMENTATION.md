@@ -1,6 +1,6 @@
 # Phase 2 Implementation Backlog: Verified Fix Preview
 
-**Status:** Ready for implementation
+**Status:** P2-001..P2-004 complete (2026-07-12); P2-005 live verification pending
 **Date:** 2026-07-11
 **Target:** CLI-only proof of the hero promise (PRODUCT_PLAN §17)
 **Depends on:** Phase 1 complete (model gate closed 2026-07-11, MiniMax M3);
@@ -79,7 +79,7 @@ line from `docs/PRODUCT_PLAN.md` (locked 2026-07-10), not a reopening of v1.
 
 **Repository:** `reaper-daemon`
 **Priority:** Blocking
-**Status:** Not started
+**Status:** Completed 2026-07-11 (reaper-daemon PR #17, v3.9.0)
 
 Add `snapshot_track_state` and `restore_track_state`. The snapshot covers only
 what the four supported operations can mutate: track volume, track pan, per-FX
@@ -109,7 +109,7 @@ Acceptance criteria:
 **Repository:** `reaper-daemon`
 **Priority:** Blocking
 **Depends on:** P2-001
-**Status:** Not started
+**Status:** Completed 2026-07-12 (reaper-daemon PR #18, v3.10.0)
 
 Add `preview_change`, `commit_preview`, `cancel_preview`.
 
@@ -149,7 +149,7 @@ Acceptance criteria:
 
 **Repository:** `post-mortem`
 **Priority:** Blocking (parallel with P2-001/002)
-**Status:** Not started
+**Status:** Completed 2026-07-12 (post-mortem PR #11)
 
 Create `postmortem/verification.py`. Pure functions over two `TrackStats` plus
 the validated proposal; no bridge calls, no model calls.
@@ -198,7 +198,7 @@ Acceptance criteria:
 **Repository:** `post-mortem`
 **Priority:** High
 **Depends on:** P2-001, P2-002, P2-003
-**Status:** Not started
+**Status:** Completed 2026-07-12 (post-mortem PR #12)
 
 Create `postmortem/preview.py` orchestrating the PRODUCT_PLAN §6.3 sequence:
 
@@ -233,7 +233,7 @@ Acceptance criteria:
 **Repository:** both
 **Priority:** High
 **Depends on:** P2-001 through P2-004
-**Status:** Not started
+**Status:** Not started — needs a REAPER bridge reload; checklist below
 
 Scripted live pass on a real project (the Phase 1 A/B rig: ReaEQ boost is
 proven detectable):
@@ -254,7 +254,7 @@ Remember the repo rule: a capture is verified only by checking the WAV file
 **Repository:** both
 **Priority:** Medium
 **Depends on:** all prior
-**Status:** Not started
+**Status:** Partially complete (README, STRUCTURED_RESULTS, command schema); PRODUCT_PLAN checkoff waits on P2-005
 
 - README preview/commit examples with honest language (preview restores;
   commit is explicit; one undo point).
