@@ -159,6 +159,13 @@ def test_preview_runs_the_full_loop_and_always_restores(fake):
     assert report["verification"]["outcome_sentence"] == (
         "The candidate moved in the intended direction."
     )
+    assert report["adjustment"] == {
+        "minimum": -6.0,
+        "maximum": 0.0,
+        "step": 0.1,
+        "value": -5.0,
+        "unit": "db",
+    }
 
 
 def test_candidate_capture_failure_still_cancels_the_preview(fake):

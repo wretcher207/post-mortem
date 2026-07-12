@@ -179,6 +179,10 @@ Payload: `{ "diagnosis": {...}, "seconds": 10, "keep_wav": false }`.
 Runs the Phase 2 preview loop: fresh revalidation, snapshot, temporary
 apply, candidate capture, ALWAYS restore. Result is the preview report
 (`restored`, `verification`, deltas, optional `wav_paths` when `keep_wav`).
+Numeric proposals also carry `adjustment` with engine-owned `minimum`,
+`maximum`, `step`, `value`, and `unit` fields. Thin clients must use these
+bounds for adjustment controls instead of duplicating validator move limits.
+Boolean FX-bypass proposals carry `adjustment: null`.
 
 ### `commit_fix`
 

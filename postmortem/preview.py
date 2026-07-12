@@ -17,7 +17,7 @@ import os
 from . import bridge
 from .analysis import analyze_wav
 from .diagnose import build_payload
-from .proposals import validate_proposal
+from .proposals import adjustment_bounds, validate_proposal
 from .schemas import DiagnosisResult
 from .verification import evaluate
 
@@ -241,6 +241,7 @@ def run_preview(result: DiagnosisResult, seconds, keep_wav=False):
             "proposal_reason": proposal.reason,
             "current_value": proposal.current_value.model_dump() if proposal.current_value else None,
             "proposed_value": proposal.proposed_value.model_dump() if proposal.proposed_value else None,
+            "adjustment": adjustment_bounds(revalidated.proposal),
             "verification": verification.model_dump(),
             "wav_paths": {"baseline": baseline_wav, "candidate": candidate_wav}
             if keep_wav

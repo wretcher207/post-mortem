@@ -2,7 +2,7 @@
 
 import pytest
 
-from postmortem.proposals import validate_proposal
+from postmortem.proposals import adjustment_bounds, validate_proposal
 from postmortem.diagnose import render_diagnosis_text
 from postmortem.schemas import DiagnosisResult, Proposal
 
@@ -132,6 +132,59 @@ def _fx_bypass_result():
     result.proposal.goal = "sample_peak_db"
     result.proposal.expected_direction[0].metric = "sample_peak_db"
     return DiagnosisResult.model_validate(result.model_dump())
+
+
+def test_track_volume_adjustment_bounds_use_the_validator_move_limit():
+    proposal = validate_proposal(
+        _track_volume_result(), _payload()
+    ).proposal
+
+    assert adjustment_bounds(proposal) == {
+        "minimum": -6.0,
+        "maximum": 0.0,
+        "step": 0.1,
+        "value": -5.0,
+        "unit": "db",
+    }
+
+
+def test_track_pan_adjustment_bounds_clamp_to_the_parameter_domain():
+    result = _track_pan_result().model_copy(deep=True)
+    result.proposal.current_value.value = 0.9
+    result.proposal.proposed_value.value = 0.8
+    payload = _payload()
+    payload["track"]["pan"] = 0.9
+    proposal = validate_proposal(result, payload).proposal
+
+    assert adjustment_bounds(proposal) == {
+        "minimum": 0.7,
+        "maximum": 1.0,
+        "step": 0.01,
+        "value": 0.8,
+        "unit": "normalized_pan",
+    }
+
+
+def test_fx_parameter_adjustment_bounds_use_the_strict_normalized_limit():
+    proposal = validate_proposal(
+        _fx_parameter_result(), _payload()
+    ).proposal
+
+    assert adjustment_bounds(proposal) == {
+        "minimum": 0.4,
+        "maximum": 0.6,
+        "step": 0.01,
+        "value": 0.42,
+        "unit": "normalized",
+    }
+
+
+def test_boolean_bypass_proposal_has_no_numeric_adjustment_bounds():
+    proposal = validate_proposal(
+        _fx_bypass_result(), _payload()
+    ).proposal
+
+    assert adjustment_bounds(proposal) is None
 
 
 def test_valid_conservative_track_volume_proposal_remains_previewable():

@@ -12,6 +12,9 @@ _MISSING = object()
 _PATH_SEGMENT = re.compile(r"([A-Za-z_][A-Za-z0-9_-]*)(?:\[(\d+)\])?")
 _DB_CURRENT_TOLERANCE = 0.1
 _NORMALIZED_CURRENT_TOLERANCE = 0.001
+_TRACK_VOLUME_MOVE_LIMIT_DB = 3.0
+_TRACK_PAN_MOVE_LIMIT = 0.20
+_FX_PARAMETER_MOVE_LIMIT = 0.10
 SUPPORTED_METRICS = frozenset(get_args(SupportedMetric))
 _CROSS_TRACK_DISCLAIMER_PATTERNS = (
     re.compile(
@@ -154,6 +157,39 @@ def has_verified_isolated_capture(payload: Mapping) -> bool:
         and capture.get("scope") == "isolated_track"
         and capture.get("isolation_verified") is True
     )
+
+
+def adjustment_bounds(proposal: Proposal):
+    """Return engine-owned numeric slider bounds for an actionable proposal."""
+    current = proposal.current_value
+    proposed = proposal.proposed_value
+    if current is None or proposed is None:
+        return None
+    if isinstance(current.value, bool) or isinstance(proposed.value, bool):
+        return None
+    current_value = float(current.value)
+    proposed_value = float(proposed.value)
+    if proposal.operation == "set_track_volume":
+        minimum = current_value - _TRACK_VOLUME_MOVE_LIMIT_DB
+        maximum = current_value + _TRACK_VOLUME_MOVE_LIMIT_DB
+        step = 0.1
+    elif proposal.operation == "set_track_pan":
+        minimum = max(-1.0, current_value - _TRACK_PAN_MOVE_LIMIT)
+        maximum = min(1.0, current_value + _TRACK_PAN_MOVE_LIMIT)
+        step = 0.01
+    elif proposal.operation == "set_fx_param":
+        minimum = max(0.0, current_value - _FX_PARAMETER_MOVE_LIMIT)
+        maximum = min(1.0, current_value + _FX_PARAMETER_MOVE_LIMIT)
+        step = 0.01
+    else:
+        return None
+    return {
+        "minimum": minimum,
+        "maximum": maximum,
+        "step": step,
+        "value": proposed_value,
+        "unit": proposed.unit,
+    }
 
 
 def _reject_unverified_capture(result):
@@ -361,7 +397,7 @@ def validate_proposal(
         # A current formatted value is only one point, not a verified mapping
         # between normalized and displayed values. The payload has no mapping
         # metadata yet, so all Phase 1 FX parameter moves use the strict default.
-        move_limit = 0.10
+        move_limit = _FX_PARAMETER_MOVE_LIMIT
         proposed = result.proposal.proposed_value
         if proposed is None or abs(
             float(proposed.value) - float(current.value)
@@ -418,7 +454,7 @@ def validate_proposal(
         proposed = result.proposal.proposed_value
         if proposed is None or abs(
             float(proposed.value) - float(current.value)
-        ) > 3.0:
+        ) > _TRACK_VOLUME_MOVE_LIMIT_DB:
             return _reject(result, "move_limit_exceeded")
         sanitized = result.proposal.model_copy(deep=True)
         sanitized.reason = (
@@ -444,7 +480,7 @@ def validate_proposal(
         proposed = result.proposal.proposed_value
         if proposed is None or abs(
             float(proposed.value) - float(current.value)
-        ) > 0.20:
+        ) > _TRACK_PAN_MOVE_LIMIT:
             return _reject(result, "move_limit_exceeded")
         sanitized = result.proposal.model_copy(deep=True)
         sanitized.reason = (
