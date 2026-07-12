@@ -336,11 +336,11 @@ accepting the client model's diagnosis, and the panel renders that diagnosis
 before exposing the Track screen. Known service,
 provider, capture, identity, evidence, and proposal failures have distinct
 plain-language next actions; unknown typed codes alone offer Copy Diagnostics.
-The scripted setup matrix and thin-client rendering pass in 159 panel checks.
-Public engine recovery and verification pass 330 tests plus 8 subtests,
+The scripted setup matrix and thin-client rendering pass in 161 panel checks.
+Public engine recovery and verification pass 332 tests plus 8 subtests,
 compileall, and package build. Reaper Daemon's JSON-lock-aware startup watchdog
-and MCP diagnosis return pass 122 Python tests plus 175 Lua checks; release
-v3.11.1 carries the watchdog fix.
+and sidecar-owned MCP diagnosis handoff pass 122 Python tests plus 175 Lua
+checks; v3.11.1 carries the watchdog fix.
 
 ### P3-007 — Packaged sidecar builds
 

@@ -66,6 +66,7 @@ JOB_TYPES = (
     "commit_fix",
     "cancel_job",
     "record_feedback",
+    "record_mcp_measurement",
     "record_mcp_handoff",
 )
 
@@ -195,6 +196,14 @@ def _error_recovery(code):
         "proposed_value_unchanged": (
             "The proposed value is already set.", "No preview is needed.",
         ),
+        "mcp_receipt_missing": (
+            "No measured MCP Track Check is ready for this diagnosis.",
+            "Run analyze_track for one track, then return its diagnosis.",
+        ),
+        "mcp_receipt_invalid": (
+            "This MCP diagnosis does not match the latest measured Track Check.",
+            "Run a fresh 10-second analyze_track check, then return that diagnosis.",
+        ),
     }
     if code in _FRESH_CHECK_CODES:
         known[code] = (
@@ -221,13 +230,17 @@ def _error_recovery(code):
     }
 
 
-def _setup_state(bridge_ok, bridge_status, preflight, provider_configured):
+def _setup_state(
+    bridge_ok, bridge_status, preflight, provider_configured,
+    panel_registered=True,
+):
     """Engine-owned onboarding verdict. The panel only renders this object."""
     checks = {
         "bridge_running": bridge_ok is True,
         "capture_enabled": bool(
             isinstance(preflight, dict) and preflight.get("capture_allowed") is True
         ),
+        "panel_registered": panel_registered is True,
     }
     recovery = None
     if not bridge_ok:
@@ -235,12 +248,14 @@ def _setup_state(bridge_ok, bridge_status, preflight, provider_configured):
             "code": "bridge_dead",
             "message": "Reaper Daemon is not answering. The watchdog normally restarts it.",
             "action": "If REAPER is already open and it does not reconnect, restart REAPER once, then test again.",
+            "primary_action": {"label": "Test Again", "job_type": "get_status", "payload": {}},
         }
     elif not isinstance(preflight, dict):
         recovery = {
             "code": "preflight_missing",
             "message": "Reaper Daemon did not include the capture check this panel needs.",
             "action": "Update Reaper Daemon, restart REAPER, then test again.",
+            "primary_action": {"label": "Test Again", "job_type": "get_status", "payload": {}},
         }
     else:
         blockers = {
@@ -258,18 +273,29 @@ def _setup_state(bridge_ok, bridge_status, preflight, provider_configured):
                 "code": "capture_gated",
                 "message": "Safe track capture is off.",
                 "action": "Enable Safe Capture, restart REAPER, then test again.",
+                "primary_action": {"label": "Enable Safe Capture", "job_type": "enable_capture", "payload": {}},
             }
         elif "render_hang_risk" in warnings:
             recovery = {
                 "code": "render_hang_risk",
                 "message": "One REAPER setting must be switched on before the first capture.",
                 "action": "Open any render window, tick 'Automatically close when finished' once, close the window, then test again. Installing SWS also handles this automatically.",
+                "manual_steps": ["Automatically close when finished"],
+                "primary_action": {"label": "Test Again", "job_type": "get_status", "payload": {}},
             }
         elif preflight.get("capture_allowed") is not True:
             recovery = {
                 "code": "capture_blocked",
                 "message": "Safe capture is still blocked without a supported blocker code.",
                 "action": "Update Reaper Daemon, then test again before running audio.",
+                "primary_action": {"label": "Test Again", "job_type": "get_status", "payload": {}},
+            }
+        elif panel_registered is not True:
+            recovery = {
+                "code": "panel_not_registered",
+                "message": "Post Mortem is open, but REAPER has not registered its action.",
+                "action": "Add Post Mortem to the Actions list, run it there once, then Test Again.",
+                "primary_action": {"label": "Test Again", "job_type": "get_status", "payload": {}},
             }
     return {
         "ready": recovery is None,
@@ -643,13 +669,26 @@ def _job_get_status(svc, job, stem, job_id):
     except ProviderError:
         provider_configured = False
         model = config.get("POSTMORTEM_MODEL")
-    mcp_handoff = None
+    mcp_handoff = {"ready": False}
+    started_at = (job.get("payload") or {}).get("mcp_started_at")
     try:
         with open(os.path.join(svc.root, "mcp-handoff.json"), encoding="utf-8") as f:
             candidate = json.load(f)
-        if isinstance(candidate, dict):
-            mcp_handoff = candidate
-    except (OSError, ValueError):
+        delivered = datetime.fromisoformat(
+            str(candidate.get("delivered_at", "")).replace("Z", "+00:00")
+        )
+        started = datetime.fromisoformat(str(started_at).replace("Z", "+00:00"))
+        tracks = candidate.get("tracks")
+        summary = candidate.get("diagnosis_summary")
+        if (
+            delivered.tzinfo is not None and started.tzinfo is not None
+            and delivered >= started
+            and isinstance(tracks, list) and len(tracks) == 1
+            and isinstance(tracks[0], str) and bool(tracks[0].strip())
+            and isinstance(summary, str) and len(summary.strip()) >= 20
+        ):
+            mcp_handoff = {**candidate, "ready": True}
+    except (OSError, ValueError, AttributeError):
         pass
     return {
         "service_version": __version__,
@@ -660,7 +699,8 @@ def _job_get_status(svc, job, stem, job_id):
         "provider_configured": provider_configured,
         "model": model,
         "setup": _setup_state(
-            bridge_ok, line, capture_preflight, provider_configured
+            bridge_ok, line, capture_preflight, provider_configured,
+            (job.get("payload") or {}).get("panel_registered", True) is True,
         ),
         "mcp_handoff": mcp_handoff,
     }
@@ -844,6 +884,7 @@ def _job_record_mcp_handoff(svc, job, stem, job_id):
     payload = job.get("payload") or {}
     tracks = payload.get("tracks")
     summary = payload.get("diagnosis_summary")
+    receipt_id = payload.get("receipt_id")
     if (
         not isinstance(tracks, list)
         or len(tracks) != 1
@@ -857,13 +898,62 @@ def _job_record_mcp_handoff(svc, job, stem, job_id):
         raise JobRefused(
             "bad_job", "payload.diagnosis_summary must be at least 20 characters"
         )
+    try:
+        with open(os.path.join(svc.root, "mcp-receipt.json"), encoding="utf-8") as f:
+            receipt = json.load(f)
+        received = datetime.fromisoformat(
+            str(receipt.get("received_at", "")).replace("Z", "+00:00")
+        )
+    except (OSError, ValueError, AttributeError):
+        raise JobRefused(
+            "mcp_receipt_missing", "no measured MCP Track Check receipt is available"
+        ) from None
+    age = (datetime.now(timezone.utc) - received).total_seconds()
+    if (
+        not isinstance(receipt_id, str)
+        or receipt_id != receipt.get("receipt_id")
+        or receipt.get("tracks") != [tracks[0].strip()]
+        or receipt.get("seconds") != 10
+        or age < 0 or age > 15 * 60
+    ):
+        raise JobRefused(
+            "mcp_receipt_invalid",
+            "the MCP diagnosis does not match a fresh 10-second Track Check",
+        )
     handoff = {
         "tracks": [tracks[0].strip()],
         "diagnosis_summary": summary.strip(),
         "delivered_at": _utc_now(),
     }
     svc._atomic_write_json(os.path.join(svc.root, "mcp-handoff.json"), handoff)
+    try:
+        os.unlink(os.path.join(svc.root, "mcp-receipt.json"))
+    except OSError:
+        pass
     return handoff
+
+
+def _job_record_mcp_measurement(svc, job, stem, job_id):
+    payload = job.get("payload") or {}
+    receipt_id = payload.get("receipt_id")
+    tracks = payload.get("tracks")
+    seconds = payload.get("seconds")
+    if not isinstance(receipt_id, str) or not re.fullmatch(r"[a-f0-9]{32,128}", receipt_id):
+        raise JobRefused("bad_job", "payload.receipt_id must be an unguessable hex token")
+    if (
+        not isinstance(tracks, list) or len(tracks) != 1
+        or not isinstance(tracks[0], str) or not tracks[0].strip()
+    ):
+        raise JobRefused("bad_job", "payload.tracks must contain exactly one track name")
+    if seconds != 10:
+        raise JobRefused("bad_job", "MCP onboarding requires a 10-second Track Check")
+    svc._atomic_write_json(os.path.join(svc.root, "mcp-receipt.json"), {
+        "receipt_id": receipt_id,
+        "tracks": [tracks[0].strip()],
+        "seconds": 10,
+        "received_at": _utc_now(),
+    })
+    return {"recorded": True}
 
 
 _HANDLERS = {
@@ -875,6 +965,7 @@ _HANDLERS = {
     "commit_fix": _job_commit_fix,
     "cancel_job": _job_cancel_job,
     "record_feedback": _job_record_feedback,
+    "record_mcp_measurement": _job_record_mcp_measurement,
     "record_mcp_handoff": _job_record_mcp_handoff,
 }
 

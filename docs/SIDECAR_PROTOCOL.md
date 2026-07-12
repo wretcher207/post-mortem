@@ -38,15 +38,15 @@ PostMortem/
   mcp-handoff.json   sidecar-owned diagnosis returned by an MCP client
 ```
 
-Reaper Daemon keeps its own internal measurement receipt after `analyze_track`
-passes Post Mortem's isolation gate and returns verified measurements to the
-client model. For first-run onboarding, the client model then calls
-`complete_postmortem_onboarding` with its diagnosis. That tool requires a fresh
-matching 10-second single-track receipt and submits `record_mcp_handoff` through
-the normal sidecar inbox. The sidecar validates and atomically writes
-`mcp-handoff.json`; the panel receives it only through `get_status`, renders the
-diagnosis, and then offers the Track screen. A stale receipt, comparison, or
-non-10-second capture cannot complete onboarding.
+After `analyze_track` passes Post Mortem's isolation gate, Reaper Daemon keeps a
+process-local receipt proving that a single-track, 10-second measurement reached
+the MCP client. For first-run onboarding, the client model then calls
+`complete_postmortem_onboarding` with its diagnosis. That tool validates the
+fresh matching receipt and submits `record_mcp_handoff` through the normal
+sidecar inbox. The sidecar validates the job and atomically writes
+`mcp-handoff.json`. The panel receives it only through `get_status`, renders the
+diagnosis, and then offers the Track screen. A missing, stale, comparison, or
+non-10-second receipt cannot complete onboarding.
 
 ## File discipline
 
@@ -193,7 +193,7 @@ Payload: none. Result:
     "detail": null
   },
   "model": "MiniMax-M3",
-  "mcp_handoff": null
+  "mcp_handoff": { "ready": false }
 }
 ```
 
@@ -202,12 +202,17 @@ Payload: none. Result:
 endpoint, key, and model can be constructed; it does not replace the live
 validation required during first-run onboarding.
 `setup` is the engine-owned onboarding verdict. When `ready` is false,
-`recovery` carries `{code, message, action}` for `bridge_dead`,
+`recovery` carries `{code, message, action, primary_action}` for `bridge_dead`,
 `preflight_missing`, `capture_gated`, `render_hang_risk`, or
 `capture_blocked`. The panel supplies only its directly observed "Found
 REAPER" and "panel registered" checks; it does not recreate bridge logic.
-`mcp_handoff` is `null` until `record_mcp_handoff` succeeds. When present it
-contains `{tracks, diagnosis_summary, delivered_at}`.
+`primary_action` is an engine-owned `{label, job_type, payload}` descriptor;
+`manual_steps` is present when the client should render a manual checklist.
+The panel renders and dispatches these fields generically.
+`mcp_handoff` always includes `ready`. The client supplies
+`payload.mcp_started_at` while polling. Only a structurally valid handoff newer
+than that timestamp returns `ready: true` with
+`{tracks, diagnosis_summary, delivered_at}`.
 
 ### `enable_capture`
 
@@ -247,14 +252,17 @@ Payload:
 ```json
 {
   "tracks": ["Kick"],
+  "seconds": 10,
   "diagnosis_summary": "The kick has a measured buildup around 200 Hz."
 }
 ```
 
 This is submitted by Reaper Daemon's `complete_postmortem_onboarding` MCP tool,
 not by the panel. It requires exactly one non-empty track name and a diagnosis
-summary of at least 20 characters. The sidecar atomically stores the result and
-returns `{tracks, diagnosis_summary, delivered_at}`. The panel polls
+summary of at least 20 characters, with `seconds` exactly 10. Reaper Daemon
+submits it only after validating its process-local measurement receipt. The
+sidecar atomically stores the result and returns
+`{tracks, diagnosis_summary, delivered_at}`. The panel polls
 `get_status`; it never reads or validates a second file protocol itself.
 
 ### `track_check`

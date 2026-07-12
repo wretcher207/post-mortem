@@ -376,7 +376,8 @@ def test_get_status_reports_versions_bridge_capture_and_provider(svc, monkeypatc
             return cls(), ModelProfile("configured-model")
 
     monkeypatch.setattr(service, "AnthropicProvider", ConfiguredProvider)
-    stem = _submit(svc, {"id": "pm-009", "type": "get_status"})
+    stem = _submit(svc, {"id": "pm-009", "type": "get_status",
+        "payload": {"panel_registered": True}})
     svc.run_once()
 
     result = _result(svc, stem)
@@ -389,14 +390,8 @@ def test_get_status_reports_versions_bridge_capture_and_provider(svc, monkeypatc
     assert result["result"]["setup"] == {
         "ready": True,
         "provider_configured": True,
-        "checks": {"bridge_running": True, "capture_enabled": True},
-        "recovery": None,
-        "detail": None,
-    }
-    assert result["result"]["setup"] == {
-        "ready": True,
-        "provider_configured": True,
-        "checks": {"bridge_running": True, "capture_enabled": True},
+        "checks": {"bridge_running": True, "capture_enabled": True,
+                   "panel_registered": True},
         "recovery": None,
         "detail": None,
     }
@@ -634,6 +629,42 @@ def test_record_feedback_appends_jsonl(svc):
         lines = [json.loads(line) for line in f if line.strip()]
     assert lines[0]["kind"] == "not_helpful"
     assert lines[0]["job_id"] == "pm-011"
+
+
+def test_mcp_handoff_is_validated_and_returned_by_status(svc, monkeypatch):
+    delivered = _submit(svc, {
+        "id": "pm-mcp-delivered", "type": "record_mcp_handoff",
+        "payload": {"tracks": ["Kick"], "seconds": 10,
+            "diagnosis_summary": "The kick has a measured buildup around 200 Hz."},
+    })
+    svc.run_once()
+    assert _result(svc, delivered)["ok"] is True
+
+    class ConfiguredProvider:
+        @classmethod
+        def from_config(cls):
+            return cls(), ModelProfile("configured-model")
+
+    monkeypatch.setattr(service, "AnthropicProvider", ConfiguredProvider)
+    status = _submit(svc, {"id": "pm-mcp-status", "type": "get_status",
+        "payload": {"mcp_started_at": "2026-07-12T00:00:00+00:00"}})
+    svc.run_once()
+    handoff = _result(svc, status)["result"]["mcp_handoff"]
+    assert handoff["ready"] is True
+    assert handoff["tracks"] == ["Kick"]
+    assert "200 Hz" in handoff["diagnosis_summary"]
+
+
+def test_mcp_handoff_requires_ten_second_measurement(svc):
+    stem = _submit(svc, {
+        "id": "pm-mcp-unmeasured", "type": "record_mcp_handoff",
+        "payload": {"tracks": ["Kick"], "seconds": 30,
+            "diagnosis_summary": "This diagnosis is long enough but has no measurement."},
+    })
+    svc.run_once()
+    result = _result(svc, stem)
+    assert result["ok"] is False
+    assert result["error"]["code"] == "bad_job"
 
 
 def test_heartbeat_carries_pid_and_version(svc):
