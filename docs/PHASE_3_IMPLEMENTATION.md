@@ -1,6 +1,6 @@
 # Phase 3 Implementation Backlog: Product Shell and Installer ("Kill the Terminal")
 
-**Status:** IN PROGRESS — P3-001 through P3-007 complete; P3-008 next
+**Status:** IN PROGRESS — P3-001 through P3-007 complete; P3-008 native macOS wrapper complete
 **Date:** 2026-07-12
 **Target:** PRODUCT_PLAN §12 Phase 3 — a fresh user installs, restarts REAPER,
 and finishes their first Track Check without ever opening a terminal
@@ -425,10 +425,24 @@ transactional installer core, updater, uninstaller, payload assembler and
 SHA-256 manifest validation. It preserves existing product and bridge config,
 restores a pre-existing standalone Reaper Daemon startup block on uninstall,
 keeps unrelated Actions entries, and has macOS, Windows, and Linux CI coverage
-configured in the private repo.
-The native wrappers, ReaPack dependency setup, REAPER version gate, live
+configured in the private repo. Private panel PR #5 added the unsigned native
+macOS AppKit setup app and architecture-labeled disk-image builder. The native
+app discovers standard, stored, environment-provided, and Spotlight-indexed
+portable REAPER resources; asks on ambiguity; installs or updates through the
+same transactional core; confirms before deleting app data; and refuses
+uninstall without Post Mortem ownership state. Its payload travels through
+PyInstaller as an opaque archive so nested sidecar binaries retain their
+manifest hashes.
+
+The 120-file arm64 production payload passes install, update, default-retain
+uninstall, explicit app-data removal, and second-uninstall refusal from the app
+inside a mounted read-only DMG. The 62 MB app compresses to a 44 MB image; its
+SHA-256 and APFS image checksums verify. Private workflow `29220526141` passes
+the installer and Lua suites on macOS, Windows, and Ubuntu. Native Windows and
+Linux wrappers, ReaPack dependency setup, REAPER version gate, live
 preflight/capture smoke, and fresh-machine acceptance remain open; P3-008 is
-not complete until those gates pass.
+not complete until those gates pass. macOS signing and notarization remain a
+later release-hardening gate, not part of this unsigned wrapper slice.
 
 ### P3-009 — License validation
 
