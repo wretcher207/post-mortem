@@ -211,9 +211,10 @@ can be constructed; it does not replace the live validation required during
 first-run onboarding.
 `setup` is the engine-owned onboarding verdict. When `ready` is false,
 `recovery` carries `{code, message, action, primary_action}` for `bridge_dead`,
-`preflight_missing`, `preflight_invalid`, `capture_gated`, `render_hang_risk`, or
-`capture_blocked`. The panel supplies only its directly observed "Found
-REAPER" and "panel registered" checks; it does not recreate bridge logic.
+`preflight_missing`, `preflight_invalid`, `capture_gated`, `render_hang_risk`,
+`capture_blocked`, or `panel_not_registered`. The panel supplies only its
+directly observed "Found REAPER" and "panel registered" checks; it does not
+recreate bridge logic.
 `primary_action` is an engine-owned `{label, job_type, payload}` descriptor;
 `manual_steps` is present when the client should render a manual checklist.
 The panel renders and dispatches these fields generically.
