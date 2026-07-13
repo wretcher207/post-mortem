@@ -9,18 +9,33 @@ import os
 from . import bridge
 
 
-def probe_bridge() -> tuple[bool, str, dict | None]:
+def probe_bridge() -> dict:
     """Check liveness and preflight without misclassifying capability failures."""
     try:
         bridge_status = bridge.status()
     except bridge.BridgeError as error:
-        return False, str(error), None
+        return {
+            "bridge_ok": False,
+            "bridge_status": str(error),
+            "capture_preflight": None,
+            "capture_preflight_detail": None,
+        }
 
     try:
         capture_preflight = bridge.get_capture_preflight()
     except bridge.BridgeError as error:
-        return True, str(error), None
-    return True, bridge_status, capture_preflight
+        return {
+            "bridge_ok": True,
+            "bridge_status": bridge_status,
+            "capture_preflight": None,
+            "capture_preflight_detail": str(error),
+        }
+    return {
+        "bridge_ok": True,
+        "bridge_status": bridge_status,
+        "capture_preflight": capture_preflight,
+        "capture_preflight_detail": None,
+    }
 
 
 def setup_state(
@@ -60,6 +75,22 @@ def setup_state(
         recovery = {
             "code": "preflight_missing",
             "message": "Reaper Daemon did not include Post Mortem's capture check.",
+            "action": "Update Reaper Daemon, restart REAPER, then test again.",
+            "primary_action": {
+                "label": "Test Again",
+                "job_type": "get_status",
+                "payload": {},
+            },
+        }
+    elif not (
+        isinstance(preflight.get("blockers"), list)
+        and isinstance(preflight.get("warnings"), list)
+        and all(isinstance(item, dict) for item in preflight["blockers"])
+        and all(isinstance(item, dict) for item in preflight["warnings"])
+    ):
+        recovery = {
+            "code": "preflight_invalid",
+            "message": "Reaper Daemon returned an invalid capture check.",
             "action": "Update Reaper Daemon, restart REAPER, then test again.",
             "primary_action": {
                 "label": "Test Again",
@@ -142,15 +173,13 @@ def setup_state(
 
 
 def probe_setup() -> dict:
-    bridge_ok, bridge_status, capture_preflight = probe_bridge()
+    live = probe_bridge()
     return {
-        "bridge_ok": bridge_ok,
-        "bridge_status": bridge_status,
-        "capture_preflight": capture_preflight,
+        **live,
         "setup": setup_state(
-            bridge_ok=bridge_ok,
-            bridge_status=bridge_status,
-            preflight=capture_preflight,
+            bridge_ok=live["bridge_ok"],
+            bridge_status=live["bridge_status"],
+            preflight=live["capture_preflight"],
             provider_configured=False,
             panel_registered=None,
         ),

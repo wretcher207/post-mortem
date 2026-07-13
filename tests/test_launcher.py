@@ -102,9 +102,41 @@ def test_launcher_setup_smoke_distinguishes_missing_preflight_from_dead_bridge(
     report = json.loads(capsys.readouterr().out)
     assert code == 3
     assert report["bridge_ok"] is True
+    assert report["bridge_status"] == "CONNECTED"
     assert report["capture_preflight"] is None
+    assert report["capture_preflight_detail"] == (
+        "get_capture_preflight is unavailable"
+    )
     assert report["setup"]["checks"]["bridge_running"] is True
     assert report["setup"]["recovery"]["code"] == "preflight_missing"
+
+
+def test_launcher_setup_smoke_fails_closed_on_malformed_preflight(
+    monkeypatch,
+    capsys,
+):
+    monkeypatch.setattr(bridge, "status", lambda: "CONNECTED")
+    monkeypatch.setattr(
+        bridge,
+        "get_capture_preflight",
+        lambda: {
+            "capture_allowed": True,
+            "blockers": None,
+            "warnings": None,
+        },
+    )
+
+    code = launcher.main([
+        "setup-smoke",
+        "--reaper-daemon-root",
+        str(ROOT),
+    ])
+
+    report = json.loads(capsys.readouterr().out)
+    assert code == 3
+    assert report["bridge_ok"] is True
+    assert report["setup"]["ready"] is False
+    assert report["setup"]["recovery"]["code"] == "preflight_invalid"
 
 
 def test_launcher_routes_cli_arguments_unchanged():

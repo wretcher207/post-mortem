@@ -578,7 +578,10 @@ def _validated_seconds(payload):
 
 
 def _job_get_status(svc, job, stem, job_id):
-    bridge_ok, line, capture_preflight = readiness.probe_bridge()
+    live = readiness.probe_bridge()
+    bridge_ok = live["bridge_ok"]
+    line = live["bridge_status"]
+    capture_preflight = live["capture_preflight"]
     try:
         _, profile = AnthropicProvider.from_config()
         provider_configured = True
@@ -613,6 +616,7 @@ def _job_get_status(svc, job, stem, job_id):
         "bridge_ok": bridge_ok,
         "bridge_status": line,
         "capture_preflight": capture_preflight,
+        "capture_preflight_detail": live["capture_preflight_detail"],
         "provider_configured": provider_configured,
         "model": model,
         "setup": readiness.setup_state(
