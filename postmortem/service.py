@@ -36,7 +36,7 @@ import time
 import traceback
 from datetime import datetime, timezone
 
-from . import __version__, bridge, config
+from . import __version__, bridge, config, readiness
 from . import preview as preview_mod
 from .analysis import analyze_wav
 from .cli import (
@@ -227,82 +227,6 @@ def _error_recovery(code):
         "explanation": f"Post Mortem returned error code: {code}",
         "action": "Copy the diagnostics and include them with a bug report.",
         "copy_diagnostics": True,
-    }
-
-
-def _setup_state(
-    bridge_ok, bridge_status, preflight, provider_configured,
-    panel_registered=True,
-):
-    """Engine-owned onboarding verdict. The panel only renders this object."""
-    checks = {
-        "bridge_running": bridge_ok is True,
-        "capture_enabled": bool(
-            isinstance(preflight, dict) and preflight.get("capture_allowed") is True
-        ),
-        "panel_registered": panel_registered is True,
-    }
-    recovery = None
-    if not bridge_ok:
-        recovery = {
-            "code": "bridge_dead",
-            "message": "Reaper Daemon is not answering. The watchdog normally restarts it.",
-            "action": "If REAPER is already open and it does not reconnect, restart REAPER once, then test again.",
-            "primary_action": {"label": "Test Again", "job_type": "get_status", "payload": {}},
-        }
-    elif not isinstance(preflight, dict):
-        recovery = {
-            "code": "preflight_missing",
-            "message": "Reaper Daemon did not include the capture check this panel needs.",
-            "action": "Update Reaper Daemon, restart REAPER, then test again.",
-            "primary_action": {"label": "Test Again", "job_type": "get_status", "payload": {}},
-        }
-    else:
-        blockers = {
-            item.get("code"): item
-            for item in preflight.get("blockers", [])
-            if isinstance(item, dict)
-        }
-        warnings = {
-            item.get("code"): item
-            for item in preflight.get("warnings", [])
-            if isinstance(item, dict)
-        }
-        if "capture_gated" in blockers:
-            recovery = {
-                "code": "capture_gated",
-                "message": "Safe track capture is off.",
-                "action": "Enable Safe Capture, restart REAPER, then test again.",
-                "primary_action": {"label": "Enable Safe Capture", "job_type": "enable_capture", "payload": {}},
-            }
-        elif "render_hang_risk" in warnings:
-            recovery = {
-                "code": "render_hang_risk",
-                "message": "One REAPER setting must be switched on before the first capture.",
-                "action": "Open any render window, tick 'Automatically close when finished' once, close the window, then test again. Installing SWS also handles this automatically.",
-                "manual_steps": ["Automatically close when finished"],
-                "primary_action": {"label": "Test Again", "job_type": "get_status", "payload": {}},
-            }
-        elif preflight.get("capture_allowed") is not True:
-            recovery = {
-                "code": "capture_blocked",
-                "message": "Safe capture is still blocked without a supported blocker code.",
-                "action": "Update Reaper Daemon, then test again before running audio.",
-                "primary_action": {"label": "Test Again", "job_type": "get_status", "payload": {}},
-            }
-        elif panel_registered is not True:
-            recovery = {
-                "code": "panel_not_registered",
-                "message": "Post Mortem is open, but REAPER has not registered its action.",
-                "action": "Add Post Mortem to the Actions list, run it there once, then Test Again.",
-                "primary_action": {"label": "Test Again", "job_type": "get_status", "payload": {}},
-            }
-    return {
-        "ready": recovery is None,
-        "provider_configured": provider_configured is True,
-        "checks": checks,
-        "recovery": recovery,
-        "detail": bridge_status if not bridge_ok else None,
     }
 
 
@@ -654,14 +578,7 @@ def _validated_seconds(payload):
 
 
 def _job_get_status(svc, job, stem, job_id):
-    try:
-        line = bridge.status()
-        bridge_ok = True
-        capture_preflight = bridge.get_capture_preflight()
-    except bridge.BridgeError as e:
-        line = str(e)
-        bridge_ok = False
-        capture_preflight = None
+    bridge_ok, line, capture_preflight = readiness.probe_bridge()
     try:
         _, profile = AnthropicProvider.from_config()
         provider_configured = True
@@ -698,7 +615,7 @@ def _job_get_status(svc, job, stem, job_id):
         "capture_preflight": capture_preflight,
         "provider_configured": provider_configured,
         "model": model,
-        "setup": _setup_state(
+        "setup": readiness.setup_state(
             bridge_ok, line, capture_preflight, provider_configured,
             (job.get("payload") or {}).get("panel_registered", True) is True,
         ),

@@ -1,17 +1,23 @@
 # Packaged sidecar
 
 P3-007 ships Post Mortem as a PyInstaller **onedir** bundle named
-`postmortem-sidecar`. The executable owns three entry points:
+`postmortem-sidecar`. The executable owns these entry points:
 
 ```text
 postmortem-sidecar                 # run the sidecar service
 postmortem-sidecar service --once  # explicit service command
 postmortem-sidecar cli Kick --payload-only
+postmortem-sidecar setup-smoke --reaper-daemon-root /path/to/installed/daemon
 postmortem-sidecar --version
 postmortem-sidecar test-bundle -q tests  # release acceptance gate
 ```
 
 The bundle still uses the separately installed Reaper Daemon `reaperd.py`.
+`setup-smoke` performs only bridge liveness and `get_capture_preflight`; it
+prints the engine-owned setup verdict as JSON and never starts a render. Exit
+status `0` means capture is ready. Exit status `3` means the JSON contains an
+actionable restart or configuration recovery.
+
 When frozen, it executes that script inside the bundled Python runtime, so a
 customer does not need system Python on `PATH`.
 
@@ -27,9 +33,9 @@ python packaging/smoke_bundle.py \
 ```
 
 The smoke suite clears `PATH`, runs the full pytest suite inside the bundled
-interpreter, checks the stamped binary version, runs a payload-only Track Check
-against a fake file bridge, and validates the bundled WAV analyzer against a
-1 kHz golden tone.
+interpreter, checks the stamped binary version and setup preflight, runs a
+payload-only Track Check against a fake file bridge, and validates the bundled
+WAV analyzer against a 1 kHz golden tone.
 
 ## Release artifacts
 

@@ -62,6 +62,20 @@ def smoke(binary):
         _run(binary, ["test-bundle", "-q", str(ROOT / "tests")], test_env)
         env = {**test_env, "REAPER_DAEMON_ROOT": str(FAKE_DAEMON)}
 
+        setup_smoke = _run(
+            binary,
+            ["setup-smoke", "--reaper-daemon-root", str(FAKE_DAEMON)],
+            test_env,
+        )
+        setup_report = json.loads(setup_smoke.stdout)
+        if (
+            setup_report.get("bridge_ok") is not True
+            or setup_report.get("capture_preflight", {}).get("capture_allowed")
+            is not True
+            or setup_report.get("setup", {}).get("ready") is not True
+        ):
+            raise AssertionError(f"setup smoke was not ready: {setup_report!r}")
+
         completed = _run(
             binary,
             ["cli", "Kick", "--seconds", "1", "--payload-only"],
@@ -78,7 +92,11 @@ def smoke(binary):
             raise AssertionError(f"wrong analyzed duration: {audio['duration_seconds']}")
         if not -6.2 <= audio["sample_peak_db"] <= -5.8:
             raise AssertionError(f"golden WAV peak drifted: {audio['sample_peak_db']}")
-        band = next(item for item in audio["spectrum_third_octave"] if item["freq_hz"] == 1000)
+        band = next(
+            item
+            for item in audio["spectrum_third_octave"]
+            if item["freq_hz"] == 1000
+        )
         if not -9.5 <= band["level_db"] <= -8.5:
             raise AssertionError(f"golden WAV spectrum drifted: {band['level_db']}")
 
