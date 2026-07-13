@@ -70,9 +70,9 @@ def smoke(binary):
         setup_report = json.loads(setup_smoke.stdout)
         if (
             setup_report.get("bridge_ok") is not True
-            or setup_report.get("capture_preflight", {}).get("capture_allowed")
+            or (setup_report.get("capture_preflight") or {}).get("capture_allowed")
             is not True
-            or setup_report.get("setup", {}).get("ready") is not True
+            or (setup_report.get("setup") or {}).get("ready") is not True
         ):
             raise AssertionError(f"setup smoke was not ready: {setup_report!r}")
 
