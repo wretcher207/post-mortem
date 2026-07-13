@@ -109,7 +109,7 @@ reproducible from the terminal, which is also how we test it.
 
 ### P3-001 — Sidecar service and job-folder protocol
 
-**Repository:** `post-mortem-panel` (private paid-product boundary)
+**Repository:** `post-mortem`
 **Priority:** Blocking (everything panel-side builds on this)
 
 Create `postmortem/service.py`: a long-running process that watches a jobs
@@ -386,7 +386,7 @@ panel reports the sidecar's `0.1.0` engine version and passes 163 Lua checks.
 
 ### P3-008 — Installer, updater, uninstaller
 
-**Repository:** `post-mortem`
+**Repository:** `post-mortem-panel` (private paid-product boundary)
 **Priority:** High
 **Depends on:** P3-006, P3-007
 
