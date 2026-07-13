@@ -1,5 +1,6 @@
 """Unified entry point for the packaged Post Mortem sidecar bundle."""
 
+import os
 import runpy
 import sys
 
@@ -35,6 +36,33 @@ def _run_code(source):
     return 0
 
 
+def _run_service(argv):
+    from . import service
+
+    daemon_root = None
+    if argv[:1] == ["--reaper-daemon-root"]:
+        if len(argv) < 2 or not argv[1].strip():
+            print(
+                "postmortem-sidecar service requires a path after "
+                "--reaper-daemon-root",
+                file=sys.stderr,
+            )
+            return 2
+        daemon_root, argv = argv[1], argv[2:]
+    if daemon_root is None:
+        return service.main(argv)
+
+    previous = os.environ.get("REAPER_DAEMON_ROOT")
+    os.environ["REAPER_DAEMON_ROOT"] = daemon_root
+    try:
+        return service.main(argv)
+    finally:
+        if previous is None:
+            os.environ.pop("REAPER_DAEMON_ROOT", None)
+        else:
+            os.environ["REAPER_DAEMON_ROOT"] = previous
+
+
 def main(argv=None):
     argv = list(sys.argv[1:] if argv is None else argv)
     if argv == ["--version"]:
@@ -56,9 +84,7 @@ def main(argv=None):
         return _run_code(argv[1])
     if argv and argv[0] == "service":
         argv = argv[1:]
-    from . import service
-
-    return service.main(argv)
+    return _run_service(argv)
 
 
 if __name__ == "__main__":

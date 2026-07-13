@@ -1,5 +1,6 @@
 import io
 import json
+import os
 from contextlib import redirect_stdout
 from pathlib import Path
 from unittest.mock import patch
@@ -161,6 +162,30 @@ def test_launcher_runs_sidecar_by_default_and_with_explicit_service_command():
         assert launcher.main(["service", "--once"]) == 0
     assert service_main.call_args_list[0].args == (["--once"],)
     assert service_main.call_args_list[1].args == (["--once"],)
+
+
+def test_launcher_routes_installed_daemon_root_to_service(monkeypatch):
+    observed = {}
+
+    def service_main(argv):
+        observed["argv"] = argv
+        observed["root"] = os.environ.get("REAPER_DAEMON_ROOT")
+        return 0
+
+    monkeypatch.setenv("REAPER_DAEMON_ROOT", "/previous/daemon")
+    with patch("postmortem.service.main", side_effect=service_main):
+        assert launcher.main([
+            "service",
+            "--reaper-daemon-root",
+            "/installed/runtime/daemon",
+            "--once",
+        ]) == 0
+
+    assert observed == {
+        "argv": ["--once"],
+        "root": "/installed/runtime/daemon",
+    }
+    assert os.environ["REAPER_DAEMON_ROOT"] == "/previous/daemon"
 
 
 def test_launcher_runs_unit_suite_inside_bundled_interpreter():
