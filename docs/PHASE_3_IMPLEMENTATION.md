@@ -1,6 +1,6 @@
 # Phase 3 Implementation Backlog: Product Shell and Installer ("Kill the Terminal")
 
-**Status:** IN PROGRESS — P3-001 through P3-007 complete; P3-008 native wrappers, version gate, and dependency automation complete
+**Status:** IN PROGRESS — P3-001 through P3-007 complete; P3-008 live setup smoke complete, fresh-machine exit gate remains
 **Date:** 2026-07-13
 **Target:** PRODUCT_PLAN §12 Phase 3 — a fresh user installs, restarts REAPER,
 and finishes their first Track Check without ever opening a terminal
@@ -529,10 +529,48 @@ Windows setup executable and a 79,166,564-byte Linux archive, then retains
 both artifacts with their SHA-256 sidecars. Panel main workflow `29232521710`
 repeats the full green matrix after merge.
 
-With the dependency gate implemented, the remaining P3-008 gates are live
-bridge preflight/capture smoke from the installer and fresh-machine install to
-first Track Check on every supported platform; P3-008 is not complete until
-those gates pass.
+Public engine PR #30 added the read-only installer readiness boundary. The
+`postmortem-sidecar setup-smoke` command calls only bridge status and Reaper
+Daemon `get_capture_preflight`, emits one structured JSON report, returns `0`
+when safe capture is ready and `3` with engine-owned recovery when it is not,
+and fails closed on malformed preflight data. The panel and installer consume
+the same setup verdict, while installer output omits `panel_registered`
+because an external setup probe cannot observe that state. The final public
+suite passes 345 tests plus 8 subtests. Its frozen smoke metrics record a
+54,391,651-byte bundle, launcher SHA-256
+`c3c56f2b262056386a6fe1b5372873f1b80665ad229c41768f943d46f8ca7545`,
+0.1396-second median cold start, and successful execution without system
+Python on `PATH`. PR workflow `29247403581` and post-merge main workflow
+`29247483323` pass the complete platform/Python matrix and bundled smoke.
+
+Private panel PR #10 added `python -m installer smoke`, automatic non-rollback
+smoke after install/update, exact recovery propagation, a 65-second outer
+timeout around the engine's 55-second worst case, Linux wrapper dispatch, and
+native Test Setup controls for macOS and Windows. The private suite passes 67
+tests with two expected platform skips, and the panel passes all 163 Lua
+checks. Windows CI also caught an Inno character-code continuation and an old
+native acceptance fixture that still used text bytes as a fake executable;
+both root causes now have regression coverage, and silent setup remains
+explicitly non-interactive. Final PR workflow `29248730068` and post-merge
+main workflow `29249064637` pass every installer and Lua job, including the
+production Windows setup and Linux release lifecycles. CodeRabbit and
+GitGuardian pass on both implementation PRs.
+
+The final reviewed payload produced a 49,324,507-byte macOS arm64 DMG with
+SHA-256 `f3886d0224609cd86bb395344067a1dd5bf9dbd4d69f7b326b6da8ebd4fe9b1b`.
+That exact payload was installed into the real REAPER resource and Post Mortem
+data roots, then REAPER was closed normally and restarted. Against the live
+`j-space.RPP` session, the customer-facing installed smoke returned exit `0`
+and reported the bridge connected with safe capture ready. The raw report had
+no blockers or warnings, and daemon history showed `get_capture_preflight`
+with no capture command. REAPER remained idle with its transport, cursor,
+selected track, and selected item unchanged.
+
+The live installer smoke gate is therefore closed. The only remaining P3-008
+gate is fresh-machine install on macOS, Windows, and Linux through REAPER
+restart, onboarding, and the first Track Check with zero terminal use. P3-008
+is not complete until that phase exit criterion passes on every supported
+platform.
 
 ### P3-009 — License validation
 
