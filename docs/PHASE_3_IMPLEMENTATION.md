@@ -1,6 +1,6 @@
 # Phase 3 Implementation Backlog: Product Shell and Installer ("Kill the Terminal")
 
-**Status:** IN PROGRESS — P3-001 through P3-007 complete; P3-008 native macOS and Windows wrappers complete
+**Status:** IN PROGRESS — P3-001 through P3-007 complete; P3-008 native macOS, Windows, and Linux wrappers complete
 **Date:** 2026-07-12
 **Target:** PRODUCT_PLAN §12 Phase 3 — a fresh user installs, restarts REAPER,
 and finishes their first Track Check without ever opening a terminal
@@ -456,10 +456,25 @@ restoration, uninstall refusal after ownership-state removal, and explicit
 app-data deletion. The 35 MB `PostMortem-0.1.0-windows-x86_64.exe` and its
 SHA-256 sidecar pass on panel main workflow `29223831872` across all macOS,
 Windows, and Ubuntu jobs. Windows code signing remains a later
-release-hardening gate, matching the macOS slice. Native Linux wrapper,
-ReaPack dependency setup, REAPER version gate, live preflight/capture smoke,
-and fresh-machine acceptance remain open; P3-008 is not complete until those
-gates pass.
+release-hardening gate, matching the macOS slice.
+
+Private panel PR #7 added the native Linux delivery slice: an unsigned
+architecture-labeled `tar.gz` release containing the same frozen installer
+(payload carried as an opaque archive) plus a POSIX `install.sh` wrapper that
+defaults to install and passes `update` and `uninstall [--remove-app-data]`
+through. Ubuntu CI assembles the production x86_64 payload from the public
+engine, builds the release with its SHA-256 sidecar, and exercises the
+extracted archive black-box against an isolated portable REAPER resource
+directory: refused install on an invalid resource path, install,
+license-preserving update, default-retain uninstall with byte-exact startup
+restoration, uninstall refusal after ownership-state removal, and explicit
+app-data deletion. The 73 MB `PostMortem-0.1.0-linux-x86_64.tar.gz` passes on
+panel main workflow `29224398360` across all macOS, Windows, and Ubuntu jobs.
+With all three platform wrappers merged, the remaining P3-008 gates are
+ReaPack dependency setup (ReaImGui and SWS), the REAPER version gate, live
+bridge preflight/capture smoke from the installer, and fresh-machine install
+to first Track Check on every supported platform; P3-008 is not complete
+until those gates pass.
 
 ### P3-009 — License validation
 
