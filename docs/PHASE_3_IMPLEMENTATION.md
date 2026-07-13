@@ -1,6 +1,6 @@
 # Phase 3 Implementation Backlog: Product Shell and Installer ("Kill the Terminal")
 
-**Status:** IN PROGRESS — P3-001 through P3-007 complete; P3-008 native macOS wrapper complete
+**Status:** IN PROGRESS — P3-001 through P3-007 complete; P3-008 native macOS and Windows wrappers complete
 **Date:** 2026-07-12
 **Target:** PRODUCT_PLAN §12 Phase 3 — a fresh user installs, restarts REAPER,
 and finishes their first Track Check without ever opening a terminal
@@ -438,11 +438,28 @@ The 120-file arm64 production payload passes install, update, default-retain
 uninstall, explicit app-data removal, and second-uninstall refusal from the app
 inside a mounted read-only DMG. The 62 MB app compresses to a 44 MB image; its
 SHA-256 and APFS image checksums verify. Private workflow `29220526141` passes
-the installer and Lua suites on macOS, Windows, and Ubuntu. Native Windows and
-Linux wrappers, ReaPack dependency setup, REAPER version gate, live
-preflight/capture smoke, and fresh-machine acceptance remain open; P3-008 is
-not complete until those gates pass. macOS signing and notarization remain a
-later release-hardening gate, not part of this unsigned wrapper slice.
+the installer and Lua suites on macOS, Windows, and Ubuntu. macOS signing and
+notarization remain a later release-hardening gate, not part of this unsigned
+wrapper slice.
+
+Private panel PR #6 added the native Windows delivery slice: a per-user Inno
+Setup wrapper around the same transactional core. The payload travels as an
+opaque archive so packaged sidecar hashes stay byte-exact, the setup validates
+a standard or portable REAPER resource path before any mutation, and native
+uninstall stays ownership-safe: it refuses without Post Mortem install state
+and preserves app data unless deletion is explicitly requested. Windows CI
+assembles the production x86_64 payload from the public engine, compiles the
+setup executable with Inno Setup, and exercises it black-box: refused install
+on an invalid resource path (leaving no data behind), install, license-
+preserving update, default-retain uninstall with byte-exact startup
+restoration, uninstall refusal after ownership-state removal, and explicit
+app-data deletion. The 35 MB `PostMortem-0.1.0-windows-x86_64.exe` and its
+SHA-256 sidecar pass on panel main workflow `29223831872` across all macOS,
+Windows, and Ubuntu jobs. Windows code signing remains a later
+release-hardening gate, matching the macOS slice. Native Linux wrapper,
+ReaPack dependency setup, REAPER version gate, live preflight/capture smoke,
+and fresh-machine acceptance remain open; P3-008 is not complete until those
+gates pass.
 
 ### P3-009 — License validation
 
