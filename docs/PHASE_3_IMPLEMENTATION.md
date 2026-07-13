@@ -1,7 +1,7 @@
 # Phase 3 Implementation Backlog: Product Shell and Installer ("Kill the Terminal")
 
-**Status:** IN PROGRESS — P3-001 through P3-007 complete; P3-008 native macOS, Windows, and Linux wrappers complete
-**Date:** 2026-07-12
+**Status:** IN PROGRESS — P3-001 through P3-007 complete; P3-008 native wrappers, version gate, and dependency automation complete
+**Date:** 2026-07-13
 **Target:** PRODUCT_PLAN §12 Phase 3 — a fresh user installs, restarts REAPER,
 and finishes their first Track Check without ever opening a terminal
 **Depends on:** Phase 2 complete (live-verified 2026-07-12); Reaper Daemon
@@ -24,7 +24,8 @@ At the end of this phase:
 3. Track Check and Fix Preview run entirely inside the panel, with the same
    refusal honesty the CLI has (`STALE_IDENTITY`, `insufficient_signal`,
    confidence field — none of it softened for the UI).
-4. Uninstall removes everything the installer put down and nothing else.
+4. Uninstall removes every Post Mortem-owned file and nothing else. Shared
+   REAPER extensions remain available to other scripts.
 
 The CLI stays fully supported. The panel is a THIN client: no analysis,
 validation, or orchestration logic in Lua. Everything the panel does must be
@@ -101,9 +102,16 @@ reproducible from the terminal, which is also how we test it.
    If this repo is public, that review must happen BEFORE the first panel PR
    merges — verify visibility before P3-003.
 5. **Dependency strategy for ReaImGui and SWS.** The panel requires the
-   ReaImGui extension; render auto-close requires SWS. Recommendation: the
-   installer installs both via ReaPack's import mechanism when missing, and
-   onboarding verifies them with a plain-language fix path when refused.
+   ReaImGui extension; render auto-close requires SWS. ReaPack remains a valid
+   user-managed source, but its documented ReaScript API does not provide a
+   supported specific-package install operation (tracked upstream in
+   [ReaPack issue #37](https://github.com/cfillion/reapack/issues/37)). Release
+   builds therefore fetch pinned official binaries for both extensions,
+   verify committed SHA-256 values, and place only the verified target files
+   into the hash-manifested release payload. Setup installs a dependency only
+   when its target file is absent, never overwrites an existing copy, and
+   leaves shared extensions in place on uninstall. Onboarding still verifies
+   availability and presents a plain-language recovery path when refused.
 
 ## 5. Delivery sequence
 
@@ -399,7 +407,8 @@ The installer sequence from PRODUCT_PLAN §4:
    guard) and the Post Mortem panel script.
 3. Install the packaged sidecar into the app-data root.
 4. Configure bridge auth and capture permission (`allow_risk_level_3`).
-5. Install ReaImGui and SWS via ReaPack import when missing (decision 5).
+5. Install checksum-locked ReaImGui and SWS binaries when missing (decision
+   5), preserving any existing copies.
 6. Register the panel in the Actions list.
 7. Bridge + capture smoke test (via preflight, not a blind render).
 8. Offer to launch REAPER / explain the restart.
@@ -407,7 +416,8 @@ The installer sequence from PRODUCT_PLAN §4:
 Updater: replace sidecar + panel + bridge in place, preserving `config.json`,
 license, and history; never touch user projects. Uninstaller: remove the
 managed startup block (markers only), panel script, sidecar, and Actions
-entry; ASK about app-data (config/history) rather than silently deleting it.
+entry; leave shared ReaImGui/SWS extensions in place; ASK about app-data
+(config/history) rather than silently deleting it.
 
 Acceptance criteria:
 
@@ -419,6 +429,10 @@ Acceptance criteria:
   cleanly re-runnable.
 - Installer refuses politely (with the reason) on unsupported REAPER
   versions rather than half-installing.
+- Release assembly refuses a dependency whose file list, metadata, version,
+  source URL, notice, or SHA-256 differs from the committed target lock.
+- Install and update preserve existing ReaImGui/SWS bytes; uninstall leaves
+  both shared extensions available to other REAPER scripts.
 
 **In progress 2026-07-12.** The private panel repo now contains the
 transactional installer core, updater, uninstaller, payload assembler and
@@ -488,11 +502,37 @@ Panel main workflow `29226755956` then passes every macOS, Windows, and Ubuntu
 job and completes the production setup lifecycle with a 36,211,542-byte x86_64
 executable.
 
-With all three platform wrappers and the version gate merged, the remaining
-P3-008 gates are ReaPack dependency setup (ReaImGui and SWS), live bridge
-preflight/capture smoke from the installer, and fresh-machine install to first
-Track Check on every supported platform; P3-008 is not complete until those
-gates pass.
+Private panel PR #9 adds checksum-locked dependency delivery. The release lock
+pins official ReaImGui `0.10.0.5` and SWS `2.14.0.7` binaries for macOS arm64,
+macOS x86_64, Windows x86_64, and Linux x86_64, plus their upstream license
+notices. The fetch step verifies every download before replacing a previously
+verified bundle. Payload assembly independently reloads the lock, checks the
+exact target file list and metadata, and rehashes every binary and notice
+before replacing its output or writing the payload manifest. This closes the
+post-fetch tampering gap rather than trusting a directory merely because the
+fetch step created it.
+
+The installer validates the dependency target against the current OS and
+architecture before mutation, stages missing binaries as a pair, rolls both
+back on copy failure, refuses occupied non-file destinations, and never
+replaces an existing extension. Update keeps the installed bytes even when a
+newer payload is supplied. Uninstall removes the managed notices with the
+Post Mortem runtime but deliberately leaves both shared REAPER extensions in
+`UserPlugins`. Native macOS, Windows, and Linux lifecycle coverage proves the
+missing-install, update-preservation, refusal, and uninstall-retention paths.
+The local suite passes 59 installer tests with two expected non-macOS skips,
+the panel still passes 163 Lua checks, all four locked targets fetch live, and
+the real arm64 production payload builds into a 47 MB macOS DMG with a
+matching SHA-256 sidecar. PR workflow `29232340100` passes every macOS,
+Windows, and Ubuntu check. Its production lifecycle validates a 39,536,187-byte
+Windows setup executable and a 79,166,564-byte Linux archive, then retains
+both artifacts with their SHA-256 sidecars. Panel main workflow `29232521710`
+repeats the full green matrix after merge.
+
+With the dependency gate implemented, the remaining P3-008 gates are live
+bridge preflight/capture smoke from the installer and fresh-machine install to
+first Track Check on every supported platform; P3-008 is not complete until
+those gates pass.
 
 ### P3-009 — License validation
 
