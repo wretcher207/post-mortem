@@ -116,27 +116,37 @@ def test_launcher_setup_smoke_fails_closed_on_malformed_preflight(
     capsys,
 ):
     monkeypatch.setattr(bridge, "status", lambda: "CONNECTED")
-    monkeypatch.setattr(
-        bridge,
-        "get_capture_preflight",
-        lambda: {
+    malformed_preflights = [
+        {
             "capture_allowed": True,
             "blockers": None,
             "warnings": None,
         },
-    )
+        {
+            "capture_allowed": False,
+            "blockers": [{"code": []}],
+            "warnings": [],
+        },
+    ]
 
-    code = launcher.main([
-        "setup-smoke",
-        "--reaper-daemon-root",
-        str(ROOT),
-    ])
+    for preflight in malformed_preflights:
+        monkeypatch.setattr(
+            bridge,
+            "get_capture_preflight",
+            lambda preflight=preflight: preflight,
+        )
 
-    report = json.loads(capsys.readouterr().out)
-    assert code == 3
-    assert report["bridge_ok"] is True
-    assert report["setup"]["ready"] is False
-    assert report["setup"]["recovery"]["code"] == "preflight_invalid"
+        code = launcher.main([
+            "setup-smoke",
+            "--reaper-daemon-root",
+            str(ROOT),
+        ])
+
+        report = json.loads(capsys.readouterr().out)
+        assert code == 3
+        assert report["bridge_ok"] is True
+        assert report["setup"]["ready"] is False
+        assert report["setup"]["recovery"]["code"] == "preflight_invalid"
 
 
 def test_launcher_routes_cli_arguments_unchanged():

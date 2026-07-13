@@ -9,6 +9,15 @@ import os
 from . import bridge
 
 
+def _valid_preflight_entries(value) -> bool:
+    return isinstance(value, list) and all(
+        isinstance(item, dict)
+        and isinstance(item.get("code"), str)
+        and bool(item["code"])
+        for item in value
+    )
+
+
 def probe_bridge() -> dict:
     """Check liveness and preflight without misclassifying capability failures."""
     try:
@@ -83,10 +92,8 @@ def setup_state(
             },
         }
     elif not (
-        isinstance(preflight.get("blockers"), list)
-        and isinstance(preflight.get("warnings"), list)
-        and all(isinstance(item, dict) for item in preflight["blockers"])
-        and all(isinstance(item, dict) for item in preflight["warnings"])
+        _valid_preflight_entries(preflight.get("blockers"))
+        and _valid_preflight_entries(preflight.get("warnings"))
     ):
         recovery = {
             "code": "preflight_invalid",
@@ -100,14 +107,12 @@ def setup_state(
         }
     else:
         blockers = {
-            item.get("code"): item
+            item["code"]: item
             for item in preflight.get("blockers", [])
-            if isinstance(item, dict)
         }
         warnings = {
-            item.get("code"): item
+            item["code"]: item
             for item in preflight.get("warnings", [])
-            if isinstance(item, dict)
         }
         if "capture_gated" in blockers:
             recovery = {

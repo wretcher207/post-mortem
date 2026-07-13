@@ -172,6 +172,7 @@ Payload: none. Result:
   "data_root": "/Users/x/Library/Application Support/PostMortem",
   "bridge_ok": true,
   "bridge_status": "bridge alive (...)",
+  "capture_preflight_detail": null,
   "capture_preflight": {
     "capture_allowed": true,
     "blockers": [],
@@ -188,7 +189,11 @@ Payload: none. Result:
   "setup": {
     "ready": true,
     "provider_configured": true,
-    "checks": { "bridge_running": true, "capture_enabled": true },
+    "checks": {
+      "bridge_running": true,
+      "capture_enabled": true,
+      "panel_registered": true
+    },
     "recovery": null,
     "detail": null
   },
@@ -198,12 +203,15 @@ Payload: none. Result:
 ```
 
 `capture_preflight` is the Reaper Daemon `get_capture_preflight` reply. It is
-`null` when the bridge is unavailable. `provider_configured` means the local
-endpoint, key, and model can be constructed; it does not replace the live
-validation required during first-run onboarding.
+`null` when the bridge is unavailable or that command fails.
+`capture_preflight_detail` is normally `null`; when bridge liveness succeeds
+but preflight fails, it carries that typed bridge error while `bridge_ok`
+remains true. `provider_configured` means the local endpoint, key, and model
+can be constructed; it does not replace the live validation required during
+first-run onboarding.
 `setup` is the engine-owned onboarding verdict. When `ready` is false,
 `recovery` carries `{code, message, action, primary_action}` for `bridge_dead`,
-`preflight_missing`, `capture_gated`, `render_hang_risk`, or
+`preflight_missing`, `preflight_invalid`, `capture_gated`, `render_hang_risk`, or
 `capture_blocked`. The panel supplies only its directly observed "Found
 REAPER" and "panel registered" checks; it does not recreate bridge logic.
 `primary_action` is an engine-owned `{label, job_type, payload}` descriptor;
