@@ -470,11 +470,29 @@ license-preserving update, default-retain uninstall with byte-exact startup
 restoration, uninstall refusal after ownership-state removal, and explicit
 app-data deletion. The 73 MB `PostMortem-0.1.0-linux-x86_64.tar.gz` passes on
 panel main workflow `29224398360` across all macOS, Windows, and Ubuntu jobs.
-With all three platform wrappers merged, the remaining P3-008 gates are
-ReaPack dependency setup (ReaImGui and SWS), the REAPER version gate, live
-bridge preflight/capture smoke from the installer, and fresh-machine install
-to first Track Check on every supported platform; P3-008 is not complete
-until those gates pass.
+
+Private panel PR #8 added the shared REAPER version gate. Install and update
+read REAPER's own NUL-tolerant `reaper-install-rev.txt` resource marker and
+refuse missing, malformed, or pre-7 versions before changing installer-owned
+files. macOS and Linux inherit that check directly from the transactional
+core. Windows also extracts the frozen helper into Inno's temporary directory
+and runs the same `preflight` command during `PrepareToInstall`, before Inno
+copies wrapper files or writes Add/Remove Programs registration; the core
+repeats the gate as defense in depth. Native acceptance exercises a REAPER
+6.83 refusal before continuing with 7.77. The Windows path additionally proves
+that refused fresh install and refused update preserve the wrapper,
+uninstaller, runtime, panel, startup bytes, and app data byte-for-byte, with
+the uninstall registry unchanged. Panel PR workflow `29226600640` passes all
+eight checks; its Windows job reports 42 passed tests plus 8 platform skips.
+Panel main workflow `29226755956` then passes every macOS, Windows, and Ubuntu
+job and completes the production setup lifecycle with a 36,211,542-byte x86_64
+executable.
+
+With all three platform wrappers and the version gate merged, the remaining
+P3-008 gates are ReaPack dependency setup (ReaImGui and SWS), live bridge
+preflight/capture smoke from the installer, and fresh-machine install to first
+Track Check on every supported platform; P3-008 is not complete until those
+gates pass.
 
 ### P3-009 — License validation
 
