@@ -572,6 +572,15 @@ restart, onboarding, and the first Track Check with zero terminal use. P3-008
 is not complete until that phase exit criterion passes on every supported
 platform.
 
+Private panel PR #11 then hardened release checksum portability after staging
+the customer artifacts exposed a Windows newline defect. All three native
+builders now use one binary writer for exact ASCII checksum records with LF
+line endings, and their tests inspect raw bytes instead of normalized text.
+PR workflow `29250533231` and main workflow `29250770020` passed every
+installer and Lua job. The rebuilt main Windows executable has SHA-256
+`5b9218f72cae14211cd09b2a47eb7fccc62340bb98046a68cf16e0e064004280`,
+and its exact sidecar passes macOS `shasum -a 256 -c`.
+
 ### P3-009 — License validation
 
 **Repository:** `post-mortem`
