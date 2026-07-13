@@ -1,6 +1,6 @@
 # Phase 3 Implementation Backlog: Product Shell and Installer ("Kill the Terminal")
 
-**Status:** IN PROGRESS — P3-001 through P3-007 complete; P3-008 live setup smoke complete, fresh-machine exit gate remains
+**Status:** IN PROGRESS — P3-001 through P3-007 complete; P3-008 live setup smoke and remote Linux graphical installer acceptance complete, fresh-machine exit gate remains
 **Date:** 2026-07-13
 **Target:** PRODUCT_PLAN §12 Phase 3 — a fresh user installs, restarts REAPER,
 and finishes their first Track Check without ever opening a terminal
@@ -580,6 +580,19 @@ PR workflow `29250533231` and main workflow `29250770020` passed every
 installer and Lua job. The rebuilt main Windows executable has SHA-256
 `5b9218f72cae14211cd09b2a47eb7fccc62340bb98046a68cf16e0e064004280`,
 and its exact sidecar passes macOS `shasum -a 256 -c`.
+
+Private panel commits `087312c` and `82eb6df` then moved the unfinished Linux
+graphical-installer proof off the local desktop and onto a fresh GitHub-hosted
+Ubuntu runner under Xvfb. The bounded driver launches the actual production
+`Post Mortem Setup` executable from isolated HOME, XDG, REAPER, and product
+data roots, performs the real graphical Install action, and verifies the
+panel, public sidecar, daemon, bridge, auth/runtime configuration, install
+state, managed startup and Actions hooks, ReaImGui, and SWS. Main workflow
+`29288223371` passed all six jobs; the graphical install completed in 3.189
+seconds, the separate headless Linux lifecycle passed, and the Linux artifact
+was retained. This closes automated Linux graphical-installer acceptance. It
+does not replace the fresh-machine REAPER restart, onboarding, and first Track
+Check journey required to close P3-008.
 
 ### P3-009 — License validation
 
