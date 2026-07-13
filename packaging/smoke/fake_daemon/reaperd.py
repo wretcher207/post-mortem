@@ -26,6 +26,24 @@ def _write_sine(path):
 
 
 def _reply(command_type, payload):
+    if command_type == "get_capture_preflight":
+        capture_gated = os.environ.get("POSTMORTEM_FAKE_CAPTURE_GATED") == "1"
+        return {
+            "capture_allowed": not capture_gated,
+            "blockers": (
+                [{"code": "capture_gated", "message": "safe capture is off"}]
+                if capture_gated
+                else []
+            ),
+            "warnings": [],
+            "risk_gate": {
+                "allow_risk_level_3": not capture_gated,
+                "requires_restart_to_change": True,
+            },
+            "sws_installed": True,
+            "render_autoclose": False,
+            "target": None,
+        }
     if command_type == "get_context":
         return {
             "project_name": "packaged-smoke.RPP",

@@ -12,7 +12,7 @@ import tempfile
 
 import pytest
 
-from postmortem import bridge, preview, service
+from postmortem import bridge, preview, readiness, service
 from postmortem.analysis import TrackStats
 from postmortem.schemas import DiagnosisResult
 from postmortem.providers.base import ModelProfile, ProviderError, ProviderErrorCategory
@@ -460,7 +460,7 @@ def test_internal_error_has_specific_copy_diagnostics_recovery():
     ],
 )
 def test_setup_matrix_has_a_specific_recovery(bridge_ok, preflight, expected):
-    setup = service._setup_state(bridge_ok, "bridge detail", preflight, False)
+    setup = readiness.setup_state(bridge_ok, "bridge detail", preflight, False)
 
     assert setup["ready"] is False
     assert setup["recovery"]["code"] == expected
@@ -486,7 +486,7 @@ def test_setup_matrix_has_a_specific_recovery(bridge_ok, preflight, expected):
     ],
 )
 def test_setup_verdict_owns_each_known_recovery(bridge_ok, preflight, expected):
-    setup = service._setup_state(bridge_ok, "detail", preflight, False)
+    setup = readiness.setup_state(bridge_ok, "detail", preflight, False)
     assert setup["ready"] is False
     assert setup["recovery"]["code"] == expected
     assert setup["recovery"]["message"]

@@ -1,9 +1,14 @@
 import io
+import json
 from contextlib import redirect_stdout
+from pathlib import Path
 from unittest.mock import patch
 
 from postmortem import __version__
 from postmortem import bridge, launcher
+
+
+ROOT = Path(__file__).resolve().parents[1]
 
 
 def test_launcher_reports_stamped_version():
@@ -11,6 +16,137 @@ def test_launcher_reports_stamped_version():
     with redirect_stdout(output):
         assert launcher.main(["--version"]) == 0
     assert output.getvalue().strip() == f"postmortem-sidecar {__version__}"
+
+
+def test_launcher_setup_smoke_reports_live_capture_readiness(capsys):
+    daemon_root = ROOT / "packaging" / "smoke" / "fake_daemon"
+
+    code = launcher.main([
+        "setup-smoke",
+        "--reaper-daemon-root",
+        str(daemon_root),
+    ])
+
+    report = json.loads(capsys.readouterr().out)
+    assert code == 0
+    assert report["bridge_ok"] is True
+    assert report["capture_preflight"]["capture_allowed"] is True
+    assert report["setup"]["ready"] is True
+    assert report["setup"]["checks"] == {
+        "bridge_running": True,
+        "capture_enabled": True,
+    }
+
+
+def test_launcher_setup_smoke_returns_restart_recovery_when_bridge_is_down(
+    tmp_path,
+    capsys,
+):
+    code = launcher.main([
+        "setup-smoke",
+        "--reaper-daemon-root",
+        str(tmp_path),
+    ])
+
+    report = json.loads(capsys.readouterr().out)
+    assert code == 3
+    assert report["bridge_ok"] is False
+    assert report["capture_preflight"] is None
+    assert report["setup"]["ready"] is False
+    assert report["setup"]["recovery"]["code"] == "bridge_dead"
+    assert "restart REAPER" in report["setup"]["recovery"]["action"]
+
+
+def test_launcher_setup_smoke_returns_capture_gate_recovery(monkeypatch, capsys):
+    daemon_root = ROOT / "packaging" / "smoke" / "fake_daemon"
+    monkeypatch.setenv("POSTMORTEM_FAKE_CAPTURE_GATED", "1")
+
+    code = launcher.main([
+        "setup-smoke",
+        "--reaper-daemon-root",
+        str(daemon_root),
+    ])
+
+    report = json.loads(capsys.readouterr().out)
+    assert code == 3
+    assert report["bridge_ok"] is True
+    assert report["capture_preflight"]["capture_allowed"] is False
+    assert report["setup"]["recovery"] == {
+        "code": "capture_gated",
+        "message": "Safe track capture is off.",
+        "action": "Enable Safe Capture, restart REAPER, then test again.",
+        "primary_action": {
+            "label": "Enable Safe Capture",
+            "job_type": "enable_capture",
+            "payload": {},
+        },
+    }
+
+
+def test_launcher_setup_smoke_distinguishes_missing_preflight_from_dead_bridge(
+    monkeypatch,
+    capsys,
+):
+    def missing_preflight():
+        raise bridge.BridgeError("get_capture_preflight is unavailable")
+
+    monkeypatch.setattr(bridge, "status", lambda: "CONNECTED")
+    monkeypatch.setattr(bridge, "get_capture_preflight", missing_preflight)
+
+    code = launcher.main([
+        "setup-smoke",
+        "--reaper-daemon-root",
+        str(ROOT),
+    ])
+
+    report = json.loads(capsys.readouterr().out)
+    assert code == 3
+    assert report["bridge_ok"] is True
+    assert report["bridge_status"] == "CONNECTED"
+    assert report["capture_preflight"] is None
+    assert report["capture_preflight_detail"] == (
+        "get_capture_preflight is unavailable"
+    )
+    assert report["setup"]["checks"]["bridge_running"] is True
+    assert report["setup"]["recovery"]["code"] == "preflight_missing"
+
+
+def test_launcher_setup_smoke_fails_closed_on_malformed_preflight(
+    monkeypatch,
+    capsys,
+):
+    monkeypatch.setattr(bridge, "status", lambda: "CONNECTED")
+    malformed_preflights = [
+        {
+            "capture_allowed": True,
+            "blockers": None,
+            "warnings": None,
+        },
+        {
+            "capture_allowed": False,
+            "blockers": [{"code": []}],
+            "warnings": [],
+        },
+    ]
+
+    for preflight in malformed_preflights:
+        monkeypatch.setattr(
+            bridge,
+            "get_capture_preflight",
+            lambda preflight=preflight: preflight,
+        )
+
+        code = launcher.main([
+            "setup-smoke",
+            "--reaper-daemon-root",
+            str(ROOT),
+        ])
+
+        report = json.loads(capsys.readouterr().out)
+        assert code == 3
+        assert report["bridge_ok"] is True
+        assert report["setup"]["ready"] is False
+        assert report["setup"]["recovery"]["code"] == "preflight_invalid"
 
 
 def test_launcher_routes_cli_arguments_unchanged():

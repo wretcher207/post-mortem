@@ -46,6 +46,10 @@ def main(argv=None):
         return cli.main(argv[1:])
     if argv and argv[0] == "reaperd":
         return _run_reaperd(argv[1:])
+    if argv and argv[0] == "setup-smoke":
+        from . import readiness
+
+        return readiness.main(argv[1:])
     if argv and argv[0] == "test-bundle":
         return _run_bundle_tests(argv[1:])
     if len(argv) == 2 and argv[0] == "-c":
