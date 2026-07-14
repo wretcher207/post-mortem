@@ -1,7 +1,7 @@
 # Phase 3 Implementation Backlog: Product Shell and Installer ("Kill the Terminal")
 
-**Status:** IN PROGRESS — P3-001 through P3-007 complete; P3-008 live setup smoke and remote Linux graphical installer acceptance complete, fresh-machine exit gate remains
-**Date:** 2026-07-13
+**Status:** IN PROGRESS — P3-001 through P3-007 complete; P3-008 live setup smoke, remote Linux graphical installer acceptance, and signed/notarized macOS delivery complete; fresh-machine exit gate remains
+**Date:** 2026-07-14
 **Target:** PRODUCT_PLAN §12 Phase 3 — a fresh user installs, restarts REAPER,
 and finishes their first Track Check without ever opening a terminal
 **Depends on:** Phase 2 complete (live-verified 2026-07-12); Reaper Daemon
@@ -470,7 +470,8 @@ restoration, uninstall refusal after ownership-state removal, and explicit
 app-data deletion. The 35 MB `PostMortem-0.1.0-windows-x86_64.exe` and its
 SHA-256 sidecar pass on panel main workflow `29223831872` across all macOS,
 Windows, and Ubuntu jobs. Windows code signing remains a later
-release-hardening gate, matching the macOS slice.
+release-hardening gate. The macOS signing and notarization path was completed
+subsequently in private PR #13.
 
 Private panel PR #7 added the native Linux delivery slice: an unsigned
 architecture-labeled `tar.gz` release containing the same frozen installer
@@ -593,6 +594,43 @@ seconds, the separate headless Linux lifecycle passed, and the Linux artifact
 was retained. This closes automated Linux graphical-installer acceptance. It
 does not replace the fresh-machine REAPER restart, onboarding, and first Track
 Check journey required to close P3-008.
+
+Private panel PR #13 completed the production macOS trust path. Payload
+assembly now signs every copied Mach-O after checksum-lock verification and
+before writing manifest schema 2, which covers both signed file bytes and the
+literal targets of PyInstaller's relative `Python.framework` links. Archive
+extraction rejects escaping, dangling, cyclic, or nested-link paths and install
+preserves the validated framework structure. The outer builder signs nested
+code from the inside out with hardened runtime and secure timestamps, signs
+the app and DMG with David's Developer ID, submits both to Apple's notary
+service, staples both tickets, and writes the checksum only after stapling.
+
+Live release acceptance then exposed a macOS 27 disk-image race: deprecated
+`hdiutil create` could return while an attached image helper still held the
+output inode, blocking `notarytool` before upload. Follow-up private PR #14
+uses Apple's current `diskutil image create from` command when available. It
+feature-probes that command and retains the older `hdiutil` path with
+fresh-inode publication as a compatibility fallback. The final build left no
+attached Post Mortem image or `diskimages-helper` process.
+
+Apple accepted final app submission `8c22c014-e55a-493e-a4fb-f2e349cda9bf`
+and final DMG submission `55376e82-c961-42de-b83e-4a8683da28ba`. Deep
+signature, stapler, APFS image, and checksum validation all passed. Gatekeeper
+accepted both the app and image with `source=Notarized Developer ID`. The
+exact final arm64 DMG is 35,674,185 bytes with SHA-256
+`79f7618535ff271c9738ef2cee715e67bf4b89f8a454bd64fef1a83247290d89`, and
+the accessibility-driven real AppKit install from that image passed in 3.754
+seconds. The local installer suite passes 91 tests with two expected platform
+skips, and the panel passes all 166 Lua checks. Private PR workflows
+`29304768933` and `29305506240` passed every macOS, Windows, and Ubuntu
+installer/Lua job plus CodeRabbit and GitGuardian. Post-merge main workflows
+`29304923701` and `29305660057` repeated the complete green matrix, ending at
+private commit `43e9e91`.
+
+Signing, notarization, stapling, Gatekeeper, and the macOS setup-button path are
+therefore closed. P3-008 remains open for the manual ReaImGui onboarding and
+first Track Check on macOS, followed by fresh Windows and Linux customer
+journeys through their first Track Check.
 
 ### P3-009 — License validation
 
