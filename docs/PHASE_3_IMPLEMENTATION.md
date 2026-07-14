@@ -1,7 +1,7 @@
 # Phase 3 Implementation Backlog: Product Shell and Installer ("Kill the Terminal")
 
-**Status:** IN PROGRESS — P3-001 through P3-007 complete; P3-008 live setup smoke and remote Linux graphical installer acceptance complete, fresh-machine exit gate remains
-**Date:** 2026-07-13
+**Status:** IN PROGRESS — P3-001 through P3-007 complete; P3-008 live setup smoke, remote Linux graphical installer acceptance, and signed/notarized macOS delivery complete; fresh-machine exit gate remains
+**Date:** 2026-07-14
 **Target:** PRODUCT_PLAN §12 Phase 3 — a fresh user installs, restarts REAPER,
 and finishes their first Track Check without ever opening a terminal
 **Depends on:** Phase 2 complete (live-verified 2026-07-12); Reaper Daemon
@@ -470,7 +470,8 @@ restoration, uninstall refusal after ownership-state removal, and explicit
 app-data deletion. The 35 MB `PostMortem-0.1.0-windows-x86_64.exe` and its
 SHA-256 sidecar pass on panel main workflow `29223831872` across all macOS,
 Windows, and Ubuntu jobs. Windows code signing remains a later
-release-hardening gate, matching the macOS slice.
+release-hardening gate. The macOS signing and notarization path was completed
+subsequently in private PR #13.
 
 Private panel PR #7 added the native Linux delivery slice: an unsigned
 architecture-labeled `tar.gz` release containing the same frozen installer
@@ -593,6 +594,34 @@ seconds, the separate headless Linux lifecycle passed, and the Linux artifact
 was retained. This closes automated Linux graphical-installer acceptance. It
 does not replace the fresh-machine REAPER restart, onboarding, and first Track
 Check journey required to close P3-008.
+
+Private panel PR #13 completed the production macOS trust path. Payload
+assembly now signs every copied Mach-O after checksum-lock verification and
+before writing manifest schema 2, which covers both signed file bytes and the
+literal targets of PyInstaller's relative `Python.framework` links. Archive
+extraction rejects escaping, dangling, cyclic, or nested-link paths and install
+preserves the validated framework structure. The outer builder signs nested
+code from the inside out with hardened runtime and secure timestamps, signs
+the app and DMG with David's Developer ID, submits both to Apple's notary
+service, staples both tickets, and writes the checksum only after stapling.
+
+Apple accepted app submission `948f00a2-9cfa-4b86-a640-6cbf9b4f248e` and DMG
+submission `5dc4bf4c-3c55-4567-bcb6-9f4094ff5012`. Deep signature, stapler,
+APFS image, and checksum validation all passed. Gatekeeper accepted both the
+app and image with `source=Notarized Developer ID`. The exact final arm64 DMG
+is 37,224,215 bytes with SHA-256
+`2fec4d8df5871aefc61854d4b03ad448ec5fdc2eedbbb355d76824b08ad44e8a`, and
+the accessibility-driven real AppKit install from that image passed in 4.015
+seconds. The local installer suite passes 89 tests with two expected platform
+skips, and the panel passes all 166 Lua checks. Private PR workflow
+`29304768933` passed every macOS, Windows, and Ubuntu installer/Lua job plus
+CodeRabbit and GitGuardian. Post-merge main workflow `29304923701` repeated the
+complete green matrix at private commit `84cb485`.
+
+Signing, notarization, stapling, Gatekeeper, and the macOS setup-button path are
+therefore closed. P3-008 remains open for the manual ReaImGui onboarding and
+first Track Check on macOS, followed by fresh Windows and Linux customer
+journeys through their first Track Check.
 
 ### P3-009 — License validation
 
