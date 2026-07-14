@@ -605,18 +605,27 @@ code from the inside out with hardened runtime and secure timestamps, signs
 the app and DMG with David's Developer ID, submits both to Apple's notary
 service, staples both tickets, and writes the checksum only after stapling.
 
-Apple accepted app submission `948f00a2-9cfa-4b86-a640-6cbf9b4f248e` and DMG
-submission `5dc4bf4c-3c55-4567-bcb6-9f4094ff5012`. Deep signature, stapler,
-APFS image, and checksum validation all passed. Gatekeeper accepted both the
-app and image with `source=Notarized Developer ID`. The exact final arm64 DMG
-is 37,224,215 bytes with SHA-256
-`2fec4d8df5871aefc61854d4b03ad448ec5fdc2eedbbb355d76824b08ad44e8a`, and
-the accessibility-driven real AppKit install from that image passed in 4.015
-seconds. The local installer suite passes 89 tests with two expected platform
-skips, and the panel passes all 166 Lua checks. Private PR workflow
-`29304768933` passed every macOS, Windows, and Ubuntu installer/Lua job plus
-CodeRabbit and GitGuardian. Post-merge main workflow `29304923701` repeated the
-complete green matrix at private commit `84cb485`.
+Live release acceptance then exposed a macOS 27 disk-image race: deprecated
+`hdiutil create` could return while an attached image helper still held the
+output inode, blocking `notarytool` before upload. Follow-up private PR #14
+uses Apple's current `diskutil image create from` command when available. It
+feature-probes that command and retains the older `hdiutil` path with
+fresh-inode publication as a compatibility fallback. The final build left no
+attached Post Mortem image or `diskimages-helper` process.
+
+Apple accepted final app submission `8c22c014-e55a-493e-a4fb-f2e349cda9bf`
+and final DMG submission `55376e82-c961-42de-b83e-4a8683da28ba`. Deep
+signature, stapler, APFS image, and checksum validation all passed. Gatekeeper
+accepted both the app and image with `source=Notarized Developer ID`. The
+exact final arm64 DMG is 35,674,185 bytes with SHA-256
+`79f7618535ff271c9738ef2cee715e67bf4b89f8a454bd64fef1a83247290d89`, and
+the accessibility-driven real AppKit install from that image passed in 3.754
+seconds. The local installer suite passes 91 tests with two expected platform
+skips, and the panel passes all 166 Lua checks. Private PR workflows
+`29304768933` and `29305506240` passed every macOS, Windows, and Ubuntu
+installer/Lua job plus CodeRabbit and GitGuardian. Post-merge main workflows
+`29304923701` and `29305660057` repeated the complete green matrix, ending at
+private commit `43e9e91`.
 
 Signing, notarization, stapling, Gatekeeper, and the macOS setup-button path are
 therefore closed. P3-008 remains open for the manual ReaImGui onboarding and
