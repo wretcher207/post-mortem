@@ -1,6 +1,6 @@
 # Phase 3 Implementation Backlog: Product Shell and Installer ("Kill the Terminal")
 
-**Status:** IN PROGRESS — P3-001 through P3-007 complete; P3-008 live setup smoke, remote Linux graphical installer acceptance, and signed/notarized macOS delivery complete; fresh-machine exit gate remains
+**Status:** IN PROGRESS — P3-001 through P3-007 complete; P3-008 Linux and macOS customer journeys complete; only the hosted Windows customer journey remains
 **Date:** 2026-07-14
 **Target:** PRODUCT_PLAN §12 Phase 3 — a fresh user installs, restarts REAPER,
 and finishes their first Track Check without ever opening a terminal
@@ -628,9 +628,36 @@ installer/Lua job plus CodeRabbit and GitGuardian. Post-merge main workflows
 private commit `43e9e91`.
 
 Signing, notarization, stapling, Gatekeeper, and the macOS setup-button path are
-therefore closed. P3-008 remains open for the manual ReaImGui onboarding and
-first Track Check on macOS, followed by fresh Windows and Linux customer
-journeys through their first Track Check.
+therefore closed.
+
+Fresh-machine run `29372845909` then completed the Linux install, restart,
+onboarding, verified isolated Track Check, evidence, and customer-artifact
+journey in 2m42s. The isolated macOS journey also completed against REAPER
+7.77: install took 2.52 seconds, the bridge became ready in 4.3 seconds,
+`onboarding.json` recorded completion at `2026-07-14T09:17:32Z`, and the panel
+reached the final Track screen after a verified isolated diagnosis. Its
+retained evidence lives in
+`post-mortem-acceptance/2026-07-14-notarized-daemon-3.11.2/`; the tested DMG
+SHA-256 is
+`a6c80e2d37076a4aef32807c92d1e6b2c6c9c2cc7552f0c4a77818469fc40f6e`.
+
+The same hosted run reached genuine REAPER 7.77 on Windows but timed out before
+the startup heartbeat. Its retained screenshot shows the exact root cause:
+the `About REAPER v7.77/win64` first-run dialog remained open on the
+`Still Evaluating` button, preventing `Scripts/__startup.lua` from running.
+Private commit `0c07bab` selects that UI Automation control directly and
+removes the temporary resource-path probe from the customer launch. Regression
+coverage proves the captured dialog is clicked, the customer journey requires
+an explicit platform dispatch, and pull requests use only the Linux test
+matrix. The current private suite passes 122 tests with two expected platform
+skips, and the panel passes all 166 Lua checks.
+
+P3-008 now has one remaining proof: the hosted Windows journey through restart,
+onboarding, and first Track Check. As of 2026-07-14, GitHub Pro is active but
+all 3,000 included Actions minutes are exhausted and the Actions budget is $0,
+so the final runner proof cannot start. The expensive customer journey is now
+manual and platform-scoped; when usage is available, dispatch Windows exactly
+once. Linux and macOS do not need to be repeated.
 
 ### P3-009 — License validation
 
