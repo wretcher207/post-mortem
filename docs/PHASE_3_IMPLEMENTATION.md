@@ -1,6 +1,6 @@
 # Phase 3 Implementation Backlog: Product Shell and Installer ("Kill the Terminal")
 
-**Status:** IN PROGRESS — P3-001 through P3-008 complete; hosted Windows proof explicitly deferred to P3-010; P3-009 next
+**Status:** IN PROGRESS — P3-001 through P3-009 complete; hosted Windows proof explicitly deferred to P3-010; P3-010 next
 **Date:** 2026-07-14
 **Target:** PRODUCT_PLAN §12 Phase 3 — a fresh user installs, restarts REAPER,
 and finishes their first Track Check without ever opening a terminal
@@ -691,11 +691,38 @@ Acceptance criteria:
 - Free-surface imports and release contents verified license-free without the
   private repository present.
 
+Implemented locally on 2026-07-14 in private panel commit `4132287`. The paid
+shell now validates schema-versioned Ed25519 license files entirely offline
+using the pinned `cryptography` runtime. The signature covers holder, product,
+major version, issue date, update-entitlement end, key ID, and schema version.
+Validation fails closed on malformed input, tampering, unknown keys, wrong
+product or major, nonsensical dates, and issue dates beyond the one-day clock
+skew tolerance. A valid license permanently enables its purchased major
+version; only update entitlement expires, after a 30-day offline grace period.
+
+The same private commit adds an offline issuer, a production public-key ring,
+atomic activation and panel-status writes, native **Add License** controls on
+macOS, Windows, and Linux, and a clear unlicensed panel state with the purchase
+route and an explicit statement that validation stays local. Activation trusts
+only the keyring already installed with Post Mortem. The production private key
+remains outside the repository and release payload. The local owner license was
+issued and activated through the same production path.
+
+The boundary review is closed. Public engine, CLI, MCP, provider, and sidecar
+modules import successfully without the private repository, and the public
+release workflows now inspect wheel, source, and frozen sidecar artifacts for
+any private `panel/` or `licensing/` path or marker. The verifier has negative
+regression cases for private files and whole private directories. Verification
+passed with 153 private tests and two expected platform skips, 171 Lua checks,
+353 public tests plus 8 subtests, clean public wheel/source builds, the existing
+frozen sidecar artifact, Swift parsing, workflow parsing, compile checks, and
+secret/diff scans. No hosted workflow was started for this slice.
+
 ### P3-010 — Live verification protocol
 
 **Repository:** both
 **Priority:** High
-**Depends on:** P3-001 through P3-008
+**Depends on:** P3-001 through P3-009
 
 The Phase 2 discipline, applied to the shell:
 
