@@ -1,7 +1,7 @@
 # Phase 3 Implementation Backlog: Product Shell and Installer ("Kill the Terminal")
 
-**Status:** IN PROGRESS - P3-001 through P3-009 complete; P3-011 documentation drafted; P3-010 live verification and final evidence sync remain open
-**Date:** 2026-07-14
+**Status:** APPLE SILICON EARLY ACCESS LIVE - P3-001 through P3-009 complete; P3-010 Windows/Linux paid-installer verification and final evidence sync remain open
+**Date:** 2026-07-15
 **Target:** PRODUCT_PLAN §12 Phase 3 — a fresh user installs, restarts REAPER,
 and finishes their first Track Check without ever opening a terminal
 **Depends on:** Phase 2 complete (live-verified 2026-07-12); Reaper Daemon
@@ -69,8 +69,8 @@ reproducible from the terminal, which is also how we test it.
 | `get_selected_track`, `get_capture_preflight` | `reaper-daemon` | `bridge/reaper_agent_bridge.lua`, `bridge/command_schema.md`, `tests/` |
 | Watchdog JSON-lock fix (pre-existing chip) | `reaper-daemon` | `setup/` startup block, `__startup.lua` template |
 | Sidecar service + job protocol | `post-mortem` | `postmortem/service.py`, `docs/SIDECAR_PROTOCOL.md`, `tests/test_service.py` |
-| ReaImGui panel | `post-mortem` | `panel/` (new top-level dir, Lua) |
-| Onboarding + guided recovery | `post-mortem` | `panel/`, `postmortem/service.py` |
+| ReaImGui panel | `post-mortem-panel` (private) | `panel/` (Lua) |
+| Onboarding + guided recovery | `post-mortem-panel` (private) + `post-mortem` | private `panel/`, public `postmortem/service.py` |
 | Packaging (PyInstaller) | `post-mortem` | `packaging/`, CI workflows |
 | Installer / updater / uninstaller | `post-mortem-panel` (private) | `installer/` |
 | Licensing | `post-mortem-panel` (private) | `licensing.py`, `tests/test_licensing.py`, panel license state |
