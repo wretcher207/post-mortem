@@ -597,52 +597,21 @@ def test_dedicated_config_file_key_works_with_an_environment_endpoint(monkeypatc
     )
 
 
-def test_minimax_dev_key_is_only_used_for_the_verified_minimax_host(monkeypatch):
+def test_unconfigured_third_party_endpoint_never_uses_machine_local_secrets(
+    monkeypatch,
+):
     monkeypatch.setattr(config, "_file_values", {})
-    monkeypatch.setenv(
-        "ANTHROPIC_BASE_URL", "https://minimax.attacker.example/anthropic"
-    )
+    monkeypatch.setenv("ANTHROPIC_BASE_URL", "https://api.minimax.io/anthropic")
     monkeypatch.delenv("POSTMORTEM_API_KEY", raising=False)
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
 
-    with (
-        patch(
-            "postmortem.providers.anthropic_provider._first_line_matching",
-            return_value="- Key: local-minimax-secret",
-        ),
-        patch(
-            "postmortem.providers.anthropic_provider.anthropic.Anthropic"
-        ) as ctor,
-    ):
+    with patch(
+        "postmortem.providers.anthropic_provider.anthropic.Anthropic"
+    ) as ctor:
         with pytest.raises(ProviderError):
             AnthropicProvider.from_config()
 
     ctor.assert_not_called()
-
-
-def test_verified_minimax_host_preserves_the_dev_machine_fallback(monkeypatch):
-    monkeypatch.setattr(config, "_file_values", {})
-    monkeypatch.setenv("ANTHROPIC_BASE_URL", "https://api.minimax.io/anthropic")
-    for name in ("ANTHROPIC_API_KEY", "POSTMORTEM_API_KEY", "POSTMORTEM_MODEL"):
-        monkeypatch.delenv(name, raising=False)
-
-    with (
-        patch(
-            "postmortem.providers.anthropic_provider._first_line_matching",
-            return_value="- Key: local-minimax-secret",
-        ),
-        patch(
-            "postmortem.providers.anthropic_provider.anthropic.Anthropic",
-            return_value=object(),
-        ) as ctor,
-    ):
-        _, profile = AnthropicProvider.from_config()
-
-    ctor.assert_called_once_with(
-        api_key="local-minimax-secret",
-        base_url="https://api.minimax.io/anthropic",
-    )
-    assert profile.model == "MiniMax-M3"
 
 
 def test_client_construction_configuration_errors_are_typed(monkeypatch):

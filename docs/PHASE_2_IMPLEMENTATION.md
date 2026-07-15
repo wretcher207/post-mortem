@@ -248,7 +248,7 @@ Acceptance criteria:
 - Stale refusals, all pre-mutation: renamed track (`NO_TARGET_TRACK` at the
   fresh scan), drifted fader (`current_value_mismatch`), silent capture
   (`insufficient_signal`).
-- Known limitation confirmed live: item-based amp-sim guitar folders (GEETS)
+- Known limitation confirmed live: item-based amp-sim guitar folders
   capture silent under solo isolation — the pre-existing bridge capture
   limitation, refused safely, not a preview defect.
 

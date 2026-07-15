@@ -1,6 +1,6 @@
 # Phase 3 Implementation Backlog: Product Shell and Installer ("Kill the Terminal")
 
-**Status:** IN PROGRESS — P3-001 through P3-009 complete; hosted Windows proof explicitly deferred to P3-010; P3-010 next
+**Status:** IN PROGRESS - P3-001 through P3-009 complete; P3-011 documentation drafted; P3-010 live verification and final evidence sync remain open
 **Date:** 2026-07-14
 **Target:** PRODUCT_PLAN §12 Phase 3 — a fresh user installs, restarts REAPER,
 and finishes their first Track Check without ever opening a terminal
@@ -559,8 +559,8 @@ GitGuardian pass on both implementation PRs.
 The final reviewed payload produced a 49,324,507-byte macOS arm64 DMG with
 SHA-256 `f3886d0224609cd86bb395344067a1dd5bf9dbd4d69f7b326b6da8ebd4fe9b1b`.
 That exact payload was installed into the real REAPER resource and Post Mortem
-data roots, then REAPER was closed normally and restarted. Against the live
-`j-space.RPP` session, the customer-facing installed smoke returned exit `0`
+data roots, then REAPER was closed normally and restarted. Against a real
+production session, the customer-facing installed smoke returned exit `0`
 and reported the bridge connected with safe capture ready. The raw report had
 no blockers or warnings, and daemon history showed `get_capture_preflight`
 with no capture command. REAPER remained idle with its transport, cursor,
@@ -739,7 +739,7 @@ The Phase 2 discipline, applied to the shell:
    status); break the render auto-close setting and verify onboarding's
    "Test Again" catches it.
 4. Uninstall → reinstall → license and config survive as designed.
-5. Amp-sim guitar track (GEETS): verify the panel renders the isolation
+5. Amp-sim guitar track: verify the panel renders the isolation
    refusal explanation, not a hang or a fake result.
 
 Record results here and in both HANDOFFs. Same hard rules: capture verified
@@ -752,12 +752,24 @@ claim; David's ear confirms anything audible.
 **Priority:** Medium
 **Depends on:** all prior
 
-- `docs/SIDECAR_PROTOCOL.md` finalized against the shipped implementation.
-- Command schema entries for the two new bridge commands.
-- README: installer-first quickstart; CLI demoted to the developer section.
-- PRODUCT_PLAN Phase 3 exit criteria checked off with evidence links.
-- User-facing install/troubleshooting page content (voice-profile rules
-  apply; it is public copy).
+**Status:** IN PROGRESS - customer and operator docs drafted on 2026-07-14;
+final evidence sync depends on P3-010
+
+- [x] `docs/SIDECAR_PROTOCOL.md` frozen against the shipped v1 implementation.
+- [x] Reaper Daemon command schema includes `get_selected_track` and
+  `get_capture_preflight`.
+- [x] README starts with the paid installer path; the free CLI is in the
+  developer section.
+- [x] PRODUCT_PLAN Phase 3 criteria are an evidence-backed checklist. Open
+  platform proof remains unchecked instead of being described as complete.
+- [x] Public installation, troubleshooting, privacy, and changelog pages added.
+- [x] Private release runbook added for assembly, signing, notarization,
+  fulfillment, and final publish gates.
+
+P3-011 closes only after P3-010 evidence is folded into the customer and
+operator documents. The hosted Windows journey, panel recovery drills, final
+cross-platform customer evidence, checkout, and license delivery remain
+release gates where identified.
 
 ## 6. Definition of done
 

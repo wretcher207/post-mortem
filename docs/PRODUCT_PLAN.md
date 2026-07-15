@@ -1,7 +1,7 @@
 # Post Mortem Product and Implementation Plan
 
-**Status:** First-pass product plan
-**Date:** 2026-07-10
+**Status:** Active; Phase 3 live verification remains open
+**Date:** 2026-07-10, updated 2026-07-14
 **Primary audience:** Bedroom musicians and self-producing artists using REAPER
 **Product owner:** Dead Pixel Design
 
@@ -558,6 +558,14 @@ The Settings screen should explicitly show:
 
 Avoid splitting the core experience into Basic and Pro tiers at launch. One affordable paid version is easier to understand and support. The `$39` launch price is now the committed target.
 
+**Release gate, 2026-07-14:** the current `0.1.0` Track Check and Fix Preview
+release candidate does not yet contain the complete paid offer above. It may be
+used for private validation, but it cannot be sold as the committed `$39`
+launch offer until Mix Check, local Sonic Memory, and the promised update term
+are included. Any separate early-access offer requires an explicit owner
+decision, its own exact feature and support terms, and at least 12 months of
+updates. No such early-access offer is approved in this plan.
+
 #### Optional hosted analysis credits
 
 - Include 10 starter checks with the paid product.
@@ -651,9 +659,27 @@ Deliverables:
 
 Exit criteria:
 
-- A fresh user can install, restart REAPER, and finish their first Track Check without opening a terminal.
-- Uninstall removes managed files without touching user projects or unrelated startup scripts.
-- The panel explains every recoverable setup failure in plain language.
+- [ ] A fresh user can install, restart REAPER, and finish their first Track
+  Check without opening a terminal on every paid-release platform. macOS and
+  Linux evidence is recorded in
+  [P3-008](PHASE_3_IMPLEMENTATION.md#p3-008--installer-updater-uninstaller).
+  The hosted Windows journey remains explicitly open in
+  [P3-010](PHASE_3_IMPLEMENTATION.md#p3-010--live-verification-protocol).
+- [x] Uninstall removes managed files without touching user projects or
+  unrelated startup scripts. Transactional ownership and preservation evidence
+  is recorded in
+  [P3-008](PHASE_3_IMPLEMENTATION.md#p3-008--installer-updater-uninstaller).
+- [ ] The panel explains every recoverable setup failure in plain language and
+  preserves typed diagnostics for unknown failures. Known setup failures have
+  engine-owned recovery text from
+  [P3-006](PHASE_3_IMPLEMENTATION.md#p3-006--onboarding-and-guided-recovery),
+  but the sidecar crash, REAPER crash, and render-setting drills remain open in
+  [P3-010](PHASE_3_IMPLEMENTATION.md#p3-010--live-verification-protocol).
+
+Phase 3 remains open until the unchecked cross-platform criterion and the
+standing P3-010 recovery drills pass. The `0.1.0` Apple silicon disk image is a
+release candidate, not evidence that the paid Windows and Linux paths are
+ready for sale.
 
 ### Phase 4 — Mix Check
 
@@ -794,7 +820,7 @@ Mitigation: monetize convenience, polish, workflow, updates, evaluation data, ho
 
 The following decisions were confirmed on 2026-07-10:
 
-1. **Platform:** Windows, macOS, and Linux ship together. Cross-platform packaging and CI are release gates, not follow-up work.
+1. **Platform:** Windows, macOS, and Linux ship together. Cross-platform packaging and CI are release gates, not follow-up work. The `0.1.0` Apple silicon release candidate is a validation artifact, not the all-platform paid launch; Windows and Linux remain withheld until their customer gates close.
 2. **Business model:** Open-core. Reaper Daemon and a genuinely useful Post Mortem engine remain open; the docked product shell, advanced workflow orchestration, installer/updater, hosted credits, and support form the paid product.
 3. **Primary interface:** Docked inside REAPER using ReaImGui for the first beta.
 4. **Customer level:** Intermediate. Lead with a clear finding, keep evidence visible, and preserve user control rather than over-explaining fundamentals.
