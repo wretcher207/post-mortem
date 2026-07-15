@@ -1,6 +1,6 @@
 # Phase 3 Implementation Backlog: Product Shell and Installer ("Kill the Terminal")
 
-**Status:** IN PROGRESS — P3-001 through P3-007 complete; P3-008 Linux and macOS customer journeys complete; only the hosted Windows customer journey remains
+**Status:** IN PROGRESS — P3-001 through P3-008 complete; hosted Windows proof explicitly deferred to P3-010; P3-009 next
 **Date:** 2026-07-14
 **Target:** PRODUCT_PLAN §12 Phase 3 — a fresh user installs, restarts REAPER,
 and finishes their first Track Check without ever opening a terminal
@@ -73,7 +73,7 @@ reproducible from the terminal, which is also how we test it.
 | Onboarding + guided recovery | `post-mortem` | `panel/`, `postmortem/service.py` |
 | Packaging (PyInstaller) | `post-mortem` | `packaging/`, CI workflows |
 | Installer / updater / uninstaller | `post-mortem-panel` (private) | `installer/` |
-| Licensing | `post-mortem` | `postmortem/licensing.py`, `tests/test_licensing.py` |
+| Licensing | `post-mortem-panel` (private) | `licensing.py`, `tests/test_licensing.py`, panel license state |
 | Docs | both | README, command schema, this backlog |
 
 ## 4. Decisions needed (recommendations inline, none block the early PRs)
@@ -94,13 +94,12 @@ reproducible from the terminal, which is also how we test it.
    running the product. Payment platform (Gumroad / Lemon Squeezy / Stripe)
    is David's call and only gates P3-009's issuing side, not the validation
    code.
-4. **Panel code repo boundary.** PRODUCT_PLAN locks the panel as paid /
-   proprietary, and existing MIT code stays MIT. Recommendation: develop
-   `panel/`, `packaging/`, and `licensing.py` in this repo on branches as
-   usual, but DO NOT publish them in any public release artifact until the
-   license text and repo boundary review happens (tracked as part of P3-009).
-   If this repo is public, that review must happen BEFORE the first panel PR
-   merges — verify visibility before P3-003.
+4. **Panel code repo boundary.** Closed before P3-003: PRODUCT_PLAN locks the
+   panel and licensing as paid/proprietary, while existing MIT code stays MIT.
+   The panel, installer, updater, uninstaller, and licensing now live in the
+   private `post-mortem-panel` repository. Public `post-mortem` contains only
+   the free engine, CLI, MCP, sidecar, protocol, and packaging for that free
+   runtime.
 5. **Dependency strategy for ReaImGui and SWS.** The panel requires the
    ReaImGui extension; render auto-close requires SWS. ReaPack remains a valid
    user-managed source, but its documented ReaScript API does not provide a
@@ -652,22 +651,25 @@ an explicit platform dispatch, and pull requests use only the Linux test
 matrix. The current private suite passes 122 tests with two expected platform
 skips, and the panel passes all 166 Lua checks.
 
-P3-008 now has one remaining proof: the hosted Windows journey through restart,
-onboarding, and first Track Check. As of 2026-07-14, GitHub Pro is active but
-all 3,000 included Actions minutes are exhausted and the Actions budget is $0,
-so the final runner proof cannot start. The expensive customer journey is now
-manual and platform-scoped; when usage is available, dispatch Windows exactly
-once. Linux and macOS do not need to be repeated.
+The hosted Windows journey through restart, onboarding, and first Track Check
+could not start again on 2026-07-14 because all 3,000 included Actions minutes
+were exhausted and the Actions budget was $0. By owner decision, that external
+proof no longer blocks P3-008. P3-008 is accepted and closed with the retained
+Windows install/UI evidence plus local modal regression coverage. The single
+hosted Windows end-to-end run moves to P3-010's live-verification protocol; it
+must not be represented as green until it actually passes. Linux and macOS do
+not need to be repeated.
 
 ### P3-009 — License validation
 
-**Repository:** `post-mortem`
+**Repository:** `post-mortem-panel` (private)
 **Priority:** Medium (must not gate panel development; must gate release)
 
 Rules:
 
-1. `postmortem/licensing.py`: Ed25519-signed license file validation, fully
-   offline. Fields: holder, product, major version, issue date, signature.
+1. `licensing.py`: Ed25519-signed license file validation, fully offline.
+   Fields: holder, product, major version, issue date, update-entitlement end,
+   key ID, and signature.
 2. Grace behavior: a valid license never phones home to RUN. Online checks
    (if any) only gate update entitlement, with a generous offline grace
    period and a plain statement in Settings of exactly what is checked.
@@ -677,17 +679,17 @@ Rules:
 4. Unlicensed panel state: clear purchase path, no dark patterns, engine and
    CLI keep working. (Exact trial behavior is David's call; default to
    panel-requires-license, CLI free.)
-5. This PR includes the repo-boundary/license-text review from decision 4 —
-   the checklist item that must close before any public release artifact
-   contains `panel/` or `licensing.py`.
+5. This work records the completed repo-boundary review from decision 4 and
+   adds a regression check that no public release artifact contains private
+   `panel/` or licensing code.
 
 Acceptance criteria:
 
 - Unit tests: valid, tampered, expired-updates, wrong-product, wrong-major
   licenses; clock skew tolerance.
 - No network call exists in the validation path (test asserts it).
-- Free-surface imports verified license-free by a test that imports every
-  free module with `licensing.py` deleted.
+- Free-surface imports and release contents verified license-free without the
+  private repository present.
 
 ### P3-010 — Live verification protocol
 
@@ -700,6 +702,8 @@ The Phase 2 discipline, applied to the shell:
 1. Fresh-machine install test per platform (VM or clean user account):
    installer → restart → onboarding → first Track Check without a terminal.
    Timed; install-to-first-diagnosis is the metric that matters (§13).
+   The hosted Windows proof deferred from P3-008 is mandatory here and remains
+   explicitly unproven until that run passes.
 2. Panel preview loop on the real rig (Kick routing track): preview, A/B
    playback, Apply, single Ctrl+Z restores — the P2-005 pass, driven from
    the panel.
@@ -762,7 +766,7 @@ the standing rules):
 6. **Post Mortem:** onboarding + guided recovery (P3-006).
 7. **Post Mortem:** packaged builds + CI matrix (P3-007).
 8. **Post Mortem:** installer/updater/uninstaller (P3-008).
-9. **Post Mortem:** licensing + boundary review (P3-009).
+9. **Post Mortem Panel:** licensing + boundary review (P3-009).
 10. **Both:** live verification notes + docs (P3-010, P3-011).
 
 Keep the daemon PRs small (the bridge is in daily use), and keep the panel
