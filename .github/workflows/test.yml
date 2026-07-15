@@ -32,6 +32,8 @@ jobs:
         run: python -m pytest -q
       - name: Build source and wheel packages
         run: python -m build
+      - name: Verify packages contain only the public runtime
+        run: python packaging/verify_open_core_artifact.py dist
 
   bundled-smoke:
     name: bundled sidecar smoke (ubuntu-latest)
@@ -50,6 +52,10 @@ jobs:
         run: python -m pytest -q
       - name: Build onedir sidecar
         run: pyinstaller --clean --noconfirm packaging/postmortem-sidecar.spec
+      - name: Verify sidecar contains only the public runtime
+        run: >-
+          python packaging/verify_open_core_artifact.py
+          dist/postmortem-sidecar
       - name: Smoke bundled binary without system Python on PATH
         run: >-
           python packaging/smoke_bundle.py

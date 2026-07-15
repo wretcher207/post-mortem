@@ -1,7 +1,13 @@
-# Sidecar Protocol (Phase 3, P3-001)
+# Sidecar Protocol v1
 
-**Status:** v1, shipped with `postmortem/service.py`
+**Status:** frozen for the Post Mortem `0.1.0` release candidate
+**Implementation:** `postmortem/service.py`
 **Consumers:** the ReaImGui panel (primary), any future companion window
+
+Protocol v1 is the shipped compatibility boundary. A v1 client must reject a
+newer result schema it does not understand. Additive result fields may appear
+inside a v1 job type, but job names, stable error codes, file ownership, and
+restore behavior cannot change without a protocol-version update.
 
 The sidecar is a local process that executes engine calls on behalf of a thin
 UI client. Transport is atomic JSON files in a jobs folder — the same
@@ -186,6 +192,7 @@ Payload: none. Result:
     "target": null
   },
   "provider_configured": true,
+  "provider": "Anthropic",
   "setup": {
     "ready": true,
     "provider_configured": true,
@@ -209,6 +216,9 @@ but preflight fails, it carries that typed bridge error while `bridge_ok`
 remains true. `provider_configured` means the local endpoint, key, and model
 can be constructed; it does not replace the live validation required during
 first-run onboarding.
+`provider` is `Anthropic` for the official endpoint and the configured hostname
+for a compatible third-party endpoint. It never contains a key, path, or URL
+query.
 `setup` is the engine-owned onboarding verdict. When `ready` is false,
 `recovery` carries `{code, message, action, primary_action}` for `bridge_dead`,
 `preflight_missing`, `preflight_invalid`, `capture_gated`, `render_hang_risk`,

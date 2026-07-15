@@ -1,7 +1,7 @@
 # Phase 3 Implementation Backlog: Product Shell and Installer ("Kill the Terminal")
 
-**Status:** IN PROGRESS — P3-001 through P3-007 complete; P3-008 live setup smoke, remote Linux graphical installer acceptance, and signed/notarized macOS delivery complete; fresh-machine exit gate remains
-**Date:** 2026-07-14
+**Status:** APPLE SILICON EARLY ACCESS LIVE - P3-001 through P3-009 complete; P3-010 Windows/Linux paid-installer verification and final evidence sync remain open
+**Date:** 2026-07-15
 **Target:** PRODUCT_PLAN §12 Phase 3 — a fresh user installs, restarts REAPER,
 and finishes their first Track Check without ever opening a terminal
 **Depends on:** Phase 2 complete (live-verified 2026-07-12); Reaper Daemon
@@ -69,11 +69,11 @@ reproducible from the terminal, which is also how we test it.
 | `get_selected_track`, `get_capture_preflight` | `reaper-daemon` | `bridge/reaper_agent_bridge.lua`, `bridge/command_schema.md`, `tests/` |
 | Watchdog JSON-lock fix (pre-existing chip) | `reaper-daemon` | `setup/` startup block, `__startup.lua` template |
 | Sidecar service + job protocol | `post-mortem` | `postmortem/service.py`, `docs/SIDECAR_PROTOCOL.md`, `tests/test_service.py` |
-| ReaImGui panel | `post-mortem` | `panel/` (new top-level dir, Lua) |
-| Onboarding + guided recovery | `post-mortem` | `panel/`, `postmortem/service.py` |
+| ReaImGui panel | `post-mortem-panel` (private) | `panel/` (Lua) |
+| Onboarding + guided recovery | `post-mortem-panel` (private) + `post-mortem` | private `panel/`, public `postmortem/service.py` |
 | Packaging (PyInstaller) | `post-mortem` | `packaging/`, CI workflows |
 | Installer / updater / uninstaller | `post-mortem-panel` (private) | `installer/` |
-| Licensing | `post-mortem` | `postmortem/licensing.py`, `tests/test_licensing.py` |
+| Licensing | `post-mortem-panel` (private) | `licensing.py`, `tests/test_licensing.py`, panel license state |
 | Docs | both | README, command schema, this backlog |
 
 ## 4. Decisions needed (recommendations inline, none block the early PRs)
@@ -94,13 +94,12 @@ reproducible from the terminal, which is also how we test it.
    running the product. Payment platform (Gumroad / Lemon Squeezy / Stripe)
    is David's call and only gates P3-009's issuing side, not the validation
    code.
-4. **Panel code repo boundary.** PRODUCT_PLAN locks the panel as paid /
-   proprietary, and existing MIT code stays MIT. Recommendation: develop
-   `panel/`, `packaging/`, and `licensing.py` in this repo on branches as
-   usual, but DO NOT publish them in any public release artifact until the
-   license text and repo boundary review happens (tracked as part of P3-009).
-   If this repo is public, that review must happen BEFORE the first panel PR
-   merges — verify visibility before P3-003.
+4. **Panel code repo boundary.** Closed before P3-003: PRODUCT_PLAN locks the
+   panel and licensing as paid/proprietary, while existing MIT code stays MIT.
+   The panel, installer, updater, uninstaller, and licensing now live in the
+   private `post-mortem-panel` repository. Public `post-mortem` contains only
+   the free engine, CLI, MCP, sidecar, protocol, and packaging for that free
+   runtime.
 5. **Dependency strategy for ReaImGui and SWS.** The panel requires the
    ReaImGui extension; render auto-close requires SWS. ReaPack remains a valid
    user-managed source, but its documented ReaScript API does not provide a
@@ -560,8 +559,8 @@ GitGuardian pass on both implementation PRs.
 The final reviewed payload produced a 49,324,507-byte macOS arm64 DMG with
 SHA-256 `f3886d0224609cd86bb395344067a1dd5bf9dbd4d69f7b326b6da8ebd4fe9b1b`.
 That exact payload was installed into the real REAPER resource and Post Mortem
-data roots, then REAPER was closed normally and restarted. Against the live
-`j-space.RPP` session, the customer-facing installed smoke returned exit `0`
+data roots, then REAPER was closed normally and restarted. Against a real
+production session, the customer-facing installed smoke returned exit `0`
 and reported the bridge connected with safe capture ready. The raw report had
 no blockers or warnings, and daemon history showed `get_capture_preflight`
 with no capture command. REAPER remained idle with its transport, cursor,
@@ -628,19 +627,49 @@ installer/Lua job plus CodeRabbit and GitGuardian. Post-merge main workflows
 private commit `43e9e91`.
 
 Signing, notarization, stapling, Gatekeeper, and the macOS setup-button path are
-therefore closed. P3-008 remains open for the manual ReaImGui onboarding and
-first Track Check on macOS, followed by fresh Windows and Linux customer
-journeys through their first Track Check.
+therefore closed.
+
+Fresh-machine run `29372845909` then completed the Linux install, restart,
+onboarding, verified isolated Track Check, evidence, and customer-artifact
+journey in 2m42s. The isolated macOS journey also completed against REAPER
+7.77: install took 2.52 seconds, the bridge became ready in 4.3 seconds,
+`onboarding.json` recorded completion at `2026-07-14T09:17:32Z`, and the panel
+reached the final Track screen after a verified isolated diagnosis. Its
+retained evidence lives in
+`post-mortem-acceptance/2026-07-14-notarized-daemon-3.11.2/`; the tested DMG
+SHA-256 is
+`a6c80e2d37076a4aef32807c92d1e6b2c6c9c2cc7552f0c4a77818469fc40f6e`.
+
+The same hosted run reached genuine REAPER 7.77 on Windows but timed out before
+the startup heartbeat. Its retained screenshot shows the exact root cause:
+the `About REAPER v7.77/win64` first-run dialog remained open on the
+`Still Evaluating` button, preventing `Scripts/__startup.lua` from running.
+Private commit `0c07bab` selects that UI Automation control directly and
+removes the temporary resource-path probe from the customer launch. Regression
+coverage proves the captured dialog is clicked, the customer journey requires
+an explicit platform dispatch, and pull requests use only the Linux test
+matrix. The current private suite passes 122 tests with two expected platform
+skips, and the panel passes all 166 Lua checks.
+
+The hosted Windows journey through restart, onboarding, and first Track Check
+could not start again on 2026-07-14 because all 3,000 included Actions minutes
+were exhausted and the Actions budget was $0. By owner decision, that external
+proof no longer blocks P3-008. P3-008 is accepted and closed with the retained
+Windows install/UI evidence plus local modal regression coverage. The single
+hosted Windows end-to-end run moves to P3-010's live-verification protocol; it
+must not be represented as green until it actually passes. Linux and macOS do
+not need to be repeated.
 
 ### P3-009 — License validation
 
-**Repository:** `post-mortem`
+**Repository:** `post-mortem-panel` (private)
 **Priority:** Medium (must not gate panel development; must gate release)
 
 Rules:
 
-1. `postmortem/licensing.py`: Ed25519-signed license file validation, fully
-   offline. Fields: holder, product, major version, issue date, signature.
+1. `licensing.py`: Ed25519-signed license file validation, fully offline.
+   Fields: holder, product, major version, issue date, update-entitlement end,
+   key ID, and signature.
 2. Grace behavior: a valid license never phones home to RUN. Online checks
    (if any) only gate update entitlement, with a generous offline grace
    period and a plain statement in Settings of exactly what is checked.
@@ -650,29 +679,58 @@ Rules:
 4. Unlicensed panel state: clear purchase path, no dark patterns, engine and
    CLI keep working. (Exact trial behavior is David's call; default to
    panel-requires-license, CLI free.)
-5. This PR includes the repo-boundary/license-text review from decision 4 —
-   the checklist item that must close before any public release artifact
-   contains `panel/` or `licensing.py`.
+5. This work records the completed repo-boundary review from decision 4 and
+   adds a regression check that no public release artifact contains private
+   `panel/` or licensing code.
 
 Acceptance criteria:
 
 - Unit tests: valid, tampered, expired-updates, wrong-product, wrong-major
   licenses; clock skew tolerance.
 - No network call exists in the validation path (test asserts it).
-- Free-surface imports verified license-free by a test that imports every
-  free module with `licensing.py` deleted.
+- Free-surface imports and release contents verified license-free without the
+  private repository present.
+
+Implemented locally on 2026-07-14 in private panel commit `4132287`. The paid
+shell now validates schema-versioned Ed25519 license files entirely offline
+using the pinned `cryptography` runtime. The signature covers holder, product,
+major version, issue date, update-entitlement end, key ID, and schema version.
+Validation fails closed on malformed input, tampering, unknown keys, wrong
+product or major, nonsensical dates, and issue dates beyond the one-day clock
+skew tolerance. A valid license permanently enables its purchased major
+version; only update entitlement expires, after a 30-day offline grace period.
+
+The same private commit adds an offline issuer, a production public-key ring,
+atomic activation and panel-status writes, native **Add License** controls on
+macOS, Windows, and Linux, and a clear unlicensed panel state with the purchase
+route and an explicit statement that validation stays local. Activation trusts
+only the keyring already installed with Post Mortem. The production private key
+remains outside the repository and release payload. The local owner license was
+issued and activated through the same production path.
+
+The boundary review is closed. Public engine, CLI, MCP, provider, and sidecar
+modules import successfully without the private repository, and the public
+release workflows now inspect wheel, source, and frozen sidecar artifacts for
+any private `panel/` or `licensing/` path or marker. The verifier has negative
+regression cases for private files and whole private directories. Verification
+passed with 153 private tests and two expected platform skips, 171 Lua checks,
+353 public tests plus 8 subtests, clean public wheel/source builds, the existing
+frozen sidecar artifact, Swift parsing, workflow parsing, compile checks, and
+secret/diff scans. No hosted workflow was started for this slice.
 
 ### P3-010 — Live verification protocol
 
 **Repository:** both
 **Priority:** High
-**Depends on:** P3-001 through P3-008
+**Depends on:** P3-001 through P3-009
 
 The Phase 2 discipline, applied to the shell:
 
 1. Fresh-machine install test per platform (VM or clean user account):
    installer → restart → onboarding → first Track Check without a terminal.
    Timed; install-to-first-diagnosis is the metric that matters (§13).
+   The hosted Windows proof deferred from P3-008 is mandatory here and remains
+   explicitly unproven until that run passes.
 2. Panel preview loop on the real rig (Kick routing track): preview, A/B
    playback, Apply, single Ctrl+Z restores — the P2-005 pass, driven from
    the panel.
@@ -681,7 +739,7 @@ The Phase 2 discipline, applied to the shell:
    status); break the render auto-close setting and verify onboarding's
    "Test Again" catches it.
 4. Uninstall → reinstall → license and config survive as designed.
-5. Amp-sim guitar track (GEETS): verify the panel renders the isolation
+5. Amp-sim guitar track: verify the panel renders the isolation
    refusal explanation, not a hang or a fake result.
 
 Record results here and in both HANDOFFs. Same hard rules: capture verified
@@ -694,12 +752,24 @@ claim; David's ear confirms anything audible.
 **Priority:** Medium
 **Depends on:** all prior
 
-- `docs/SIDECAR_PROTOCOL.md` finalized against the shipped implementation.
-- Command schema entries for the two new bridge commands.
-- README: installer-first quickstart; CLI demoted to the developer section.
-- PRODUCT_PLAN Phase 3 exit criteria checked off with evidence links.
-- User-facing install/troubleshooting page content (voice-profile rules
-  apply; it is public copy).
+**Status:** IN PROGRESS - customer and operator docs drafted on 2026-07-14;
+final evidence sync depends on P3-010
+
+- [x] `docs/SIDECAR_PROTOCOL.md` frozen against the shipped v1 implementation.
+- [x] Reaper Daemon command schema includes `get_selected_track` and
+  `get_capture_preflight`.
+- [x] README starts with the paid installer path; the free CLI is in the
+  developer section.
+- [x] PRODUCT_PLAN Phase 3 criteria are an evidence-backed checklist. Open
+  platform proof remains unchecked instead of being described as complete.
+- [x] Public installation, troubleshooting, privacy, and changelog pages added.
+- [x] Private release runbook added for assembly, signing, notarization,
+  fulfillment, and final publish gates.
+
+P3-011 closes only after P3-010 evidence is folded into the customer and
+operator documents. The hosted Windows journey, panel recovery drills, final
+cross-platform customer evidence, checkout, and license delivery remain
+release gates where identified.
 
 ## 6. Definition of done
 
@@ -735,7 +805,7 @@ the standing rules):
 6. **Post Mortem:** onboarding + guided recovery (P3-006).
 7. **Post Mortem:** packaged builds + CI matrix (P3-007).
 8. **Post Mortem:** installer/updater/uninstaller (P3-008).
-9. **Post Mortem:** licensing + boundary review (P3-009).
+9. **Post Mortem Panel:** licensing + boundary review (P3-009).
 10. **Both:** live verification notes + docs (P3-010, P3-011).
 
 Keep the daemon PRs small (the bridge is in daily use), and keep the panel

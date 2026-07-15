@@ -1,166 +1,160 @@
 # Post Mortem
 
-AI track diagnosis for REAPER. Select a track, run one command, get told
-what's actually wrong with it.
+Ever know a REAPER track is wrong but have no idea whether the culprit is
+level, EQ, compression, routing, or the room lying to you again? Post Mortem is
+a mix debugger for that exact moment. It checks the track you are working on,
+shows the most likely problem, and lets you audition one safe fix without
+acting like a spectrum chart has ears.
 
-It reads the track's real state: every FX and its current parameter values,
-sends, receives, parent bus, fader, pan. Then it renders a 10-second post-FX
-stem, measures it (LUFS, true peak, sample peak, crest factor, loudness
-range, 1/3-octave spectrum, stereo correlation and mid/side balance, and how
-much of the capture is dead air), and hands the numbers to a model that
-answers like a mix engineer: what it sees, what's probably causing it, one
-concrete move with the exact parameter and value, and how confident it is.
-Not five suggestions. One move.
+It reads the selected track's FX, live parameter values, routing, fader, and
+pan. It captures a short post-FX section, measures the audio, and gives the
+model those measurements and project details. Raw audio stays on your
+computer.
 
-The part I care about most: it's not allowed to bluff. A single-track run
-sees ONE track, not your mix, so it will never claim your guitars are masking
-your vocal from one stem — that takes the cross-track mode, which measures
-both tracks first. Every diagnosis carries a confidence rating, and when the
-data is thin the diagnosis says the data is thin. If the capture is
-essentially silence, it refuses to diagnose at all instead of inventing
-something. An honest "I'm not sure" beats a confident wrong answer. That
-contract lives in the prompt and it's not coming out.
-
-Capture safety is enforced before the model sees the audio. Reaper Daemon must
-report `capture_scope: "isolated_track"` and `isolation_verified: true`; a full
-mix, master-output, or unproven capture is refused for diagnosis. `--payload-only`
-can still show the raw data for debugging, but does not turn it into per-track
-evidence. Today, item-less routing tracks are supported; normal item-based
-tracks may be refused until REAPER isolation is solved.
+Post Mortem is built around one rule: if the evidence is weak, it has to say
+so. A single-track check cannot prove what another track is masking. A full-mix
+or unverified capture cannot be used as evidence for one track. Silence is not
+enough evidence for a diagnosis.
 
 A Dead Pixel Design release.
 
-**Post Mortem can't touch REAPER on its own. It needs [Reaper Daemon](https://github.com/wretcher207/reaper-daemon).**
-That's a free, open-source bridge that runs inside REAPER and is what actually
-reads the track and renders the stem. You install it first (step 1 below) and
-leave it running. No bridge, no diagnosis. It's a one-time setup.
+## Release status
 
-**Status: early build.** It works, it's diagnosed real problems on real
-mixes, and it's still young. Spec in `docs/SPEC.md`.
+The paid Post Mortem panel and installer are in `0.1.0` release-candidate
+validation for Apple silicon Macs. The macOS build is signed and notarized.
+Public checkout is not open yet.
 
-## What a diagnosis looks like
+The paid Windows and Linux installers are not part of this release candidate.
+Their customer paths remain gated until the clean-machine checks pass. The MIT
+engine and Reaper Daemon continue to support macOS, Windows, and Linux.
 
-Real output, run on a kick drum:
+## What ships in the paid app
 
-> **DIAGNOSIS:** The kick is hitting -0.1 dBFS sample peak with -8.7 LUFS
-> integrated and an 11.65 dB crest factor, a level that leaves essentially no
-> headroom for the parent Drum_Buss to do its work. Tonal shape is otherwise
-> reasonable: a strong fundamental at 50 Hz, a clean scoop through 200-1000 Hz,
-> and a healthy click region at 2-5 kHz; the problem is level and dynamics,
-> not EQ. [...]
->
-> **CONFIDENCE:** Medium. The over-hot level and the presence of the Kontakt
-> receive are directly verifiable; the polarity-misalignment diagnosis fits
-> the metrics but is still a hypothesis until the phase-flip test is performed.
+- A dockable REAPER panel with Track Check and Fix Preview.
+- One installer for the panel, local engine, Reaper Daemon, ReaImGui, and SWS.
+- A packaged runtime. Customers do not need Git, Python, pip, or a terminal.
+- Offline license validation. A purchased major version keeps working.
+- BYO provider access through an API key, or diagnosis through an MCP client.
+- Local setup checks, plain-language recovery, update, and uninstall.
 
-## Requirements
+Mix Check, history, hosted credits, Windows paid release, and Linux paid
+release are not included in `0.1.0`.
 
-- REAPER 7+ (macOS, Windows, or Linux)
-- The [Reaper Daemon](https://github.com/wretcher207/reaper-daemon) bridge,
-  installed and running inside REAPER
-- Python 3.10+
-- A provider API key. The recommended explicit configuration uses DeepSeek V4
-  Flash; MiniMax M3 can also be configured through its compatible endpoint.
+## macOS quick start
 
-## Install
+You need REAPER 7 or newer, an Apple silicon Mac, a Post Mortem license file,
+and either an Anthropic API key or an MCP client connected to Reaper Daemon.
 
-**1. Reaper Daemon, the bridge (required).** This is what lets anything talk to
-REAPER. Post Mortem does not work without it. Copy-paste, then restart REAPER:
+1. Open the Post Mortem disk image.
+2. Run **Post Mortem Setup** and choose **Install or Update**.
+3. Choose **Add License** and select the signed JSON license you received.
+4. Restart REAPER once.
+5. Open **Actions > Show action list**, search for `Post Mortem`, and run the
+   panel action.
+6. Choose **Connect to REAPER** and follow any setup message shown in the
+   panel.
+7. Connect an API key, or choose the MCP client path.
+8. Select a track, put the edit cursor over audio, and run the first 10-second
+   Track Check.
+
+Full instructions are in [Installation](docs/INSTALLATION.md). If the first
+check refuses or stalls, use [Troubleshooting](docs/TROUBLESHOOTING.md).
+
+## The important capture limit
+
+Post Mortem only diagnoses a track when Reaper Daemon proves the capture is
+that track alone. Item-less routing and bus tracks are supported by the current
+isolation path. Ordinary tracks containing media items may be refused rather
+than diagnosed from a full-mix render.
+
+That refusal is intentional. Soloing a track by hand does not change the proof
+requirement. This limit is one of the remaining release gates, not something
+the product hides.
+
+## Fix Preview
+
+When a diagnosis contains a supported move, **Preview Fix** rechecks the track,
+FX, parameter, and current value before touching anything. It captures a
+baseline, applies the proposed value temporarily, captures the candidate, and
+restores the original.
+
+The result shows measured deltas and safety guardrails. It does not call the
+preview better. You listen and decide.
+
+**Apply Fix** performs a fresh identity check and creates one named REAPER undo
+point. One Ctrl+Z returns the project to the previous state. The first release
+supports track volume, track pan, FX bypass, and one verified numeric FX
+parameter. It does not add or remove plug-ins, rewrite routing, edit items, or
+write automation.
+
+## Privacy
+
+- Raw audio stays local and is not sent to the model provider.
+- The provider receives measurements plus relevant project metadata, including
+  track, plug-in, parameter, and routing details.
+- API keys are stored in the local Post Mortem config, not in the project.
+- License checks are local and do not contact a license server.
+- Feedback records and service logs stay local.
+- Version `0.1.0` has no telemetry or crash reporting.
+
+Read [Privacy](docs/PRIVACY.md) for the exact data paths and cleanup behavior.
+
+## Free engine and developer install
+
+This repository contains the MIT-licensed engine, CLI, schemas, provider
+adapters, measurement code, and local sidecar. Reaper Daemon remains a
+separate MIT project. The docked panel, installer, and licensing code are the
+paid layer and are not in this repository.
+
+The free engine is useful on its own, but its install is for developers and
+terminal users:
 
 ```bash
 git clone https://github.com/wretcher207/reaper-daemon.git
-cd reaper-daemon && python3 setup/install.py   # use `python` on Windows
-```
+cd reaper-daemon
+python3 setup/install.py
 
-Full details and options are in that repo's README.
-
-**2. Post Mortem:**
-
-```bash
 pipx install git+https://github.com/wretcher207/post-mortem.git
-pipx ensurepath      # puts the postmortem command on your PATH
 ```
 
-After `ensurepath`, **open a new terminal window** or the `postmortem` command
-won't be found yet. (No pipx? Install it first with
-`python3 -m pip install --user pipx`, use `python` on Windows, then run the two
-lines above.)
+Create `~/.config/postmortem/config`:
 
-**3. Config.** Create `~/.config/postmortem/config`. For DeepSeek V4 Flash:
-
-```
-POSTMORTEM_API_KEY=<your DeepSeek key>
-ANTHROPIC_BASE_URL=https://api.deepseek.com/anthropic
-POSTMORTEM_MODEL=deepseek-v4-flash
-REAPER_DAEMON_ROOT=/path/to/your/reaper-daemon/clone
+```text
+ANTHROPIC_API_KEY=your-key
+REAPER_DAEMON_ROOT=/path/to/reaper-daemon
 ```
 
-The `ANTHROPIC_BASE_URL` name describes the compatible wire protocol used by
-the current transport; it does not mean the request goes to Anthropic. To use
-MiniMax M3 instead:
+Compatible Anthropic-protocol endpoints use a dedicated key so an unrelated
+Anthropic key can never be forwarded to another host:
 
+```text
+POSTMORTEM_API_KEY=your-provider-key
+ANTHROPIC_BASE_URL=https://provider.example/anthropic
+POSTMORTEM_MODEL=your-model
+REAPER_DAEMON_ROOT=/path/to/reaper-daemon
 ```
-POSTMORTEM_API_KEY=<your MiniMax key>
-ANTHROPIC_BASE_URL=https://api.minimax.io/anthropic
-POSTMORTEM_MODEL=MiniMax-M3
-```
 
-Environment variables with the same names also work and take precedence.
-
-## Usage
-
-With REAPER open and a project loaded:
+With REAPER open and the bridge running:
 
 ```bash
 postmortem "Kick"
-```
-
-That's it. Options:
-
-```
---seconds N        capture length, default 10, starting at the edit cursor
---keep-wav         keep the temp stem instead of deleting it
---payload-only     print the data payload as JSON and skip the model call
---format text|json diagnosis output format; JSON is single-track only
---force            diagnose even a capture the silence gate would refuse
-```
-
-For shell-safe structured output, use a single-track Track Check:
-
-```bash
 postmortem "Kick" --format json
-```
-
-The validated diagnosis is the only content written to stdout. Progress and
-warnings remain on stderr. `--format json` cannot be combined with
-`--payload-only`; cross-track masking remains text-only in Phase 1. The JSON
-contract is currently `schema_version: 1`; see
-[`docs/STRUCTURED_RESULTS.md`](docs/STRUCTURED_RESULTS.md) before building a
-consumer. Existing scripts that scrape the human-readable headings should
-migrate to JSON using [`docs/MIGRATING_TEXT_CONSUMERS.md`](docs/MIGRATING_TEXT_CONSUMERS.md).
-
-`--force` only overrides the silence gate. It never overrides capture
-isolation, because full-mix audio is not safe evidence for a track diagnosis.
-
-Two or more track names run a **cross-track masking diagnosis** instead:
-each track's stem is captured, the 1/3-octave overlap is computed, and the
-model names the most likely masking problem (or says the tracks aren't
-really fighting):
-
-```bash
 postmortem "Kick" "Bass"
 ```
 
-The capture starts at your edit cursor, so park the cursor somewhere the
-track is actually playing. If the capture comes back essentially silent,
-Post Mortem refuses to diagnose it (a diagnosis of dead air would be accurate
-and useless), tells you to move the cursor, and exits with code 3. `--force`
-overrides the gate.
+Useful options:
 
-## Verified Fix Preview (Phase 2, terminal)
+```text
+--seconds N        capture length, default 10
+--keep-wav         keep the local temporary stem
+--payload-only     print measured data and skip the model call
+--format text|json diagnosis output format; JSON is single-track only
+--force            bypass the silence gate only
+```
 
-A diagnosis with an actionable proposal can be auditioned safely and then
-applied explicitly. Requires Reaper Daemon v3.10.0 or later.
+`--force` never bypasses capture isolation.
+
+For the terminal Fix Preview path:
 
 ```bash
 postmortem "Kick" --format json > diagnosis.json
@@ -168,68 +162,18 @@ postmortem preview diagnosis.json
 postmortem commit diagnosis.json
 ```
 
-`preview` re-validates the proposal against a fresh scan (a renamed track,
-moved FX, or drifted knob refuses before anything is touched), captures a
-baseline, applies the change temporarily, captures the candidate, and **always
-restores the original** — including on errors, and via the bridge's own crash
-recovery if the process dies mid-preview. The report states measured deltas,
-guardrails (new clipping, loudness shift, phase, stereo balance, silence),
-and one of three honest outcomes; it never calls the candidate "better". Use
-`--keep-wav` to keep both stems and A/B them with your ears — the numbers only
-frame the comparison, they don't decide it.
+## Developer references
 
-`commit` is the only operation that keeps a change. It re-verifies identities
-and current values fresh, applies through the bridge, and creates exactly one
-named undo point — one Ctrl+Z returns the project to its pre-preview state.
-Refusals exit with code 5 and a machine-readable reason on stderr.
-
-## Prefer chat? Use it through MCP
-
-Reaper Daemon ships an MCP server (`reaper_mcp.py`) whose `analyze_track` and
-`compare_tracks` tools run Post Mortem's capture + measurement and hand the
-payload to the model you're already chatting with (Claude Desktop, Claude
-Code, any MCP client) — that model does the diagnosing, so **no API key and
-no config file are needed** in that mode. Install Post Mortem (step 2 above),
-wire up the MCP server per the Reaper Daemon README, then just ask: *"what's
-wrong with my kick?"*. The same honesty contract rides along in the tool
-output.
-
-## What it won't do (yet)
-
-No real-time monitoring, no automatic fixes, and no docked preview panel yet.
-Preview and commit are explicit terminal commands: nothing changes without
-your command, previews always restore, and commit leaves exactly one undo
-point. The panel UI is Phase 3.
-
-## Open-core boundary
-
-I'm keeping the Phase 1 engine open: capture and measurement, the CLI and MCP
-payloads, the versioned schemas, provider adapters, deterministic proposal
-validation, and offline evaluation fixtures. Reaper Daemon stays a separate
-MIT-licensed local bridge. Hosted credits, account features, history/sync, and
-the future docked preview/application experience may become the paid side. The
-current CLI still cannot apply a change to REAPER.
-
-## Develop and extend
-
-- [`docs/DEVELOPING.md`](docs/DEVELOPING.md) — install test dependencies, run
-  the cross-platform checks, and produce a fixture-backed JSON diagnosis.
-- [`docs/STRUCTURED_RESULTS.md`](docs/STRUCTURED_RESULTS.md) — schema fields,
-  operations, generated JSON Schema, and compatibility rules.
-- [`docs/PROVIDER_ADAPTERS.md`](docs/PROVIDER_ADAPTERS.md) — implement and test
-  another model provider without coupling the engine to its SDK.
-- [`docs/MIGRATING_TEXT_CONSUMERS.md`](docs/MIGRATING_TEXT_CONSUMERS.md) — move
-  scripts from presentation text to the versioned JSON contract.
-- [`evaluations/results/2026-07-11-model-benchmark.md`](evaluations/results/2026-07-11-model-benchmark.md)
-  — first full model comparison and the failed selection decision.
-
-## Known rough edge
-
-REAPER's render dialog must have "Automatically close when finished" ticked
-(it's a checkbox in the render window, REAPER remembers it). On a fresh
-REAPER install it's unticked and the capture will sit waiting on the dialog.
-Tick it once and you're good forever.
+- [Developing](docs/DEVELOPING.md)
+- [Structured results](docs/STRUCTURED_RESULTS.md)
+- [Provider adapters](docs/PROVIDER_ADAPTERS.md)
+- [Sidecar protocol](docs/SIDECAR_PROTOCOL.md)
+- [Product plan](docs/PRODUCT_PLAN.md)
+- [Phase 3 implementation record](docs/PHASE_3_IMPLEMENTATION.md)
+- [Changelog](CHANGELOG.md)
 
 ## License
 
-MIT.
+The code in this repository is MIT licensed. The paid panel and installer are
+proprietary and will have separate commercial terms before any sale. Those
+terms are not published yet, which is one reason checkout remains closed.

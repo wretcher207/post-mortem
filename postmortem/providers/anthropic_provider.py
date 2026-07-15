@@ -17,9 +17,6 @@ from .base import (
 )
 
 
-SECRETS_DIR = os.path.expanduser("~/.config/david-secrets")
-
-
 def _extract_single_json_object(text):
     """Return the one top-level JSON object embedded in provider text.
 
@@ -48,24 +45,11 @@ def _extract_single_json_object(text):
     return objects[0]
 
 
-def _first_line_matching(path, predicate):
-    try:
-        with open(path) as file:
-            return next((line.strip() for line in file if predicate(line)), None)
-    except OSError:
-        return None
-
-
 def _is_anthropic_endpoint(base_url):
     if not base_url:
         return True
     hostname = (urlparse(base_url).hostname or "").lower()
     return hostname == "anthropic.com" or hostname.endswith(".anthropic.com")
-
-
-def _is_minimax_endpoint(base_url):
-    hostname = (urlparse(base_url).hostname or "").lower()
-    return hostname == "minimax.io" or hostname.endswith(".minimax.io")
 
 
 def _thinking_enabled():
@@ -204,27 +188,13 @@ class AnthropicProvider:
                 profile = cls.model_profile_from_config()
                 return cls(client), profile
 
-            key_line = _first_line_matching(
-                os.path.join(SECRETS_DIR, "minimax-api.md"),
-                lambda line: line.startswith("- Key:"),
-            )
-            if key_line and _is_minimax_endpoint(base_url):
-                client = cls._create_client(
-                    api_key=key_line.split(":", 1)[1].strip(), base_url=base_url
-                )
-                profile = cls.model_profile_from_config(default_model="MiniMax-M3")
-                return cls(client), profile
-
             raise ProviderError(
                 ProviderErrorCategory.AUTHENTICATION,
                 f"{base_url} is a third-party endpoint and requires its own "
                 "POSTMORTEM_API_KEY; the Anthropic environment key was not sent",
             )
 
-        key = config.get("ANTHROPIC_API_KEY") or _first_line_matching(
-            os.path.join(SECRETS_DIR, "anthropic-api-key"),
-            lambda line: line.startswith("sk-ant-"),
-        )
+        key = config.get("ANTHROPIC_API_KEY")
         if not key:
             raise ProviderError(
                 ProviderErrorCategory.AUTHENTICATION,

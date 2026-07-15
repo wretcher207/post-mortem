@@ -35,6 +35,7 @@ import sys
 import time
 import traceback
 from datetime import datetime, timezone
+from urllib.parse import urlparse
 
 from . import __version__, bridge, config, readiness
 from . import preview as preview_mod
@@ -570,6 +571,21 @@ class Service:
 # -- handlers ------------------------------------------------------------
 
 
+def _provider_label():
+    """Return the analysis destination without exposing credentials or paths."""
+
+    base_url = config.get("ANTHROPIC_BASE_URL")
+    if not base_url:
+        return "Anthropic"
+    parsed = urlparse(base_url)
+    hostname = (parsed.hostname or "").lower()
+    if not hostname:
+        return "Configured provider"
+    if hostname == "anthropic.com" or hostname.endswith(".anthropic.com"):
+        return "Anthropic"
+    return hostname
+
+
 def _validated_seconds(payload):
     seconds = payload.get("seconds", DEFAULT_CAPTURE_SECONDS)
     if not isinstance(seconds, int) or not 1 <= seconds <= 600:
@@ -618,6 +634,7 @@ def _job_get_status(svc, job, stem, job_id):
         "capture_preflight": capture_preflight,
         "capture_preflight_detail": live["capture_preflight_detail"],
         "provider_configured": provider_configured,
+        "provider": _provider_label(),
         "model": model,
         "setup": readiness.setup_state(
             bridge_ok, line, capture_preflight, provider_configured,

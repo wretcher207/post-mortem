@@ -42,6 +42,10 @@ jobs:
         run: python -m pytest -q
       - name: Build onedir sidecar
         run: pyinstaller --clean --noconfirm packaging/postmortem-sidecar.spec
+      - name: Verify bundle contains only the public runtime
+        run: >-
+          python packaging/verify_open_core_artifact.py
+          dist/postmortem-sidecar
       - name: Smoke bundled binary without system Python on PATH
         run: >-
           python packaging/smoke_bundle.py "${{ matrix.binary }}"

@@ -376,6 +376,12 @@ def test_get_status_reports_versions_bridge_capture_and_provider(svc, monkeypatc
             return cls(), ModelProfile("configured-model")
 
     monkeypatch.setattr(service, "AnthropicProvider", ConfiguredProvider)
+    original_get = service.config.get
+    monkeypatch.setattr(
+        service.config,
+        "get",
+        lambda name: None if name == "ANTHROPIC_BASE_URL" else original_get(name),
+    )
     stem = _submit(svc, {"id": "pm-009", "type": "get_status",
         "payload": {"panel_registered": True}})
     svc.run_once()
@@ -386,6 +392,7 @@ def test_get_status_reports_versions_bridge_capture_and_provider(svc, monkeypatc
     assert result["result"]["service_version"]
     assert result["result"]["capture_preflight"]["capture_allowed"] is True
     assert result["result"]["provider_configured"] is True
+    assert result["result"]["provider"] == "Anthropic"
     assert result["result"]["model"] == "configured-model"
     assert result["result"]["setup"] == {
         "ready": True,
@@ -396,6 +403,27 @@ def test_get_status_reports_versions_bridge_capture_and_provider(svc, monkeypatc
         "detail": None,
     }
     assert "get_capture_preflight" in svc.fake_bridge.calls
+
+
+@pytest.mark.parametrize(
+    ("base_url", "expected"),
+    [
+        (None, "Anthropic"),
+        ("https://api.anthropic.com", "Anthropic"),
+        ("https://api.minimax.io/anthropic", "api.minimax.io"),
+        ("not a URL", "Configured provider"),
+    ],
+)
+def test_provider_label_discloses_the_configured_analysis_destination(
+    monkeypatch, base_url, expected
+):
+    monkeypatch.setattr(
+        service.config,
+        "get",
+        lambda name: base_url if name == "ANTHROPIC_BASE_URL" else None,
+    )
+
+    assert service._provider_label() == expected
 
 
 @pytest.mark.parametrize(
