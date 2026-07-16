@@ -9,6 +9,7 @@ lifecycle is exercised through real job files in a tmp app-data root.
 import json
 import os
 import tempfile
+import time
 
 import pytest
 
@@ -808,3 +809,42 @@ def test_bad_seconds_is_refused_before_any_bridge_call(svc):
 
     assert _result(svc, stem)["error"]["code"] == "bad_job"
     assert svc.fake_bridge.calls == []
+
+
+def test_sweep_orphan_wavs_removes_old_unreferenced_and_preserves_referenced(tmp_path, monkeypatch):
+    svc = service.Service(root=str(tmp_path))
+    # Patch the bridge temp dir to a location we control.
+    temp_dir = os.path.join(str(tmp_path), "fake-temp", "reaper-diagnosis")
+    os.makedirs(temp_dir)
+    monkeypatch.setattr(tempfile, "gettempdir", lambda: os.path.join(str(tmp_path), "fake-temp"))
+    # An orphan WAV older than 24 hours (from a crash long ago).
+    orphan_path = os.path.join(temp_dir, "kick-old-orphan.wav")
+    with open(orphan_path, "wb") as f:
+        f.write(b"\x00" * 100)
+    old_mtime = time.time() - 25 * 3600
+    os.utime(orphan_path, (old_mtime, old_mtime))
+
+    # A referenced preview WAV older than 24h (keep_wav, still in outbox).
+    referenced_path = os.path.join(temp_dir, "kick-preview.wav")
+    with open(referenced_path, "wb") as f:
+        f.write(b"\x00" * 200)
+    os.utime(referenced_path, (old_mtime, old_mtime))
+    # Write an outbox result that references the preview WAV.
+    svc._atomic_write_json(
+        os.path.join(svc.outbox, "pm-preview.json"),
+        {"id": "pm-preview", "ok": True,
+         "result": {"wav_paths": {"baseline": referenced_path}},
+         "finished_at": "2026-01-01T00:00:00Z"},
+    )
+
+    # A recent unreferenced WAV (CLI --keep-wav inspection file, < 24h old).
+    # Must be preserved even though it has no outbox reference.
+    keep_wav_path = os.path.join(temp_dir, "kick-keep-wav.wav")
+    with open(keep_wav_path, "wb") as f:
+        f.write(b"\x00" * 50)
+
+    svc.sweep_orphan_wavs()
+
+    assert not os.path.exists(orphan_path), "orphan WAV older than 24h should be removed"
+    assert os.path.exists(referenced_path), "referenced preview WAV should be preserved"
+    assert os.path.exists(keep_wav_path), "recent unreferenced keep-wav should be preserved"

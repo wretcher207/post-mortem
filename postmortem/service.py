@@ -34,6 +34,7 @@ import shutil
 import re
 import sys
 import time
+import tempfile
 import traceback
 from datetime import datetime, timezone
 from urllib.parse import urlparse
@@ -452,6 +453,59 @@ class Service:
             except OSError:
                 pass
 
+    def sweep_orphan_wavs(self):
+        """Remove capture WAVs orphaned by a previous crashed process.
+
+        Scans the bridge temp dir for .wav files older than 24 hours that are
+        not referenced by outbox results. The 24-hour floor preserves recently
+        created CLI --keep-wav inspection files and panel preview keep_wav
+        files that may not yet have an outbox result. Only files in the
+        'reaper-diagnosis' temp dir are touched; the app-data captures/ dir
+        is panel-owned.
+        """
+        _ORPHAN_WAV_MIN_AGE = 24 * 3600
+        temp_dir = os.path.join(tempfile.gettempdir(), "reaper-diagnosis")
+        if not os.path.isdir(temp_dir):
+            return
+        # Collect WAV paths still referenced by live outbox results so we
+        # don't delete preview keep_wav files the panel still needs.
+        referenced = set()
+        for name in os.listdir(self.outbox):
+            if not name.endswith(".json") or name.endswith(".progress.json"):
+                continue
+            try:
+                with open(os.path.join(self.outbox, name), encoding="utf-8") as f:
+                    result = json.load(f)
+                wav_paths = (result.get("result") or {}).get("wav_paths")
+                if isinstance(wav_paths, dict):
+                    for v in wav_paths.values():
+                        if isinstance(v, str):
+                            referenced.add(os.path.realpath(v))
+            except (OSError, ValueError):
+                continue
+        now = time.time()
+        for name in os.listdir(temp_dir):
+            if not name.endswith(".wav"):
+                continue
+            path = os.path.join(temp_dir, name)
+            try:
+                stat = os.stat(path)
+            except OSError:
+                continue
+            # Only sweep files older than 24 hours. This preserves recent
+            # CLI --keep-wav inspection files and panel preview WAVs that
+            # may not yet have an outbox result, while still cleaning up
+            # WAVs orphaned by crashes days ago.
+            if now - stat.st_mtime < _ORPHAN_WAV_MIN_AGE:
+                continue
+            if os.path.realpath(path) in referenced:
+                continue
+            try:
+                os.unlink(path)
+                self._log(f"orphan wav swept: {name}")
+            except OSError:
+                pass
+
     # -- cancellation --------------------------------------------------------
 
     def _consume_cancels_for(self, target_id):
@@ -590,6 +644,7 @@ class Service:
         self.acquire_lock()
         try:
             self.sweep_interrupted()
+            self.sweep_orphan_wavs()
             self.write_heartbeat(force=True)
             self._log(f"sidecar {__version__} started (pid {os.getpid()})")
             while True:
@@ -975,6 +1030,7 @@ def main(argv=None):
             return 1
         try:
             service.sweep_interrupted()
+            service.sweep_orphan_wavs()
             count = service.run_once()
             print(f"[postmortem-service] processed {count} job(s)", file=sys.stderr)
             return 0
