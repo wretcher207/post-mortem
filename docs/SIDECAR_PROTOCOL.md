@@ -40,7 +40,7 @@ PostMortem/
   logs/service.log   internal error detail (never surfaced raw to results)
   feedback.jsonl     record_feedback stub (Phase 5 reads this)
   heartbeat.json     liveness: pid, service_version, updated_at, in_flight_job
-  lock.json          single-instance lock
+  lock.d/            single-instance lock (atomic mkdir, pid-liveness checked)
   mcp-receipt.json   one-time measured Track Check receipt
   mcp-handoff.json   sidecar-owned diagnosis returned by an MCP client
 ```
@@ -81,8 +81,8 @@ if `in_flight_job` is set. The client should relaunch it; the next startup's
 `sweep_interrupted()` will produce an `interrupted` result for the stranded
 job.
 
-`lock.json` (`{pid, created_at}`) enforces a single instance. A lock whose
-pid is dead is reclaimed automatically at startup.
+`lock.d/` (atomic `os.mkdir` with a `pid` file inside) enforces a single
+instance. A lock whose pid is dead is reclaimed automatically at startup.
 
 ## Job file
 

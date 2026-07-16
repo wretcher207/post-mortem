@@ -15,7 +15,7 @@ Layout under the app-data root (never the repo folder):
       captures/          reserved for panel-owned stems (keep_wav previews)
       logs/service.log   internal errors land here, never in result files
       heartbeat.json     pid, version, updated_at, in_flight_job
-      lock.json          single-instance lock (JSON, pid-liveness checked)
+      lock.d/            single-instance lock (atomic mkdir, pid-liveness checked)
 
 Safety rules carried from Phase 2:
 - The service adds NO mutation path. preview_fix/commit_fix call the same
@@ -30,6 +30,7 @@ Safety rules carried from Phase 2:
 import argparse
 import json
 import os
+import shutil
 import re
 import sys
 import time
@@ -366,30 +367,55 @@ class Service:
     # -- single-instance lock ------------------------------------------------
 
     def acquire_lock(self):
-        """JSON lock with pid-liveness reclaim. This is the lesson from the
-        __startup.lua watchdog bug: a lock nobody can parse or age out bricks
-        auto-recovery."""
-        lock_path = os.path.join(self.root, "lock.json")
-        try:
-            with open(lock_path, encoding="utf-8") as f:
-                held = json.load(f)
-            pid = held.get("pid")
-            if isinstance(pid, int) and pid != os.getpid() and _pid_alive(pid):
-                raise JobRefused(
-                    "already_running",
-                    f"another sidecar (pid {pid}) holds {lock_path}",
-                )
-        except (OSError, ValueError):
-            pass  # missing or unreadable lock is reclaimable
-        self._atomic_write_json(
-            lock_path, {"pid": os.getpid(), "created_at": _utc_now()}
-        )
+        """Single-instance lock using atomic directory creation.
+
+        os.mkdir is atomic on all platforms: exactly one process succeeds.
+        The PID is written to a file inside the lockdir after creation.
+        If the lockdir exists, the PID is checked: a dead pid is reclaimed;
+        a live pid or an unreadable pid file (the writer is still writing)
+        refuses. We never delete a lockdir whose owner we cannot prove dead.
+        """
+        lockdir = os.path.join(self.root, "lock.d")
+        pid_path = os.path.join(lockdir, "pid")
+        while True:
+            try:
+                os.mkdir(lockdir)
+            except FileExistsError:
+                held = None
+                try:
+                    with open(pid_path, encoding="utf-8") as f:
+                        held = json.load(f)
+                except (OSError, ValueError):
+                    # The pid file is missing or unreadable. This is either
+                    # the brief write window (the owner is alive) or a
+                    # crashed process. Wait once and retry; if still
+                    # unreadable, refuse rather than deleting a lock we
+                    # cannot prove is stale.
+                    time.sleep(0.2)
+                    try:
+                        with open(pid_path, encoding="utf-8") as f:
+                            held = json.load(f)
+                    except (OSError, ValueError):
+                        raise JobRefused(
+                            "already_running",
+                            "another sidecar holds the lock but its pid is "
+                            "unreadable; retry in a moment",
+                        )
+                pid = held.get("pid") if isinstance(held, dict) else None
+                if isinstance(pid, int) and pid != os.getpid() and _pid_alive(pid):
+                    raise JobRefused(
+                        "already_running",
+                        f"another sidecar (pid {pid}) holds the lock",
+                    )
+                # PID is dead or is us: reclaim.
+                shutil.rmtree(lockdir, ignore_errors=True)
+                continue
+            # We won the mkdir race. Write the PID file atomically.
+            self._atomic_write_json(pid_path, {"pid": os.getpid(), "created_at": _utc_now()})
+            return
 
     def release_lock(self):
-        try:
-            os.unlink(os.path.join(self.root, "lock.json"))
-        except OSError:
-            pass
+        shutil.rmtree(os.path.join(self.root, "lock.d"), ignore_errors=True)
 
     # -- startup -------------------------------------------------------------
 
@@ -925,16 +951,24 @@ def main(argv=None):
     )
     parser.add_argument(
         "--once", action="store_true",
-        help="process pending jobs and exit (no lock, no loop)",
+        help="process pending jobs and exit (acquires lock, no loop)",
     )
     args = parser.parse_args(argv)
 
     service = Service(root=os.path.expanduser(args.data_dir) if args.data_dir else None)
     if args.once:
-        service.sweep_interrupted()
-        count = service.run_once()
-        print(f"[postmortem-service] processed {count} job(s)", file=sys.stderr)
-        return 0
+        try:
+            service.acquire_lock()
+        except JobRefused as e:
+            print(f"[postmortem-service] {e}", file=sys.stderr)
+            return 1
+        try:
+            service.sweep_interrupted()
+            count = service.run_once()
+            print(f"[postmortem-service] processed {count} job(s)", file=sys.stderr)
+            return 0
+        finally:
+            service.release_lock()
     try:
         service.run_forever()
     except JobRefused as e:

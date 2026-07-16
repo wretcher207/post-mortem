@@ -727,19 +727,59 @@ def test_write_progress_refreshes_heartbeat_and_sets_last_progress_at(svc):
     assert after["updated_at"] >= before["updated_at"]
 
 
-def test_lock_refuses_a_second_live_instance_and_reclaims_a_dead_one(svc, tmp_path):
+def test_lock_refuses_a_dead_pid_and_reclaims_it(svc, tmp_path):
     svc.acquire_lock()
     other = service.Service(root=str(tmp_path))
-    # Same pid means "us"; simulate a foreign live pid.
-    with open(os.path.join(str(tmp_path), "lock.json"), "w", encoding="utf-8") as f:
-        json.dump({"pid": os.getpid() + 0, "created_at": "x"}, f)
-    # A DEAD pid is reclaimed silently.
-    with open(os.path.join(str(tmp_path), "lock.json"), "w", encoding="utf-8") as f:
+    # Overwrite the pid file with a dead pid to simulate a crashed sidecar.
+    pid_path = os.path.join(str(tmp_path), "lock.d", "pid")
+    with open(pid_path, "w", encoding="utf-8") as f:
         json.dump({"pid": 2 ** 22 + 12345, "created_at": "x"}, f)
     other.acquire_lock()
-    with open(os.path.join(str(tmp_path), "lock.json"), encoding="utf-8") as f:
+    with open(pid_path, encoding="utf-8") as f:
         assert json.load(f)["pid"] == os.getpid()
 
+
+def test_lock_refuses_a_live_foreign_pid(svc, tmp_path):
+    svc.acquire_lock()
+    other = service.Service(root=str(tmp_path))
+    # The test runner's parent process is alive and is not us.
+    parent_pid = os.getppid()
+    if parent_pid == os.getpid() or parent_pid <= 0:
+        pytest.skip("cannot find a live foreign pid for this test")
+    pid_path = os.path.join(str(tmp_path), "lock.d", "pid")
+    with open(pid_path, "w", encoding="utf-8") as f:
+        json.dump({"pid": parent_pid, "created_at": "x"}, f)
+    with pytest.raises(service.JobRefused) as exc_info:
+        other.acquire_lock()
+    assert exc_info.value.code == "already_running"
+    # The live lock must not have been overwritten.
+    with open(pid_path, encoding="utf-8") as f:
+        assert json.load(f)["pid"] == parent_pid
+
+
+def test_once_acquires_and_releases_the_lock(tmp_path):
+    code = service.main(["--data-dir", str(tmp_path), "--once"])
+    assert code == 0
+    # The lock must be released after --once exits.
+    assert not os.path.exists(os.path.join(str(tmp_path), "lock.d"))
+
+
+def test_once_refuses_when_a_live_lock_is_held(tmp_path):
+    # Write a live foreign PID (the test runner's parent) into the lock
+    # so --once sees a live owner and refuses. acquire_lock treats same-pid
+    # locks as reclaimable, so we can't use the test process's own PID.
+    parent_pid = os.getppid()
+    if parent_pid == os.getpid() or parent_pid <= 0:
+        pytest.skip("cannot find a live foreign pid for this test")
+    lockdir = os.path.join(str(tmp_path), "lock.d")
+    os.makedirs(lockdir)
+    with open(os.path.join(lockdir, "pid"), "w", encoding="utf-8") as f:
+        json.dump({"pid": parent_pid, "created_at": "x"}, f)
+    code = service.main(["--data-dir", str(tmp_path), "--once"])
+    assert code == 1
+    # The live lock must not have been overwritten.
+    with open(os.path.join(lockdir, "pid"), encoding="utf-8") as f:
+        assert json.load(f)["pid"] == parent_pid
 
 def test_bad_seconds_is_refused_before_any_bridge_call(svc):
     stem = _submit(svc, {
