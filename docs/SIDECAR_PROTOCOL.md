@@ -58,6 +58,11 @@ receipt cannot complete onboarding.
 
 - **Atomic writes only.** Write `<name>.json.tmp`, then rename. The sidecar
   does the same for everything it writes. `.tmp` files are ignored.
+- **Exception:** `feedback.jsonl` is an append-only log written with
+  `O_APPEND`. Each entry is written as a single `os.write()` syscall,
+  which prevents interleaving from concurrent appends. A crash or power
+  loss may still leave a partial final line; readers must skip lines
+  that fail JSON parsing.
 - **One job per file** in `jobs/inbox/`, filename `<id>.json`. Use a
   timestamp-prefixed id (`pm-20260712T163000Z-a1b2c3.json`) so lexical order
   is arrival order.

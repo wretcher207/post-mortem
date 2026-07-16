@@ -659,6 +659,24 @@ def test_record_feedback_appends_jsonl(svc):
     assert lines[0]["job_id"] == "pm-011"
 
 
+
+def test_record_feedback_writes_one_complete_line_per_entry(svc):
+    for i in range(3):
+        stem = _submit(svc, {
+            "id": f"pm-fb-{i}", "type": "record_feedback",
+            "payload": {"kind": "not_helpful", "track": f"Track{i}"},
+        })
+        svc.run_once()
+        assert _result(svc, stem)["ok"] is True
+    with open(os.path.join(svc.root, "feedback.jsonl"), encoding="utf-8") as f:
+        lines = f.read().splitlines()
+    assert len(lines) == 3
+    for line in lines:
+        parsed = json.loads(line)
+        assert parsed["kind"] == "not_helpful"
+        assert "job_id" in parsed
+
+
 def test_mcp_handoff_is_validated_and_returned_by_status(svc, monkeypatch):
     receipt_id = "a" * 32
     measured = _submit(svc, {

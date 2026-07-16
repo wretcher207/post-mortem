@@ -840,8 +840,19 @@ def _job_record_feedback(svc, job, stem, job_id):
         raise JobRefused("bad_job", "payload (a non-empty object) is required")
     entry = {"recorded_at": _utc_now(), "job_id": job_id, **payload}
     path = os.path.join(svc.root, "feedback.jsonl")
-    with open(path, "a", encoding="utf-8") as f:
-        f.write(json.dumps(entry) + "\n")
+    # O_APPEND prevents interleaving from concurrent appends: each write
+    # atomically seeks to end and appends. A single os.write of the full
+    # line minimizes the window. A crash or power loss may still leave a
+    # partial final line; readers must tolerate trailing lines that fail
+    # JSON parsing.
+    line = (json.dumps(entry) + "\n").encode("utf-8")
+    fd = os.open(path, os.O_WRONLY | os.O_APPEND | os.O_CREAT, 0o600)
+    try:
+        n = os.write(fd, line)
+        if n != len(line):
+            raise OSError(f"short write: {n}/{len(line)} bytes")
+    finally:
+        os.close(fd)
     return {"recorded": True}
 
 
