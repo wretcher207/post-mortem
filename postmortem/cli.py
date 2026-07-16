@@ -195,13 +195,14 @@ def _preview_main(argv):
         "diagnosis",
         help="path to a DiagnosisResult JSON file (from --format json), or - for stdin",
     )
-    if argv[0] == "preview":
+    if argv[0] == "preview" or argv[0] == "commit":
         parser.add_argument(
             "--seconds",
             type=_capture_seconds,
             default=DEFAULT_CAPTURE_SECONDS,
             help=f"capture length 1-600 (default {DEFAULT_CAPTURE_SECONDS}, from cursor)",
         )
+    if argv[0] == "preview":
         parser.add_argument(
             "--keep-wav", action="store_true",
             help="keep the baseline/candidate stems for listening",
@@ -230,7 +231,7 @@ def _preview_main(argv):
             )
             renderer = preview_mod.render_preview_text
         else:
-            report = preview_mod.run_commit(result)
+            report = preview_mod.run_commit(result, seconds=args.seconds)
             renderer = preview_mod.render_commit_text
     except preview_mod.PreviewRefused as e:
         print(f"[postmortem] refused ({e.code}): {e}", file=sys.stderr)

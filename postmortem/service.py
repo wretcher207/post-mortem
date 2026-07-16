@@ -845,9 +845,10 @@ def _job_preview_fix(svc, job, stem, job_id):
 def _job_commit_fix(svc, job, stem, job_id):
     payload = job.get("payload") or {}
     result = _loaded_adjusted_diagnosis(payload)
+    seconds = _validated_seconds(payload)
     svc._check_cancel(job_id)
     svc._write_progress(stem, job_id, "committing")
-    return preview_mod.run_commit(result)
+    return preview_mod.run_commit(result, seconds=seconds)
 
 
 def _job_cancel_job(svc, job, stem, job_id):

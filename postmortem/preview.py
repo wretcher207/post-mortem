@@ -15,14 +15,13 @@ back-to-back, producing exactly one named undo point.
 import os
 
 from . import bridge
+from .constants import DEFAULT_CAPTURE_SECONDS
 from .analysis import analyze_wav
 from .diagnose import build_payload
 from .proposals import adjustment_bounds, validate_proposal
 from .schemas import DiagnosisResult
 from .verification import evaluate
 
-_DB_DRIFT_TOLERANCE = 0.1
-_NORMALIZED_DRIFT_TOLERANCE = 0.001
 
 
 class PreviewRefused(Exception):
@@ -97,80 +96,6 @@ def _resolved_track_name(proposal):
             "the proposal target carries no track name; re-run the diagnosis.",
         )
     return name
-
-
-def _check_value_drift(proposal, routing, track_scan):
-    """Refuse when the live current value no longer matches the diagnosis.
-
-    The bridge re-verifies identities (STALE_IDENTITY); this is the value
-    half: a knob that moved since the diagnosis makes proposed_value a
-    different-sized move than the model reasoned about.
-    """
-    operation = proposal.operation
-    current = proposal.current_value.value if proposal.current_value else None
-    if current is None:
-        return
-    if operation == "set_track_volume":
-        live = routing.get("volume_db")
-        if live is None or abs(float(live) - float(current)) > _DB_DRIFT_TOLERANCE:
-            raise PreviewRefused(
-                "current_value_drift",
-                f"track volume is now {live} dB; the diagnosis said {current} dB. "
-                "Re-run the diagnosis.",
-            )
-    elif operation == "set_track_pan":
-        live = routing.get("pan")
-        if live is None or abs(float(live) - float(current)) > _NORMALIZED_DRIFT_TOLERANCE:
-            raise PreviewRefused(
-                "current_value_drift",
-                f"track pan is now {live}; the diagnosis said {current}. "
-                "Re-run the diagnosis.",
-            )
-    elif operation == "set_fx_bypass":
-        entry = _scan_fx_entry(track_scan, proposal.target)
-        if entry is None:
-            raise PreviewRefused(
-                "stale_identity", "the proposal's FX is no longer in the chain."
-            )
-        live_bypassed = entry.get("enabled") is False
-        if live_bypassed != bool(current):
-            raise PreviewRefused(
-                "current_value_drift",
-                "the FX bypass state changed since the diagnosis. Re-run it.",
-            )
-    elif operation == "set_fx_param":
-        live = _live_parameter_value(proposal.target)
-        if live is None or abs(float(live) - float(current)) > _NORMALIZED_DRIFT_TOLERANCE:
-            raise PreviewRefused(
-                "current_value_drift",
-                f"the parameter is now {live}; the diagnosis said {current}. "
-                "Re-run the diagnosis.",
-            )
-
-
-def _scan_fx_entry(track_scan, target):
-    tracks = track_scan.get("tracks") or [{}]
-    for entry in tracks[0].get("fx", []) or []:
-        if entry.get("guid") == target.fx_guid:
-            return entry
-    return None
-
-
-def _live_parameter_value(target):
-    data = bridge.cmd(
-        "get_fx_parameters",
-        {
-            "target_track_guid": target.track_guid,
-            "fx_index": target.fx_index,
-            "fx_scope": target.fx_scope,
-            "include_empty": True,
-            "limit": 2000,
-        },
-    )
-    for param in data.get("parameters", []) or []:
-        if param.get("index") == target.parameter_index:
-            return param.get("normalized_value")
-    return None
 
 
 def load_diagnosis(text):
@@ -256,32 +181,52 @@ def run_preview(result: DiagnosisResult, seconds, keep_wav=False):
                     pass
 
 
-def run_commit(result: DiagnosisResult):
-    """Explicit apply: fresh identity + value verification, then
+def run_commit(result: DiagnosisResult, seconds=DEFAULT_CAPTURE_SECONDS):
+    """Explicit apply: fresh capture + full validate_proposal, then
     preview_change + commit_preview back-to-back. Exactly one named undo
-    point (the bridge commit's), nothing else in undo history."""
+    point (the bridge commit's), nothing else in undo history.
+
+    Enforces the same full validation gate as run_preview: stale identities,
+    drifted current values, missing evidence, unsafe move sizes, and the
+    isolation/silence gates all refuse here before any mutation. The baseline
+    capture WAV is cleaned up on every path.
+    """
     proposal = _actionable_proposal(result)
     track_name = _resolved_track_name(proposal)
 
-    _, track_scan, routing = _fresh_single_track_state(track_name)
-    _check_value_drift(proposal, routing, track_scan)
-
-    preview = bridge.cmd("preview_change", _preview_change_payload(proposal))
-    token = preview.get("preview_token")
+    context, track_scan, routing = _fresh_single_track_state(track_name)
+    baseline_payload, baseline_wav = _capture_audio_block(
+        context, track_scan, routing, track_name, seconds
+    )
     try:
-        committed = bridge.cmd("commit_preview", {"preview_token": token})
-    except bridge.BridgeError:
-        # A failed commit must not leave the temporary value applied.
-        bridge.cmd("cancel_preview", {"preview_token": token})
-        raise
-    return {
-        "schema_version": 1,
-        "preview_token": token,
-        "operation": proposal.operation,
-        "track": track_name,
-        "committed": committed.get("committed"),
-        "undo_point": committed.get("undo_point"),
-    }
+        revalidated = validate_proposal(result, baseline_payload)
+        if revalidated.proposal.operation == "none":
+            raise PreviewRefused(
+                revalidated.proposal.rejection_reason or "revalidation_failed",
+                "the live project no longer supports this proposal "
+                f"({revalidated.proposal.rejection_reason}). Re-run the diagnosis.",
+            )
+
+        preview = bridge.cmd("preview_change", _preview_change_payload(revalidated.proposal))
+        token = preview.get("preview_token")
+        try:
+            committed = bridge.cmd("commit_preview", {"preview_token": token})
+        except bridge.BridgeError:
+            bridge.cmd("cancel_preview", {"preview_token": token})
+            raise
+        return {
+            "schema_version": 1,
+            "preview_token": token,
+            "operation": revalidated.proposal.operation,
+            "track": track_name,
+            "committed": committed.get("committed"),
+            "undo_point": committed.get("undo_point"),
+        }
+    finally:
+        try:
+            os.unlink(baseline_wav)
+        except OSError:
+            pass
 
 
 def render_preview_text(report):

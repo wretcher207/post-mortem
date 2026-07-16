@@ -338,10 +338,12 @@ Boolean FX-bypass proposals carry `adjustment: null`.
 
 ### `commit_fix`
 
-Payload: `{ "diagnosis": {...} }`. The optional
+Payload: `{ "diagnosis": {...}, "seconds": N }`. The optional
 `proposed_value` uses the same engine-side clamping as `preview_fix`, so an
 adjusted preview can be applied without the client rewriting the diagnosis.
-Explicit apply uses fresh re-verification and exactly one named undo point.
+`seconds` controls the baseline capture used for full `validate_proposal`
+revalidation (same gate as `preview_fix`). Explicit apply uses fresh
+re-verification and exactly one named undo point.
 Result carries `committed` and `undo_point`.
 
 ### `cancel_job`

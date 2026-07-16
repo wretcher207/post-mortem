@@ -260,7 +260,9 @@ def test_commit_runs_preview_then_commit_and_reports_the_undo_point(fake):
     assert fake.calls.index("preview_change") < fake.calls.index("commit_preview")
     assert "cancel_preview" not in fake.calls
     assert report["undo_point"] == "Post Mortem: set_track_volume on Kick"
-    assert "capture_1" not in fake.calls, "commit needs no captures"
+    # Commit now captures a baseline for full validate_proposal revalidation,
+    # mirroring run_preview's gate.
+    assert "capture_1" in fake.calls, "commit must capture for revalidation"
     text = preview.render_commit_text(report)
     assert "Undo point" in text
 
@@ -272,15 +274,15 @@ def test_commit_failure_cancels_the_temporary_change(fake):
         preview.run_commit(_diagnosis())
 
     assert "cancel_preview" in fake.calls
-
-
 def test_commit_refuses_on_drifted_volume(fake):
     fake.routing_volume_db = -1.0
 
     with pytest.raises(preview.PreviewRefused) as refusal:
         preview.run_commit(_diagnosis())
 
-    assert refusal.value.code == "current_value_drift"
+    # validate_proposal uses "current_value_mismatch" (not "current_value_drift"
+    # from the old _check_value_drift), matching run_preview's behavior.
+    assert refusal.value.code == "current_value_mismatch"
     assert "preview_change" not in fake.calls
 
 
