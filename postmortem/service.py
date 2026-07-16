@@ -324,6 +324,7 @@ class Service:
                 "service_version": __version__,
                 "updated_at": _utc_now(),
                 "in_flight_job": in_flight_job,
+                "last_progress_at": in_flight_job and _utc_now() or None,
             },
         )
 
@@ -335,6 +336,11 @@ class Service:
             self._progress_path(stem),
             {"id": job_id, "stage": stage, "updated_at": _utc_now()},
         )
+        # Bump the heartbeat so a client can distinguish a live in-flight job
+        # (heartbeat advancing at each stage) from a dead one (stale despite
+        # in_flight_job being set). Without this, a crashed sidecar's last
+        # heartbeat would read "busy" forever.
+        self.write_heartbeat(in_flight_job=job_id, force=True)
 
     def _write_result(self, stem, job_id, ok, result=None, error=None):
         """Final result for a job. The reply filename is ALWAYS derived from

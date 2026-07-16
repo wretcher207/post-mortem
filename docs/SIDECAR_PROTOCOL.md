@@ -69,11 +69,17 @@ receipt cannot complete onboarding.
 ## Liveness
 
 `heartbeat.json` is rewritten at least every ~2 seconds while the sidecar
-runs, and immediately when a job starts or finishes (`in_flight_job` carries
-the running job's id). Client rule: heartbeat stale by more than ~10 seconds
-AND no `in_flight_job` → sidecar is dead, offer to relaunch. A heartbeat with
-`in_flight_job` set can legitimately go quiet longer — captures block on
-REAPER's render.
+runs, immediately when a job starts or finishes, and at every stage boundary
+(`started`, `reading_track`, `capturing`, `measuring`, `diagnosing`, etc.).
+The `last_progress_at` field records when the in-flight job last advanced
+stage. Client rule: heartbeat stale by more than ~10 seconds AND no
+`in_flight_job` → sidecar is dead, offer to relaunch. A heartbeat with
+`in_flight_job` set can legitimately go quiet longer, as captures block on
+REAPER's render, but only up to a bounded window: if the heartbeat is stale
+past `max(120, active_job_seconds + 120)` seconds, the sidecar is dead even
+if `in_flight_job` is set. The client should relaunch it; the next startup's
+`sweep_interrupted()` will produce an `interrupted` result for the stranded
+job.
 
 `lock.json` (`{pid, created_at}`) enforces a single instance. A lock whose
 pid is dead is reclaimed automatically at startup.

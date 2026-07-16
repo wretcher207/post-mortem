@@ -711,6 +711,22 @@ def test_heartbeat_carries_pid_and_version(svc):
     assert heartbeat["in_flight_job"] is None
 
 
+def test_write_progress_refreshes_heartbeat_and_sets_last_progress_at(svc):
+    svc.write_heartbeat(force=True)
+    with open(os.path.join(svc.root, "heartbeat.json"), encoding="utf-8") as f:
+        before = json.load(f)
+    assert before["in_flight_job"] is None
+    assert before.get("last_progress_at") is None
+
+    svc._write_progress("pm-test", "pm-test", "capturing")
+    with open(os.path.join(svc.root, "heartbeat.json"), encoding="utf-8") as f:
+        after = json.load(f)
+    assert after["in_flight_job"] == "pm-test"
+    assert after["last_progress_at"] is not None
+    # The heartbeat updated_at must advance past the pre-progress value.
+    assert after["updated_at"] >= before["updated_at"]
+
+
 def test_lock_refuses_a_second_live_instance_and_reclaims_a_dead_one(svc, tmp_path):
     svc.acquire_lock()
     other = service.Service(root=str(tmp_path))
