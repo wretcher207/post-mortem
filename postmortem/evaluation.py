@@ -63,8 +63,6 @@ _SENSITIVE_FRAGMENTS = (
     "api_key",
     "authorization",
     "client_name",
-    "disclosureordeath",
-    "awaken reiki",
 )
 _RAW_AUDIO_KEYS = frozenset(
     {"samples", "waveform", "pcm", "audio_bytes", "raw_audio", "file_path"}
