@@ -146,6 +146,8 @@ Version `1` is the only accepted version today.
 - Preserve the original JSON if forwarding it. Do not reconstruct identities
   from display names or mutable indices.
 
-The schema describes a proposal, not permission to mutate REAPER. Phase 1 has no
-preview or application path; consumers must not treat an actionable operation
-as already auditioned, approved, or applied.
+The schema describes a proposal, not permission to mutate REAPER. The preview
+and application path shipped in Phase 2 (`postmortem preview` / `postmortem
+commit`) and Phase 3 (sidecar `preview_fix` / `commit_fix`). An actionable
+operation is not already auditioned, approved, or applied until the user
+runs the preview or commit step.
