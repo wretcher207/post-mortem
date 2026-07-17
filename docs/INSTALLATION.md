@@ -2,9 +2,9 @@
 
 ## Current release
 
-Post Mortem `0.1.0` is in release-candidate validation for Apple silicon Macs.
-The customer download is a signed and notarized disk image. Public checkout is
-not open yet.
+Post Mortem `0.1.0` is live as a `$39` Apple silicon early-access release.
+Checkout delivers a private signed and notarized disk image plus a unique
+signed JSON license.
 
 The paid Windows and Linux builds are withheld until their clean-machine
 customer checks pass. The free engine remains available for terminal users on

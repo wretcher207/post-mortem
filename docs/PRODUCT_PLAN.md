@@ -558,13 +558,12 @@ The Settings screen should explicitly show:
 
 Avoid splitting the core experience into Basic and Pro tiers at launch. One affordable paid version is easier to understand and support. The `$39` launch price is now the committed target.
 
-**Release gate, 2026-07-14:** the current `0.1.0` Track Check and Fix Preview
-release candidate does not yet contain the complete paid offer above. It may be
-used for private validation, but it cannot be sold as the committed `$39`
-launch offer until Mix Check, local Sonic Memory, and the promised update term
-are included. Any separate early-access offer requires an explicit owner
-decision, its own exact feature and support terms, and at least 12 months of
-updates. No such early-access offer is approved in this plan.
+**Early-access decision, 2026-07-15:** the complete-product offer above remains
+the longer-term target. The owner separately approved the live `$39` Apple
+silicon early-access offer for Track Check and Fix Preview, permanent version
+1 use, and 12 months of version 1 updates. Mix Check, local Sonic Memory,
+history, hosted checks, automatic updates, and paid Windows/Linux installers
+are explicitly excluded from `0.1.0`.
 
 #### Optional hosted analysis credits
 
@@ -669,17 +668,16 @@ Exit criteria:
   unrelated startup scripts. Transactional ownership and preservation evidence
   is recorded in
   [P3-008](PHASE_3_IMPLEMENTATION.md#p3-008--installer-updater-uninstaller).
-- [ ] The panel explains every recoverable setup failure in plain language and
+- [x] The panel explains every recoverable setup failure in plain language and
   preserves typed diagnostics for unknown failures. Known setup failures have
   engine-owned recovery text from
-  [P3-006](PHASE_3_IMPLEMENTATION.md#p3-006--onboarding-and-guided-recovery),
-  but the sidecar crash, REAPER crash, and render-setting drills remain open in
-  [P3-010](PHASE_3_IMPLEMENTATION.md#p3-010--live-verification-protocol).
+  [P3-006](PHASE_3_IMPLEMENTATION.md#p3-006--onboarding-and-guided-recovery).
+  The installed Apple silicon release passed sidecar crash, REAPER crash, and
+  render-setting restoration drills on 2026-07-15.
 
-Phase 3 remains open until the unchecked cross-platform criterion and the
-standing P3-010 recovery drills pass. The `0.1.0` Apple silicon disk image is a
-release candidate, not evidence that the paid Windows and Linux paths are
-ready for sale.
+Phase 3 remains open until the unchecked cross-platform criterion passes. The
+live `0.1.0` Apple silicon release is not evidence that the paid Windows and
+Linux paths are ready for sale.
 
 ### Phase 4 — Mix Check
 
@@ -820,7 +818,7 @@ Mitigation: monetize convenience, polish, workflow, updates, evaluation data, ho
 
 The following decisions were confirmed on 2026-07-10:
 
-1. **Platform:** Windows, macOS, and Linux ship together. Cross-platform packaging and CI are release gates, not follow-up work. The `0.1.0` Apple silicon release candidate is a validation artifact, not the all-platform paid launch; Windows and Linux remain withheld until their customer gates close.
+1. **Platform:** the paid `0.1.0` early-access release is Apple silicon only. Windows and Linux remain withheld until their customer gates close. The public engine and Reaper Daemon remain cross-platform.
 2. **Business model:** Open-core. Reaper Daemon and a genuinely useful Post Mortem engine remain open; the docked product shell, advanced workflow orchestration, installer/updater, hosted credits, and support form the paid product.
 3. **Primary interface:** Docked inside REAPER using ReaImGui for the first beta.
 4. **Customer level:** Intermediate. Lead with a clear finding, keep evidence visible, and preserve user control rather than over-explaining fundamentals.

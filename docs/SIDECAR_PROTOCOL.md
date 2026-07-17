@@ -1,6 +1,6 @@
 # Sidecar Protocol v1
 
-**Status:** frozen for the Post Mortem `0.1.0` release candidate
+**Status:** frozen and shipped with Post Mortem `0.1.0`
 **Implementation:** `postmortem/service.py`
 **Consumers:** the ReaImGui panel (primary), any future companion window
 
