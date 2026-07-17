@@ -160,10 +160,17 @@ class AnthropicProvider:
         sdk = _require_anthropic()
         try:
             return sdk.Anthropic(**kwargs)
-        except Exception as error:
+        except (sdk.AuthenticationError, sdk.PermissionDeniedError) as error:
             raise ProviderError(
                 ProviderErrorCategory.AUTHENTICATION,
-                "provider client configuration is invalid",
+                "provider authentication or configuration failed",
+            ) from error
+        except (TypeError, ValueError) as error:
+            # A programming error in the kwargs (bad base_url, wrong type)
+            # is a configuration problem, not an auth failure.
+            raise ProviderError(
+                ProviderErrorCategory.CONFIGURATION,
+                f"provider client configuration is invalid: {error}",
             ) from error
 
     @staticmethod

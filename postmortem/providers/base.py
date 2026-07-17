@@ -14,6 +14,7 @@ class ProviderErrorCategory(str, Enum):
     REFUSAL = "refusal"
     INCOMPLETE_RESPONSE = "incomplete_response"
     INVALID_RESPONSE = "invalid_response"
+    CONFIGURATION = "configuration"
 
 
 _PROVIDER_EXIT_CODES = {
@@ -23,6 +24,7 @@ _PROVIDER_EXIT_CODES = {
     ProviderErrorCategory.REFUSAL: 7,
     ProviderErrorCategory.INCOMPLETE_RESPONSE: 8,
     ProviderErrorCategory.INVALID_RESPONSE: 9,
+    ProviderErrorCategory.CONFIGURATION: 10,
 }
 
 

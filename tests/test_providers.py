@@ -626,7 +626,8 @@ def test_client_construction_configuration_errors_are_typed(monkeypatch):
         with pytest.raises(ProviderError) as caught:
             AnthropicProvider.from_config()
 
-    assert caught.value.category is ProviderErrorCategory.AUTHENTICATION
+    assert caught.value.category is ProviderErrorCategory.CONFIGURATION
+    assert "invalid base URL" in str(caught.value), "real error message must be surfaced"
 
 
 def test_require_anthropic_raises_clear_error_when_sdk_is_none(monkeypatch):
