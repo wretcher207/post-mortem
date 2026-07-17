@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.1.1 - 2026-07-17
+
+### Fixed
+
+- Bound in-flight capture liveness to the submitted capture duration so a
+  stalled job cannot remain busy indefinitely.
+- Made bridge job ownership collision-resistant and runtime lock creation
+  atomic.
+- Preserved result-referenced preview WAV files during cleanup.
+- Forwarded the requested capture duration through Preview and Apply.
+- Hardened installer ownership, validation, and release documentation for the
+  current Apple silicon early-access build.
+
 ## 0.1.0 - 2026-07-15
 
 ### Added

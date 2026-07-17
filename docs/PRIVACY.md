@@ -1,6 +1,6 @@
 # Post Mortem privacy
 
-This document describes Post Mortem `0.1.0`. It is a plain account of what the
+This document describes Post Mortem `0.1.1`. It is a plain account of what the
 current product does, not a promise about unbuilt features.
 
 ## What stays on the computer
@@ -66,13 +66,13 @@ separate check with a 30-day offline grace period.
 ## Feedback, logs, and telemetry
 
 The **Not Helpful** action appends a local record to `feedback.jsonl`. Version
-`0.1.0` does not upload that file.
+`0.1.1` does not upload that file.
 
 Service errors are written to `logs/service.log`. Diagnostic output can contain
 local paths, track names, plug-in names, and provider error details. Review it
 before sharing.
 
-Version `0.1.0` has no analytics, usage telemetry, remote crash reporting,
+Version `0.1.1` has no analytics, usage telemetry, remote crash reporting,
 account system, or automatic license check. The only normal network request is
 the model-provider call initiated for analysis, or traffic initiated by the
 user's separate MCP client.

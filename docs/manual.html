@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Post Mortem 0.1.0 User Manual</title>
+<title>Post Mortem 0.1.1 User Manual</title>
 <style>
   :root {
     --bg: oklch(7% 0.001 106);
@@ -901,7 +901,7 @@
 <div class="header">
   <div class="logo">Dead Pixel Design</div>
   <h1>Post Mortem</h1>
-  <div class="version">v0.1.0 User Manual</div>
+  <div class="version">v0.1.1 User Manual</div>
   <p class="tagline">
     A mix debugger for REAPER. It reads the track you're working on,
     finds the most likely problem, and lets you audition one safe fix.
@@ -954,7 +954,7 @@
       <span class="pm-title">Post Mortem</span>
       <span class="pm-pill ready">[Ready]</span>
       <span class="pm-meta">juicy.RPP</span>
-      <span class="pm-meta">engine 0.1.0</span>
+      <span class="pm-meta">engine 0.1.1</span>
       <span class="pm-meta" style="margin-left:auto;">Settings</span>
     </div>
     <div class="pm-sep"></div>
@@ -1136,7 +1136,7 @@
       <span class="pm-title">Post Mortem</span>
       <span class="pm-pill ready">[Ready]</span>
       <span class="pm-meta">juicy.RPP</span>
-      <span class="pm-meta">engine 0.1.0</span>
+      <span class="pm-meta">engine 0.1.1</span>
       <span class="pm-meta" style="margin-left:auto;">Settings</span>
     </div>
     <div class="pm-sep"></div>
@@ -1407,7 +1407,7 @@
     <div class="pm-sep"></div>
     <div class="pm-body">
       <div class="pm-text">Settings</div>
-      <div class="pm-text-dim" style="font-size:12px;">Engine version: 0.1.0</div>
+      <div class="pm-text-dim" style="font-size:12px;">Engine version: 0.1.1</div>
       <div class="pm-text-dim" style="font-size:12px;">Licensed to: Example Customer</div>
       <div class="pm-text-dim" style="font-size:12px;">Updates included through: 2027-07-15</div>
       <div class="pm-text-dim" style="font-size:12px;">
@@ -1502,7 +1502,7 @@
       to corrupt, and no master bus coloration printed into the capture. A
       stems render of a child track does not include parent bus FX. The model
       sees the parent name so it knows a parent chain exists; analyzing it is
-      not in 0.1.0.
+      not in 0.1.1.
     </p>
   </div>
 </section>
@@ -1819,7 +1819,7 @@
   </div>
 
   <div class="callout warn">
-    <div class="co-label">What proposals never do in 0.1.0</div>
+    <div class="co-label">What proposals never do in 0.1.1</div>
     <p>
       Add or remove plug-ins, rewrite routing, edit items, or write automation.
       The first release supports four operations. Everything else stays as advice.
@@ -2096,7 +2096,7 @@
   </div>
 
   <h3>Navigation</h3>
-  <p>Four panel destinations in 0.1.0. Track is the default because it gets you to a diagnosis fastest.</p>
+  <p>Four panel destinations in 0.1.1. Track is the default because it gets you to a diagnosis fastest.</p>
   <div class="card-grid">
     <div class="card">
       <div class="card-label">Track</div>
@@ -2111,7 +2111,7 @@
   </div>
   <p>
     <strong>Mix Check</strong> and <strong>History</strong> are in the panel
-    navigation scaffold but are not functional in 0.1.0. They are not
+    navigation scaffold but are not functional in 0.1.1. They are not
     represented as current features.
   </p>
 </section>
@@ -2247,7 +2247,7 @@ postmortem commit diagnosis.json</code></pre>
   <div class="callout">
     <div class="co-label">None</div>
     <p>
-      Version 0.1.0 has no analytics, no usage telemetry, no remote crash
+      Version 0.1.1 has no analytics, no usage telemetry, no remote crash
       reporting, no account system, and no automatic license check. The only
       normal network request is the model-provider call initiated for analysis,
       or traffic initiated by your separate MCP client.
@@ -2257,7 +2257,7 @@ postmortem commit diagnosis.json</code></pre>
   <h3>Feedback</h3>
   <p>
     The <strong>Not Helpful</strong> action appends a local record to
-    <code>feedback.jsonl</code>. Version 0.1.0 does not upload that file.
+    <code>feedback.jsonl</code>. Version 0.1.1 does not upload that file.
   </p>
 </section>
 
@@ -2337,7 +2337,7 @@ postmortem commit diagnosis.json</code></pre>
     <div class="card">
       <div class="card-label">Scope</div>
       <div class="card-title">Track Check and Fix Preview only</div>
-      <div class="card-desc">Mix Check, history, hosted credits, and automatic update checks are not in 0.1.0.</div>
+      <div class="card-desc">Mix Check, history, hosted credits, and automatic update checks are not in 0.1.1.</div>
     </div>
     <div class="card">
       <div class="card-label">Operations</div>
@@ -2357,7 +2357,7 @@ postmortem commit diagnosis.json</code></pre>
     <div class="card">
       <div class="card-label">Parent bus</div>
       <div class="card-title">Parent FX not analyzed</div>
-      <div class="card-desc">A stems render of a child track does not include parent bus FX. The model sees the parent name. Analyzing it is not in 0.1.0.</div>
+      <div class="card-desc">A stems render of a child track does not include parent bus FX. The model sees the parent name. Analyzing it is not in 0.1.1.</div>
     </div>
     <div class="card">
       <div class="card-label">Real-time</div>
@@ -2371,7 +2371,7 @@ postmortem commit diagnosis.json</code></pre>
 <div class="footer">
   <div class="footer-brand">Dead Pixel Design</div>
   <div class="footer-line">
-    Post Mortem 0.1.0 <a href="https://deadpixeldesign.com/workflows/post-mortem/">deadpixeldesign.com/workflows/post-mortem/</a>
+    Post Mortem 0.1.1 <a href="https://deadpixeldesign.com/workflows/post-mortem/">deadpixeldesign.com/workflows/post-mortem/</a>
   </div>
   <div class="footer-line" style="margin-top: 8px;">
     Support: david@deadpixeldesign.com

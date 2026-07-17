@@ -1,6 +1,6 @@
 # Sidecar Protocol v1
 
-**Status:** frozen and shipped with Post Mortem `0.1.0`
+**Status:** frozen and shipped with Post Mortem `0.1.1`
 **Implementation:** `postmortem/service.py`
 **Consumers:** the ReaImGui panel (primary), any future companion window
 
@@ -184,7 +184,7 @@ Payload: none. Result:
 
 ```json
 {
-  "service_version": "0.1.0",
+  "service_version": "0.1.1",
   "data_root": "/Users/x/Library/Application Support/PostMortem",
   "bridge_ok": true,
   "bridge_status": "bridge alive (...)",

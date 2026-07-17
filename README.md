@@ -20,7 +20,7 @@ A Dead Pixel Design release.
 
 ## Release status
 
-Post Mortem `0.1.0` is live for Apple silicon Macs at
+Post Mortem `0.1.1` is live for Apple silicon Macs at
 [deadpixeldesign.com/workflows/post-mortem/](https://deadpixeldesign.com/workflows/post-mortem/)
 as a `$39` one-time early access purchase. The macOS build is signed and
 notarized. Purchase includes permanent version 1 use and 12 months of version 1
@@ -40,7 +40,7 @@ engine and Reaper Daemon continue to support macOS, Windows, and Linux.
 - Local setup checks, plain-language recovery, update, and uninstall.
 
 Mix Check, history, hosted credits, Windows paid release, and Linux paid
-release are not included in `0.1.0`.
+release are not included in `0.1.x`.
 
 ## macOS quick start
 
@@ -96,7 +96,7 @@ write automation.
 - API keys are stored in the local Post Mortem config, not in the project.
 - License checks are local and do not contact a license server.
 - Feedback records and service logs stay local.
-- Version `0.1.0` has no telemetry or crash reporting.
+- Version `0.1.1` has no telemetry or crash reporting.
 
 Read [Privacy](docs/PRIVACY.md) for the exact data paths and cleanup behavior.
 

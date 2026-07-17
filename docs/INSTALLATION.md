@@ -2,7 +2,7 @@
 
 ## Current release
 
-Post Mortem `0.1.0` is live as a `$39` Apple silicon early-access release.
+Post Mortem `0.1.1` is live as a `$39` Apple silicon early-access release.
 Checkout delivers a private signed and notarized disk image plus a unique
 signed JSON license.
 
@@ -25,7 +25,7 @@ your REAPER projects.
 ## Install
 
 1. Quit REAPER if it is open.
-2. Open `PostMortem-0.1.0-macos-arm64.dmg`.
+2. Open `PostMortem-0.1.1-macos-arm64.dmg`.
 3. Open **Post Mortem Setup**.
 4. Confirm the REAPER folder shown by Setup. For a portable or nonstandard
    installation, choose **Choose REAPER Folder** and select the folder that
@@ -112,7 +112,7 @@ The download includes a `.sha256` file. Terminal users can verify the exact
 disk image before opening it:
 
 ```bash
-shasum -a 256 -c PostMortem-0.1.0-macos-arm64.dmg.sha256
+shasum -a 256 -c PostMortem-0.1.1-macos-arm64.dmg.sha256
 ```
 
 A successful check prints `OK`. This is optional and is not part of the normal
