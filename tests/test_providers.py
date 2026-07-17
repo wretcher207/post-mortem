@@ -627,3 +627,18 @@ def test_client_construction_configuration_errors_are_typed(monkeypatch):
             AnthropicProvider.from_config()
 
     assert caught.value.category is ProviderErrorCategory.AUTHENTICATION
+
+
+def test_require_anthropic_raises_clear_error_when_sdk_is_none(monkeypatch):
+    """When the SDK is unavailable at runtime, _require_anthropic and
+    _create_client raise a clear ProviderError, not AttributeError."""
+    import postmortem.providers.anthropic_provider as mod
+    monkeypatch.setattr(mod, "anthropic", None)
+    with pytest.raises(ProviderError) as caught:
+        mod._require_anthropic()
+    assert caught.value.category is ProviderErrorCategory.AUTHENTICATION
+    assert "not installed" in str(caught.value)
+    # _create_client must also raise a clear error, not AttributeError.
+    with pytest.raises(ProviderError) as caught:
+        AnthropicProvider._create_client(api_key="test")
+    assert caught.value.category is ProviderErrorCategory.AUTHENTICATION

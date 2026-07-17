@@ -7,6 +7,12 @@ updated: 2026-07-02
 
 # Post Mortem — Track-Context AI Mix Analysis — Build Spec
 
+> **SUPERSEDED.** This is a design-history document. For the current product
+> scope, pricing, and feature availability, see `README.md`, `CHANGELOG.md`,
+> and `docs/PRODUCT_PLAN.md`. The paid ReaImGui panel shipped in 0.1.0
+> (2026-07-15). Monetization and phase framing below no longer reflect the
+> shipped product.
+
 **Tier:** REFERENCE. Load when building Post Mortem or discussing AI-driven
 diagnosis inside REAPER.
 
@@ -478,9 +484,9 @@ The result comes back to the agent as JSON. The agent can:
    `reaper.ShowConsoleMsg(text)`).
 2. Propose the move as a pending action the user can accept (which sends a
    `set_fx_param` command through the existing bridge pipeline).
-3. Display in a ReaImGui panel (v2).
+3. Display in a ReaImGui panel (shipped in 0.1.0).
 
-**v1: console message only.** Get the loop working before building UI.
+**Structured CLI output shipped first; the ReaImGui panel shipped in 0.1.0.**
 
 ## Cross-track masking (build #2, shipped 2026-07-04)
 
@@ -576,10 +582,10 @@ Goal: produce a diagnosis from real data.
 
 - Real-time monitoring (static capture only)
 - Multi-track simultaneous analysis (one track per run)
-- Automatic fix application (diagnosis only; the user applies the move
-  manually, or through the existing `set_fx_param` command)
-- ReaImGui panel (console output first)
-- ~~Cross-track masking analysis~~ — SHIPPED in build #2 (2026-07-04); see the
+- Automatic fix application (the user applies the move manually, or
+  through the CLI preview/commit path; Fix Preview shipped in 0.1.0)
+- ~~ReaImGui panel (console output first)~~ SHIPPED in 0.1.0
+- ~~Cross-track masking analysis~~ SHIPPED in build #2 (2026-07-04); see the
   "Cross-track masking (build #2)" section. No longer deferred.
 - The model calling back to adjust its diagnosis after listening (no audio
   feedback loop; the model works from numbers, not from hearing)
@@ -607,18 +613,12 @@ Goal: produce a diagnosis from real data.
 
 ## Monetization
 
-**v1: free.** The whole point is to prove the diagnosis is useful. A free
-ReaPack script that reads your track and tells you what's wrong is the product.
-
-**Paid tier (v2):** batch analysis across all tracks, cross-track masking
-detection, the ReaImGui panel, automatic fix proposal with one-click apply,
-project-level analysis (mix bus diagnosis). Price: $15 one-time or $5/month for
-ongoing updates. The free tier stays fully functional for single-track
-diagnosis.
-
-The bet is the same one David always makes: built it because he needed it, give
-it away, see if strangers want more. If the free version gets traction, the
-paid tier is the natural extension, not a paywall on existing functionality.
+**Original plan: v1 free, paid tier (v2).** This section is retained as
+design history. The shipped product is: MIT engine (free, CLI/MCP), paid
+panel + installer + licensing at $39 one-time (0.1.0, Apple silicon early
+access live 2026-07-15). Mix Check, history, hosted credits, and
+Windows/Linux paid installers are not in 0.1.0. See `README.md` and
+`CHANGELOG.md` for current scope and pricing.
 
 ## API reference (verified)
 
