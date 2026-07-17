@@ -20,10 +20,11 @@ A Dead Pixel Design release.
 
 ## Release status
 
-Post Mortem `0.1.0` is live for Apple silicon Macs as a `$39` one-time early
-access purchase through the Dead Pixel Design storefront. The macOS build is
-signed and notarized. Purchase includes permanent version 1 use and 12 months
-of version 1 updates.
+Post Mortem `0.1.0` is live for Apple silicon Macs at
+[deadpixeldesign.com/workflows/post-mortem/](https://deadpixeldesign.com/workflows/post-mortem/)
+as a `$39` one-time early access purchase. The macOS build is signed and
+notarized. Purchase includes permanent version 1 use and 12 months of version 1
+updates.
 
 The paid Windows and Linux installers are not part of this release. Their
 customer paths remain gated until the clean-machine checks pass. The MIT
