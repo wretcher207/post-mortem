@@ -12,7 +12,6 @@ Layout under the app-data root (never the repo folder):
       jobs/inbox/        panel writes job files here
       jobs/processing/   service moves a job here while executing it
       jobs/outbox/       results and progress files
-      captures/          reserved for panel-owned stems (keep_wav previews)
       logs/service.log   internal errors land here, never in result files
       heartbeat.json     pid, version, updated_at, in_flight_job
       lock.d/            single-instance lock (atomic mkdir, pid-liveness checked)
@@ -289,7 +288,6 @@ class Service:
         self.inbox = os.path.join(self.root, "jobs", "inbox")
         self.processing = os.path.join(self.root, "jobs", "processing")
         self.outbox = os.path.join(self.root, "jobs", "outbox")
-        self.captures = os.path.join(self.root, "captures")
         self.logs = os.path.join(self.root, "logs")
         self._last_heartbeat = 0.0
         self._ensure_layout()
@@ -297,7 +295,7 @@ class Service:
     # -- filesystem plumbing -------------------------------------------------
 
     def _ensure_layout(self):
-        for path in (self.inbox, self.processing, self.outbox, self.captures, self.logs):
+        for path in (self.inbox, self.processing, self.outbox, self.logs):
             os.makedirs(path, exist_ok=True)
 
     def _atomic_write_json(self, path, obj):
@@ -460,8 +458,8 @@ class Service:
         not referenced by outbox results. The 24-hour floor preserves recently
         created CLI --keep-wav inspection files and panel preview keep_wav
         files that may not yet have an outbox result. Only files in the
-        'reaper-diagnosis' temp dir are touched; the app-data captures/ dir
-        is panel-owned.
+        'reaper-diagnosis' temp dir are touched; the app-data root's other
+        directories are not.
         """
         _ORPHAN_WAV_MIN_AGE = 24 * 3600
         temp_dir = os.path.join(tempfile.gettempdir(), "reaper-diagnosis")

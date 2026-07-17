@@ -36,7 +36,6 @@ PostMortem/
   jobs/inbox/        client writes job files here
   jobs/processing/   sidecar-owned, in-flight job lives here
   jobs/outbox/       results and progress files
-  captures/          reserved for panel-owned stems (keep_wav previews)
   logs/service.log   internal error detail (never surfaced raw to results)
   feedback.jsonl     record_feedback stub (Phase 5 reads this)
   heartbeat.json     liveness: pid, service_version, updated_at, in_flight_job
