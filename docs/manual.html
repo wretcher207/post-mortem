@@ -1,0 +1,2383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Post Mortem 0.1.0 User Manual</title>
+<style>
+  :root {
+    --bg: oklch(7% 0.001 106);
+    --surface: oklch(11% 0.001 106);
+    --surface-2: oklch(15% 0.002 106);
+    --border: oklch(22% 0.002 106);
+    --border-light: oklch(28% 0.002 106);
+    --text: oklch(91% 0.003 106);
+    --text-dim: oklch(62% 0.003 106);
+    --text-muted: oklch(44% 0.003 106);
+    --bone: oklch(88% 0.004 106);
+    --accent: oklch(68% 0.004 106);
+    --warn: oklch(65% 0.008 65);
+    --good: oklch(60% 0.006 145);
+    --radius: 6px;
+    --mono: 'SF Mono', 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+    --sans: -apple-system, system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    line-height: 1.6;
+    font-size: 15px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 48px 24px 80px;
+  }
+
+  /* Header */
+  .header {
+    text-align: center;
+    padding: 64px 0 48px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 48px;
+  }
+  .header .logo {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.3em;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    margin-bottom: 16px;
+  }
+  .header h1 {
+    font-size: 42px;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    color: var(--text);
+    margin-bottom: 12px;
+  }
+  .header .version {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--text-dim);
+    background: var(--surface);
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+  }
+  .header .tagline {
+    margin-top: 20px;
+    font-size: 17px;
+    color: var(--text-dim);
+    max-width: 540px;
+    margin-left: auto;
+    margin-right: auto;
+    line-height: 1.5;
+  }
+
+  /* TOC */
+  .toc {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px 28px;
+    margin-bottom: 56px;
+  }
+  .toc-title {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 16px;
+  }
+  .toc ol {
+    list-style: none;
+    counter-reset: toc;
+    columns: 2;
+    column-gap: 32px;
+  }
+  .toc li {
+    counter-increment: toc;
+    margin-bottom: 6px;
+    break-inside: avoid;
+  }
+  .toc li::before {
+    content: counter(toc, decimal-leading-zero);
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-right: 10px;
+  }
+  .toc a {
+    color: var(--text-dim);
+    text-decoration: none;
+    font-size: 14px;
+    transition: color 0.15s;
+  }
+  .toc a:hover { color: var(--text); }
+
+  /* Sections */
+  section {
+    margin-bottom: 56px;
+    scroll-margin-top: 24px;
+  }
+  .section-num {
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.15em;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+  }
+  h2 {
+    font-size: 26px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    margin-bottom: 20px;
+    color: var(--text);
+  }
+  h3 {
+    font-size: 18px;
+    font-weight: 600;
+    margin-top: 32px;
+    margin-bottom: 12px;
+    color: var(--bone);
+  }
+  p {
+    margin-bottom: 14px;
+    color: var(--text-dim);
+  }
+  p strong { color: var(--text); font-weight: 600; }
+  p code, li code {
+    font-family: var(--mono);
+    font-size: 13px;
+    background: var(--surface-2);
+    padding: 2px 6px;
+    border-radius: 4px;
+    color: var(--bone);
+  }
+
+  /* Flow diagram */
+  .flow {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+    margin: 28px 0;
+    flex-wrap: wrap;
+  }
+  .flow-step {
+    flex: 1;
+    min-width: 120px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 12px;
+    text-align: center;
+    position: relative;
+  }
+  .flow-step .icon {
+    font-size: 22px;
+    margin-bottom: 8px;
+    opacity: 0.7;
+  }
+  .flow-step .label {
+    font-size: 12px;
+    color: var(--text-dim);
+    font-weight: 500;
+  }
+  .flow-arrow {
+    display: flex;
+    align-items: center;
+    color: var(--text-muted);
+    padding: 0 6px;
+    font-size: 14px;
+  }
+  @media (max-width: 600px) {
+    .flow { flex-direction: column; }
+    .flow-arrow { justify-content: center; padding: 4px 0; }
+  }
+
+  /* Cards */
+  .card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 16px;
+    margin: 24px 0;
+  }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+  }
+  .card .card-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 10px;
+  }
+  .card .card-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--bone);
+    margin-bottom: 6px;
+  }
+  .card .card-desc {
+    font-size: 13px;
+    color: var(--text-dim);
+    line-height: 1.5;
+  }
+
+  /* Status badges */
+  .badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 20px 0;
+  }
+  .badge {
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 5px 12px;
+    border-radius: 100px;
+    border: 1px solid var(--border-light);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .badge .dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .badge.good .dot { background: var(--good); }
+  .badge.good { border-color: oklch(30% 0.004 145); }
+  .badge.warn .dot { background: var(--warn); }
+  .badge.warn { border-color: oklch(30% 0.004 65); }
+  .badge.muted .dot { background: var(--text-muted); }
+  .badge span { color: var(--text-dim); }
+
+  /* Metric table */
+  .metric-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 20px 0;
+    font-size: 14px;
+  }
+  .metric-table th {
+    text-align: left;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border-light);
+    font-weight: 500;
+  }
+  .metric-table td {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text-dim);
+  }
+  .metric-table td:first-child {
+    color: var(--bone);
+    font-weight: 500;
+    font-family: var(--mono);
+    font-size: 13px;
+  }
+  .metric-table td:last-child {
+    text-align: right;
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--accent);
+  }
+  .metric-table tr:last-child td { border-bottom: none; }
+  .metric-table tr:hover { background: var(--surface); }
+
+  /* Spectrum visual */
+  .spectrum {
+    display: flex;
+    align-items: flex-end;
+    gap: 3px;
+    height: 80px;
+    margin: 24px 0;
+    padding: 0 4px;
+  }
+  .spectrum .bar {
+    flex: 1;
+    background: linear-gradient(to top, var(--border-light), var(--accent));
+    border-radius: 2px 2px 0 0;
+    min-height: 4px;
+    opacity: 0.7;
+    transition: opacity 0.15s;
+  }
+  .spectrum .bar:hover { opacity: 1; }
+  .spectrum-labels {
+    display: flex;
+    justify-content: space-between;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-muted);
+    margin-top: 6px;
+  }
+
+  /* Guardrail boxes */
+  .guardrail-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+    margin: 20px 0;
+  }
+  .guardrail {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--warn);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+  }
+  .guardrail .g-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--bone);
+    margin-bottom: 4px;
+  }
+  .guardrail .g-desc {
+    font-size: 12px;
+    color: var(--text-muted);
+    line-height: 1.4;
+  }
+  .guardrail.fail { border-left-color: var(--warn); }
+  .guardrail.warn-g { border-left-color: oklch(55% 0.006 80); }
+  .guardrail.info { border-left-color: var(--border-light); }
+
+  /* Confidence levels */
+  .conf-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .conf-row:last-child { border-bottom: none; }
+  .conf-meter {
+    width: 120px;
+    height: 8px;
+    background: var(--surface-2);
+    border-radius: 4px;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+  .conf-fill {
+    height: 100%;
+    border-radius: 4px;
+  }
+  .conf-row .conf-label {
+    font-weight: 600;
+    color: var(--text);
+    width: 60px;
+    flex-shrink: 0;
+    font-size: 14px;
+  }
+  .conf-row .conf-desc {
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+  .conf-low .conf-fill { width: 25%; background: var(--warn); }
+  .conf-med .conf-fill { width: 60%; background: var(--accent); }
+  .conf-high .conf-fill { width: 90%; background: var(--good); }
+
+  /* Callout */
+  .callout {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    border-radius: var(--radius);
+    padding: 16px 20px;
+    margin: 20px 0;
+  }
+  .callout .co-label {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+  }
+  .callout p { margin: 0; color: var(--text-dim); font-size: 14px; }
+  .callout.warn { border-left-color: var(--warn); }
+
+  /* Code block */
+  pre {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 20px;
+    overflow-x: auto;
+    margin: 20px 0;
+  }
+  pre code {
+    font-family: var(--mono);
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--bone);
+    background: none;
+    padding: 0;
+  }
+
+  /* Outcome sentences */
+  .outcome {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 20px;
+    margin: 12px 0;
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+  }
+  .outcome .o-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 14px;
+    font-weight: 700;
+    border: 1px solid var(--border-light);
+    font-family: var(--mono);
+  }
+  .outcome.positive .o-icon { border-color: var(--good); color: var(--good); }
+  .outcome.neutral .o-icon { border-color: var(--accent); color: var(--accent); }
+  .outcome.negative .o-icon { border-color: var(--warn); color: var(--warn); }
+  .outcome .o-text {
+    font-size: 14px;
+    color: var(--text-dim);
+    line-height: 1.5;
+    padding-top: 5px;
+  }
+
+  /* Op list */
+  .op-list {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin: 20px 0;
+  }
+  @media (max-width: 600px) { .op-list { grid-template-columns: 1fr; } }
+  .op-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+  }
+  .op-item .op-num {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 1px;
+  }
+  .op-item .op-body .op-name {
+    font-weight: 600;
+    color: var(--bone);
+    font-size: 14px;
+    margin-bottom: 2px;
+  }
+  .op-item .op-body .op-unit {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--accent);
+  }
+  .op-item .op-body .op-desc {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 4px;
+  }
+
+  /* Steps */
+  .steps {
+    counter-reset: step;
+    margin: 20px 0;
+  }
+  .step {
+    position: relative;
+    padding-left: 40px;
+    margin-bottom: 18px;
+    counter-increment: step;
+  }
+  .step::before {
+    content: counter(step);
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--surface);
+    border: 1px solid var(--border-light);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+  .step .step-title {
+    font-weight: 600;
+    color: var(--bone);
+    font-size: 14px;
+    margin-bottom: 3px;
+  }
+  .step .step-desc {
+    font-size: 13px;
+    color: var(--text-muted);
+    line-height: 1.5;
+  }
+
+  /* Data flow visual */
+  .dataflow {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    margin: 24px 0;
+  }
+  .dataflow-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px 16px;
+    margin-bottom: 4px;
+  }
+  .dataflow-row .df-side {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    width: 90px;
+    flex-shrink: 0;
+  }
+  .dataflow-row .df-content {
+    font-size: 13px;
+    color: var(--text-dim);
+  }
+  .dataflow-row .df-content code {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--bone);
+    background: var(--surface-2);
+    padding: 2px 6px;
+    border-radius: 3px;
+  }
+  .dataflow-divider {
+    text-align: center;
+    color: var(--border-light);
+    font-size: 12px;
+    padding: 2px 0;
+  }
+
+  /* Footer */
+  .footer {
+    text-align: center;
+    padding: 40px 0 0;
+    border-top: 1px solid var(--border);
+    margin-top: 64px;
+  }
+  .footer .footer-brand {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+  }
+  .footer .footer-line {
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+  .footer a {
+    color: var(--text-dim);
+    text-decoration: none;
+    border-bottom: 1px solid var(--border-light);
+  }
+  .footer a:hover { color: var(--text); border-bottom-color: var(--text-dim); }
+  /* Panel UI mockups (grounded in post_mortem_panel.lua actual colors) */
+  .pm-window {
+    background: #0a0a0a;
+    border: 1px solid #1a1a1a;
+    border-radius: 8px;
+    max-width: 420px;
+    margin: 20px 0;
+    font-size: 14px;
+    overflow: hidden;
+  }
+  .pm-header {
+    padding: 10px 14px;
+    border-bottom: 1px solid #1a1a1a;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .pm-title {
+    color: #e8e6e1;
+    font-weight: 600;
+    font-size: 14px;
+  }
+  .pm-pill {
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 3px;
+  }
+  .pm-pill.ready { background: rgba(63,156,138,0.15); color: #3f9c8a; }
+  .pm-pill.busy { background: rgba(201,154,63,0.15); color: #c99a3f; }
+  .pm-pill.needs { background: rgba(205,64,64,0.15); color: #cd4040; }
+  .pm-meta {
+    color: #807e78;
+    font-size: 12px;
+  }
+  .pm-sep {
+    height: 1px;
+    background: #1a1a1a;
+    margin: 0;
+  }
+  .pm-body {
+    padding: 14px;
+  }
+  .pm-text { color: #e8e6e1; font-size: 13px; margin-bottom: 8px; }
+  .pm-text-dim { color: #807e78; font-size: 13px; margin-bottom: 8px; }
+  .pm-text-warn { color: #c99a3f; font-size: 13px; margin-bottom: 8px; }
+  .pm-text-good { color: #3f9c8a; font-size: 13px; margin-bottom: 8px; }
+  .pm-trust {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 6px;
+  }
+  .pm-trust .ok {
+    color: #3f9c8a;
+    font-family: var(--mono);
+    font-size: 12px;
+  }
+  .pm-trust .label { color: #e8e6e1; font-size: 13px; }
+  .pm-btn {
+    display: inline-block;
+    padding: 7px 18px;
+    border-radius: 4px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: default;
+    margin-top: 6px;
+    margin-right: 6px;
+  }
+  .pm-btn-primary {
+    background: #a83232;
+    color: #e8e6e1;
+  }
+  .pm-btn-primary:hover { background: #cd4040; }
+  .pm-btn-secondary {
+    background: #1c1c1c;
+    color: #e8e6e1;
+    border: 1px solid #2a2a2a;
+  }
+  .pm-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+  }
+  .pm-row .pm-kv-label {
+    color: #807e78;
+    font-size: 12px;
+    width: 80px;
+    flex-shrink: 0;
+  }
+  .pm-row .pm-kv-value {
+    color: #e8e6e1;
+    font-size: 12px;
+    font-family: var(--mono);
+  }
+  .pm-slider {
+    width: 100%;
+    height: 6px;
+    background: #1c1c1c;
+    border-radius: 3px;
+    margin: 8px 0;
+    position: relative;
+  }
+  .pm-slider .pm-slider-track {
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100%;
+    background: #3f9c8a;
+    border-radius: 3px;
+  }
+  .pm-slider .pm-slider-handle {
+    position: absolute;
+    top: -3px;
+    width: 12px;
+    height: 12px;
+    background: #e8e6e1;
+    border-radius: 50%;
+    transform: translateX(-50%);
+  }
+  .pm-evidence {
+    margin-top: 10px;
+    border-top: 1px solid #1a1a1a;
+    padding-top: 10px;
+  }
+  .pm-evidence-toggle {
+    color: #807e78;
+    font-size: 12px;
+    cursor: default;
+    font-family: var(--mono);
+  }
+  .pm-evidence-row {
+    display: flex;
+    gap: 10px;
+    padding: 3px 0;
+  }
+  .pm-evidence-row .er-label {
+    color: #807e78;
+    font-family: var(--mono);
+    font-size: 12px;
+    min-width: 150px;
+  }
+  .pm-evidence-row .er-value {
+    color: #3f9c8a;
+    font-family: var(--mono);
+    font-size: 12px;
+  }
+  .pm-evidence-row .er-value.warn { color: #c99a3f; }
+  .pm-guardrail {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 3px 0;
+  }
+  .pm-guardrail .gr-tag {
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 1px 6px;
+    border-radius: 2px;
+  }
+  .pm-guardrail .gr-tag.pass {
+    color: #3f9c8a;
+    background: rgba(63,156,138,0.1);
+  }
+  .pm-guardrail .gr-tag.warn-tag {
+    color: #c99a3f;
+    background: rgba(201,154,63,0.1);
+  }
+  .pm-guardrail .gr-name {
+    color: #807e78;
+    font-size: 13px;
+  }
+  .pm-caption {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+  }
+  .pm-flow-arrows {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 12px 0;
+    padding: 0 20px;
+  }
+  .pm-ab {
+    display: flex;
+    gap: 6px;
+    margin: 10px 0;
+  }
+  .pm-ab-btn {
+    padding: 5px 14px;
+    border-radius: 4px;
+    font-size: 12px;
+    color: #e8e6e1;
+  }
+  .pm-ab-btn.orig { background: #1c1c1c; border: 1px solid #2a2a2a; }
+  .pm-ab-btn.cand { background: #2a2020; border: 1px solid #3a2a2a; }
+  .pm-ab-btn.stop { background: #1c1c1c; border: 1px solid #2a2a2a; color: #807e78; }
+  .pm-setup-check {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 0;
+  }
+  .pm-setup-check .sc-icon {
+    font-size: 14px;
+    opacity: 0.75;
+  }
+  .pm-setup-check .sc-label {
+    color: #e8e6e1;
+    font-size: 13px;
+  }
+  .pm-setup-check .sc-waiting {
+    color: #c99a3f;
+    font-size: 13px;
+  }
+  .pm-input-field {
+    background: #0d0d0d;
+    border: 1px solid #1a1a1a;
+    border-radius: 4px;
+    padding: 6px 10px;
+    color: #807e78;
+    font-size: 12px;
+    font-family: var(--mono);
+    margin: 4px 0;
+    display: block;
+    width: 100%;
+  }
+  .pm-mcp-prompt {
+    background: #0d0d0d;
+    border: 1px solid #1a1a1a;
+    border-radius: 4px;
+    padding: 8px 12px;
+    color: #807e78;
+    font-size: 12px;
+    margin: 8px 0;
+    font-family: var(--mono);
+  }
+  .pm-stage-list {
+    margin: 10px 0;
+  }
+  .pm-stage {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 3px 0;
+  }
+  .pm-stage .ps-icon {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    border: 1px solid #2a2a2a;
+    flex-shrink: 0;
+  }
+  .pm-stage .ps-icon.done {
+    background: #3f9c8a;
+    border-color: #3f9c8a;
+  }
+  .pm-stage .ps-icon.active {
+    border-color: #c99a3f;
+    background: rgba(201,154,63,0.2);
+  }
+  .pm-stage .ps-label {
+    font-size: 13px;
+  }
+  .pm-stage .ps-label.done { color: #807e78; }
+  .pm-stage .ps-label.active { color: #c99a3f; }
+  .pm-stage .ps-label.pending { color: #4a4a4a; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- Header -->
+<div class="header">
+  <div class="logo">Dead Pixel Design</div>
+  <h1>Post Mortem</h1>
+  <div class="version">v0.1.0 User Manual</div>
+  <p class="tagline">
+    A mix debugger for REAPER. It reads the track you're working on,
+    finds the most likely problem, and lets you audition one safe fix.
+    No bluffing, no guessing, no spectrum chart pretending it has ears.
+  </p>
+</div>
+
+<!-- TOC -->
+<nav class="toc">
+  <div class="toc-title">Contents</div>
+  <ol>
+    <li><a href="#panel-ui">The Panel Interface</a></li>
+    <li><a href="#what-it-reads">What Post Mortem Reads</a></li>
+    <li><a href="#audio-measurements">Audio Measurements</a></li>
+    <li><a href="#track-check">Track Check</a></li>
+    <li><a href="#diagnosis">Understanding the Diagnosis</a></li>
+    <li><a href="#fix-preview">Fix Preview</a></li>
+    <li><a href="#apply-fix">Apply Fix</a></li>
+    <li><a href="#onboarding">Onboarding</a></li>
+    <li><a href="#panel-states">Panel States</a></li>
+    <li><a href="#cli">Command Line Interface</a></li>
+    <li><a href="#privacy">Privacy & Data</a></li>
+    <li><a href="#troubleshooting">Troubleshooting</a></li>
+    <li><a href="#limits">Known Limits</a></li>
+  </ol>
+</nav>
+<!-- 0. Panel Interface -->
+<section id="panel-ui">
+  <div class="section-num">00</div>
+  <h2>The Panel Interface</h2>
+  <p>
+    The Post Mortem panel is a dockable ReaImGui window inside REAPER. It is
+    a thin client: it writes JSON job files and renders the results that come
+    back from the local sidecar engine. No analysis runs in the panel itself.
+  </p>
+  <p class="pm-text-dim" style="font-size:13px;">
+    The mockups below are grounded in the actual panel source
+    (<code>post_mortem_panel.lua</code>) and use the real Dead Pixel palette:
+    <code>#0a0a0a</code> background, <code>#e8e6e1</code> text,
+    <code>#a83232</code> primary buttons, <code>#c99a3f</code> amber for
+    uncertainty, <code>#3f9c8a</code> teal for passed checks.
+  </p>
+
+  <h3>Header</h3>
+  <p>The persistent header shows the panel title, a status pill, the project name, engine version, and a Settings button.</p>
+
+  <div class="pm-caption">Ready state</div>
+  <div class="pm-window">
+    <div class="pm-header">
+      <span class="pm-title">Post Mortem</span>
+      <span class="pm-pill ready">[Ready]</span>
+      <span class="pm-meta">juicy.RPP</span>
+      <span class="pm-meta">engine 0.1.0</span>
+      <span class="pm-meta" style="margin-left:auto;">Settings</span>
+    </div>
+    <div class="pm-sep"></div>
+  </div>
+
+  <div class="pm-caption">Busy state</div>
+  <div class="pm-window">
+    <div class="pm-header">
+      <span class="pm-title">Post Mortem</span>
+      <span class="pm-pill busy">[Busy]</span>
+      <span class="pm-meta">juicy.RPP</span>
+      <span class="pm-meta" style="margin-left:auto;">Settings</span>
+    </div>
+    <div class="pm-sep"></div>
+    <div class="pm-body">
+      <div class="pm-text-warn">Capturing a short section</div>
+      <span class="pm-btn pm-btn-secondary">Cancel</span>
+    </div>
+  </div>
+
+  <div class="pm-caption">Needs REAPER state</div>
+  <div class="pm-window">
+    <div class="pm-header">
+      <span class="pm-title">Post Mortem</span>
+      <span class="pm-pill needs">[Needs REAPER]</span>
+      <span class="pm-meta" style="margin-left:auto;">Settings</span>
+    </div>
+    <div class="pm-sep"></div>
+  </div>
+
+  <p>
+    The status pill is derived from two heartbeats: the bridge (Reaper Daemon)
+    and the sidecar (Post Mortem engine). A bridge heartbeat stale past 30
+    seconds shows Needs REAPER. A sidecar heartbeat stale past 10 seconds with
+    no in-flight job shows Needs Attention. A bounded stale-in-flight timeout
+    prevents a crashed sidecar from leaving the panel stuck on Busy.
+  </p>
+
+  <h3>Welcome screen (onboarding step 1)</h3>
+  <p>First thing a new user sees. Three trust statements before anything happens.</p>
+  <div class="pm-window">
+    <div class="pm-header">
+      <span class="pm-title">Post Mortem</span>
+      <span class="pm-meta" style="margin-left:auto;">Settings</span>
+    </div>
+    <div class="pm-sep"></div>
+    <div class="pm-body">
+      <div class="pm-text" style="line-height:1.5;">
+        Check the track you're working on, see the most likely problem, and
+        audition one safe fix.
+      </div>
+      <div class="pm-trust">
+        <span class="ok">[OK]</span>
+        <span class="label">Analysis never changes the project.</span>
+      </div>
+      <div class="pm-trust">
+        <span class="ok">[OK]</span>
+        <span class="label">Preview changes are temporary.</span>
+      </div>
+      <div class="pm-trust">
+        <span class="ok">[OK]</span>
+        <span class="label">Raw audio stays on this computer.</span>
+      </div>
+      <span class="pm-btn pm-btn-primary">Connect to REAPER</span>
+    </div>
+  </div>
+
+  <h3>Setup screen (onboarding step 2)</h3>
+  <p>Automatic checklist driven by the sidecar's setup report. The panel never re-derives readiness.</p>
+  <div class="pm-window">
+    <div class="pm-header">
+      <span class="pm-title">Post Mortem</span>
+      <span class="pm-pill busy">[Busy]</span>
+      <span class="pm-meta" style="margin-left:auto;">Settings</span>
+    </div>
+    <div class="pm-sep"></div>
+    <div class="pm-body">
+      <div class="pm-text">Checking the local setup</div>
+      <div class="pm-stage-list">
+        <div class="pm-stage">
+          <div class="ps-icon done"></div>
+          <span class="ps-label done">Found REAPER</span>
+        </div>
+        <div class="pm-stage">
+          <div class="ps-icon done"></div>
+          <span class="ps-label done">Reaper Daemon is running</span>
+        </div>
+        <div class="pm-stage">
+          <div class="ps-icon active"></div>
+          <span class="ps-label active">Safe track capture is enabled</span>
+        </div>
+        <div class="pm-stage">
+          <div class="ps-icon"></div>
+          <span class="ps-label pending">Post Mortem panel is registered</span>
+        </div>
+      </div>
+      <div class="pm-text-dim">Restart REAPER, then Test Again</div>
+      <span class="pm-btn pm-btn-secondary">Test Again</span>
+    </div>
+  </div>
+
+  <h3>Analysis access (onboarding step 3)</h3>
+  <p>Three connection paths. The tested default is already configured. No model menu during onboarding.</p>
+  <div class="pm-window">
+    <div class="pm-header">
+      <span class="pm-title">Post Mortem</span>
+      <span class="pm-meta" style="margin-left:auto;">Settings</span>
+    </div>
+    <div class="pm-sep"></div>
+    <div class="pm-body">
+      <div class="pm-text">Connect analysis</div>
+      <div class="pm-text-dim" style="font-size:12px;">
+        Post Mortem uses the tested default already configured for this install.
+        No model menu needed here.
+      </div>
+      <div style="margin-top:10px;">
+        <span class="pm-btn pm-btn-secondary" style="opacity:0.5;">Included Starter Checks</span>
+        <span class="pm-text-dim" style="font-size:12px;">Coming soon</span>
+      </div>
+      <div style="margin-top:10px;">
+        <div class="pm-text-dim" style="font-size:12px;">API key</div>
+        <div class="pm-input-field">••••••••••••••••</div>
+        <span class="pm-btn pm-btn-primary">Connect an API Key</span>
+      </div>
+      <div style="margin-top:10px;">
+        <span class="pm-btn pm-btn-secondary">Use Through an MCP Client</span>
+      </div>
+    </div>
+  </div>
+
+  <h3>First success (onboarding step 4)</h3>
+  <p>Onboarding finishes only after a real project track produces a diagnosis.</p>
+  <div class="pm-window">
+    <div class="pm-header">
+      <span class="pm-title">Post Mortem</span>
+      <span class="pm-pill busy">[Busy]</span>
+      <span class="pm-meta">juicy.RPP</span>
+      <span class="pm-meta" style="margin-left:auto;">Settings</span>
+    </div>
+    <div class="pm-sep"></div>
+    <div class="pm-body">
+      <div class="pm-text">Run the first Track Check</div>
+      <div class="pm-text-dim" style="font-size:12px;">
+        Select a track with audio under the edit cursor. Post Mortem will
+        capture 10 seconds and explain what it finds here.
+      </div>
+      <div class="pm-text" style="margin-top:8px;">Rhythm L</div>
+      <span class="pm-btn pm-btn-primary">Check This Track</span>
+      <div class="pm-text-warn" style="margin-top:8px;">Capturing a short section</div>
+    </div>
+  </div>
+
+  <h3>MCP path</h3>
+  <p>If the user chose MCP instead of an API key, the panel waits for a fresh diagnosis from the user's MCP client.</p>
+  <div class="pm-window">
+    <div class="pm-header">
+      <span class="pm-title">Post Mortem</span>
+      <span class="pm-meta" style="margin-left:auto;">Settings</span>
+    </div>
+    <div class="pm-sep"></div>
+    <div class="pm-body">
+      <div class="pm-text-dim" style="font-size:12px;">
+        Use the Reaper Daemon MCP server from the AI client you already have
+        open. Its model does the diagnosis, so this path does not need a
+        separate API key.
+      </div>
+      <div class="pm-mcp-prompt">
+        Ask your MCP client: Run a 10-second Post Mortem check on the selected
+        track and tell me what is wrong.
+      </div>
+      <div class="pm-text-warn">Waiting for the MCP client to return a fresh 10-second diagnosis...</div>
+    </div>
+  </div>
+
+  <h3>Track screen (idle)</h3>
+  <p>The default screen after onboarding. Shows the selected track, FX count, capture source, duration slider, and the primary action.</p>
+  <div class="pm-window">
+    <div class="pm-header">
+      <span class="pm-title">Post Mortem</span>
+      <span class="pm-pill ready">[Ready]</span>
+      <span class="pm-meta">juicy.RPP</span>
+      <span class="pm-meta">engine 0.1.0</span>
+      <span class="pm-meta" style="margin-left:auto;">Settings</span>
+    </div>
+    <div class="pm-sep"></div>
+    <div class="pm-body">
+      <div class="pm-row">
+        <span class="pm-text">Kick</span>
+        <span class="pm-text-dim" style="font-size:12px;">3 FX</span>
+      </div>
+      <div class="pm-row">
+        <span class="pm-text-dim" style="font-size:12px;">Capture: from edit cursor</span>
+        <span class="pm-text-dim" style="font-size:12px;">Length: 10s</span>
+      </div>
+      <div class="pm-slider">
+        <div class="pm-slider-track" style="width:15%"></div>
+        <div class="pm-slider-handle" style="left:15%"></div>
+      </div>
+      <span class="pm-btn pm-btn-primary">Check This Track</span>
+    </div>
+  </div>
+  <p>
+    The track card reads REAPER-native state for display only. The engine
+    re-resolves everything itself at job time. Nothing shown here is treated
+    as evidence.
+  </p>
+
+  <h3>Track screen (in progress)</h3>
+  <p>Four human-readable stages. Cancel is available until the model request begins.</p>
+  <div class="pm-window">
+    <div class="pm-header">
+      <span class="pm-title">Post Mortem</span>
+      <span class="pm-pill busy">[Busy]</span>
+      <span class="pm-meta">juicy.RPP</span>
+      <span class="pm-meta" style="margin-left:auto;">Settings</span>
+    </div>
+    <div class="pm-sep"></div>
+    <div class="pm-body">
+      <div class="pm-text">Kick</div>
+      <div class="pm-stage-list">
+        <div class="pm-stage">
+          <div class="ps-icon done"></div>
+          <span class="ps-label done">Reading the track</span>
+        </div>
+        <div class="pm-stage">
+          <div class="ps-icon done"></div>
+          <span class="ps-label done">Capturing a short section</span>
+        </div>
+        <div class="pm-stage">
+          <div class="ps-icon done"></div>
+          <span class="ps-label done">Measuring the audio</span>
+        </div>
+        <div class="pm-stage">
+          <div class="ps-icon active"></div>
+          <span class="ps-label active">Checking the likely cause</span>
+        </div>
+      </div>
+      <div class="pm-text-dim" style="font-size:12px;">
+        The model call is in flight; it finishes on its own
+      </div>
+    </div>
+  </div>
+
+  <h3>Result card: Track Check</h3>
+  <p>The diagnosis is a walk of a pure render plan. Roles map to colors. Outcome wording arrives pre-worded from the engine and renders verbatim.</p>
+  <div class="pm-window">
+    <div class="pm-header">
+      <span class="pm-title">Post Mortem</span>
+      <span class="pm-pill ready">[Ready]</span>
+      <span class="pm-meta">juicy.RPP</span>
+      <span class="pm-meta" style="margin-left:auto;">Settings</span>
+    </div>
+    <div class="pm-sep"></div>
+    <div class="pm-body">
+      <div class="pm-text" style="line-height:1.5;">
+        The measured peak leaves very little headroom. The track output level
+        is close to clipping.
+      </div>
+      <div class="pm-text-warn" style="font-size:12px;">
+        [the model's read]
+      </div>
+      <div class="pm-text-dim" style="font-size:12px;">
+        The track fader is at +5.9 dB with a sample peak of -0.3 dBFS.
+      </div>
+      <div class="pm-sep" style="margin:10px 0;"></div>
+      <div class="pm-text-dim" style="font-size:11px; text-transform:uppercase; letter-spacing:0.1em;">
+        Suggested fix
+      </div>
+      <div class="pm-row">
+        <span class="pm-kv-label">Track</span>
+        <span class="pm-kv-value">Kick</span>
+      </div>
+      <div class="pm-row">
+        <span class="pm-kv-label">Change</span>
+        <span class="pm-kv-value">5.9 dB -> 2.0 dB</span>
+      </div>
+      <div class="pm-text-dim" style="font-size:11px; text-transform:uppercase; letter-spacing:0.1em; margin-top:8px;">
+        Why this may help
+      </div>
+      <div class="pm-text-dim" style="font-size:12px;">
+        Lowering the fader creates 3.9 dB of headroom, moving the sample peak
+        below -0.3 dBFS.
+      </div>
+      <div class="pm-text-warn" style="margin-top:8px; font-size:12px;">
+        [Medium confidence]
+      </div>
+      <div class="pm-text-dim" style="font-size:12px;">
+        The verified isolated capture has a measured peak.
+      </div>
+      <div style="margin-top:8px;">
+        <span class="pm-btn pm-btn-primary">Preview Fix</span>
+        <span class="pm-btn pm-btn-secondary">I'll Fix It Myself</span>
+        <span class="pm-btn pm-btn-secondary">Not Helpful</span>
+      </div>
+      <div class="pm-evidence">
+        <span class="pm-evidence-toggle">> Evidence</span>
+      </div>
+    </div>
+  </div>
+
+  <h3>Evidence tree (expanded)</h3>
+  <p>Collapsed by default. Each row is a straight read from the measured payload, rendered in monospace. Values are teal (passed) or amber (warning).</p>
+  <div class="pm-window">
+    <div class="pm-body" style="padding-top:0;">
+      <div class="pm-evidence" style="border-top:none; padding-top:0;">
+        <span class="pm-evidence-toggle" style="color:#3f9c8a;">v Evidence</span>
+        <div style="margin-top:6px;">
+          <div class="pm-evidence-row">
+            <span class="er-label">integrated_lufs</span>
+            <span class="er-value">-8.2</span>
+          </div>
+          <div class="pm-evidence-row">
+            <span class="er-label">sample_peak_db</span>
+            <span class="er-value warn">-0.3</span>
+          </div>
+          <div class="pm-evidence-row">
+            <span class="er-label">true_peak_db</span>
+            <span class="er-value warn">-0.1</span>
+          </div>
+          <div class="pm-evidence-row">
+            <span class="er-label">rms_db</span>
+            <span class="er-value">-13.2</span>
+          </div>
+          <div class="pm-evidence-row">
+            <span class="er-label">crest_factor_db</span>
+            <span class="er-value">12.9</span>
+          </div>
+          <div class="pm-evidence-row">
+            <span class="er-label">silence_fraction</span>
+            <span class="er-value">0.03</span>
+          </div>
+          <div class="pm-evidence-row">
+            <span class="er-label">track.volume_db</span>
+            <span class="er-value warn">5.9</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <h3>Fix Preview result</h3>
+  <p>After the preview job completes. Shows the outcome sentence (verbatim from engine), restoration status, measured deltas, guardrails, and A/B controls.</p>
+  <div class="pm-window">
+    <div class="pm-header">
+      <span class="pm-title">Post Mortem</span>
+      <span class="pm-pill ready">[Ready]</span>
+      <span class="pm-meta">juicy.RPP</span>
+      <span class="pm-meta" style="margin-left:auto;">Settings</span>
+    </div>
+    <div class="pm-sep"></div>
+    <div class="pm-body">
+      <div class="pm-text" style="line-height:1.5;">
+        The candidate moved in the intended direction.
+      </div>
+      <div class="pm-text-good" style="font-size:13px;">
+        Your project is back exactly as it was.
+      </div>
+      <div class="pm-sep" style="margin:10px 0;"></div>
+      <div class="pm-text-dim" style="font-size:11px; text-transform:uppercase; letter-spacing:0.1em;">
+        Previewed change
+      </div>
+      <div class="pm-row">
+        <span class="pm-kv-label">Track</span>
+        <span class="pm-kv-value">Kick</span>
+      </div>
+      <div class="pm-row">
+        <span class="pm-kv-label">Change</span>
+        <span class="pm-kv-value">5.9 dB -> 2.0 dB</span>
+      </div>
+      <div class="pm-row">
+        <span class="pm-kv-label">What we measured</span>
+        <span class="pm-kv-value">sample_peak_db</span>
+      </div>
+      <div class="pm-text-dim" style="font-size:11px; text-transform:uppercase; letter-spacing:0.1em; margin-top:8px;">
+        Measured change
+      </div>
+      <div class="pm-evidence-row">
+        <span class="er-label" style="min-width:auto;">sample_peak_db</span>
+        <span class="er-value">-0.3 -> -4.2 (delta -3.9)</span>
+      </div>
+      <div class="pm-text-dim" style="font-size:11px; text-transform:uppercase; letter-spacing:0.1em; margin-top:8px;">
+        Guardrails
+      </div>
+      <div class="pm-guardrail">
+        <span class="gr-tag pass">[pass]</span>
+        <span class="gr-name">new_clipping</span>
+      </div>
+      <div class="pm-guardrail">
+        <span class="gr-tag pass">[pass]</span>
+        <span class="gr-name">loudness_shift</span>
+      </div>
+      <div class="pm-guardrail">
+        <span class="gr-tag pass">[pass]</span>
+        <span class="gr-name">phase</span>
+      </div>
+      <div class="pm-guardrail">
+        <span class="gr-tag pass">[pass]</span>
+        <span class="gr-name">stereo_balance</span>
+      </div>
+      <div class="pm-guardrail">
+        <span class="gr-tag pass">[pass]</span>
+        <span class="gr-name">silence</span>
+      </div>
+      <div class="pm-text-dim" style="font-size:12px; margin-top:8px;">
+        Captured preview
+      </div>
+      <div class="pm-ab">
+        <span class="pm-ab-btn orig">Play Original</span>
+        <span class="pm-ab-btn cand">Play Preview</span>
+        <span class="pm-ab-btn stop">Stop</span>
+      </div>
+      <div class="pm-text-dim" style="font-size:12px; margin-top:6px;">Adjust</div>
+      <div class="pm-slider">
+        <div class="pm-slider-track" style="width:40%"></div>
+        <div class="pm-slider-handle" style="left:40%"></div>
+      </div>
+      <span class="pm-btn pm-btn-secondary" style="font-size:12px;">Preview Adjustment</span>
+      <div style="margin-top:10px;">
+        <span class="pm-btn pm-btn-primary">Apply Fix</span>
+        <span class="pm-btn pm-btn-secondary">Keep Original</span>
+      </div>
+    </div>
+  </div>
+
+  <h3>Apply Fix confirmation</h3>
+  <p>After Apply, a fresh identity check creates one named undo point. The confirmation is a single line.</p>
+  <div class="pm-window">
+    <div class="pm-header">
+      <span class="pm-title">Post Mortem</span>
+      <span class="pm-pill ready">[Ready]</span>
+      <span class="pm-meta">juicy.RPP</span>
+      <span class="pm-meta" style="margin-left:auto;">Settings</span>
+    </div>
+    <div class="pm-sep"></div>
+    <div class="pm-body">
+      <div class="pm-text" style="line-height:1.5;">
+        Applied, with one named undo point. Ctrl+Z takes it back.
+      </div>
+    </div>
+  </div>
+
+  <h3>Settings screen</h3>
+  <p>Engine version, license holder and update date, privacy summary, provider and model info, local data path.</p>
+  <div class="pm-window">
+    <div class="pm-header">
+      <span class="pm-title">Post Mortem</span>
+      <span class="pm-pill ready">[Ready]</span>
+      <span class="pm-meta" style="margin-left:auto;">Settings</span>
+    </div>
+    <div class="pm-sep"></div>
+    <div class="pm-body">
+      <div class="pm-text">Settings</div>
+      <div class="pm-text-dim" style="font-size:12px;">Engine version: 0.1.0</div>
+      <div class="pm-text-dim" style="font-size:12px;">Licensed to: David Russell</div>
+      <div class="pm-text-dim" style="font-size:12px;">Updates included through: 2027-07-15</div>
+      <div class="pm-text-dim" style="font-size:12px;">
+        License checks stay on this computer. Your purchased major version does
+        not expire. Only the update date is checked.
+      </div>
+      <div class="pm-sep" style="margin:10px 0;"></div>
+      <div class="pm-text">Privacy</div>
+      <div class="pm-text-dim" style="font-size:12px;">Raw audio stays on this computer.</div>
+      <div class="pm-text-dim" style="font-size:12px;">
+        Sent for analysis: track and project names; plug-in, parameter, and
+        routing details; loudness, peak, spectrum, stereo, and silence
+        measurements.
+      </div>
+      <div class="pm-text-dim" style="font-size:12px;">Analysis provider: Anthropic</div>
+      <div class="pm-text-dim" style="font-size:12px;">Model: claude-sonnet-4-20250514</div>
+      <div class="pm-text-dim" style="font-size:12px;">
+        History is not included in version 0.1. Nothing is synced, and there
+        is no history to delete or export.
+      </div>
+      <div class="pm-text-dim" style="font-size:12px;">
+        Not Helpful feedback stays in the local data folder and is not
+        uploaded in version 0.1.
+      </div>
+      <div class="pm-text-dim" style="font-size:12px;">
+        Local data folder: ~/Library/Application Support/PostMortem
+      </div>
+      <div style="margin-top:8px;">
+        <span class="pm-btn pm-btn-secondary">Refresh License</span>
+        <span class="pm-btn pm-btn-secondary">Back</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- 1. What it reads -->
+<section id="what-it-reads">
+  <div class="section-num">01</div>
+  <h2>What Post Mortem Reads</h2>
+  <p>
+    Post Mortem reads the selected track's full state at the moment you run a
+    Track Check. Nothing is cached from earlier sessions. If you change a
+    parameter and check again, it reads the new value.
+  </p>
+
+  <div class="card-grid">
+    <div class="card">
+      <div class="card-label">FX Chain</div>
+      <div class="card-title">Every plug-in, every parameter</div>
+      <div class="card-desc">
+        Name, enabled/bypassed state, and the full parameter list with
+        current normalized values and formatted display values (like
+        <code>120 Hz</code> or <code>-4.50 dB</code>). Parameter count is
+        read per plug-in, with a <code>parameters_truncated</code> flag if
+        the API cut off.
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-label">Routing</div>
+      <div class="card-title">Routing matrix, not guesswork</div>
+      <div class="card-desc">
+        Sends, receives, parent bus, fader level, pan, phase, and automation mode.
+        The volume field is converted from linear to dB in the bridge before the
+        model sees it.
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-label">Capture</div>
+      <div class="card-title">Post-FX stem render</div>
+      <div class="card-desc">
+        A short section of the track's post-fader, pre-master output rendered to
+        a temporary WAV. Default is 10 seconds from the edit cursor. The file is
+        measured and then removed. Raw audio never leaves your computer.
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-label">Project</div>
+      <div class="card-title">Session context</div>
+      <div class="card-desc">
+        Project name, tempo, and time signature. Gives the model genre context
+        so it doesn't suggest a jazz move on a death metal session.
+      </div>
+    </div>
+  </div>
+
+  <div class="callout">
+    <div class="co-label">The capture path</div>
+    <p>
+      Post Mortem uses REAPER's native stems render (not solo) to capture the
+      track's post-FX, post-fader output, pre-master. This means no solo state
+      to corrupt, and no master bus coloration printed into the capture. A
+      stems render of a child track does not include parent bus FX. The model
+      sees the parent name so it knows a parent chain exists; analyzing it is
+      not in 0.1.0.
+    </p>
+  </div>
+</section>
+
+<!-- 2. Audio Measurements -->
+<section id="audio-measurements">
+  <div class="section-num">02</div>
+  <h2>Audio Measurements</h2>
+  <p>
+    Post Mortem computes the spectrum and dynamics from the captured WAV in
+    pure numpy. No librosa, no real-time analyzer. The measurements are what
+    the model sees instead of raw audio.
+  </p>
+
+  <table class="metric-table">
+    <thead>
+      <tr>
+        <th>Measurement</th>
+        <th>What it tells the model</th>
+        <th>Unit</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>integrated_lufs</td>
+        <td>Overall loudness of the capture</td>
+        <td>LUFS</td>
+      </tr>
+      <tr>
+        <td>sample_peak_db</td>
+        <td>Highest sample value, headroom reference</td>
+        <td>dBFS</td>
+      </tr>
+      <tr>
+        <td>true_peak_db</td>
+        <td>Inter-sample peak from REAPER RENDER_STATS</td>
+        <td>dBFS</td>
+      </tr>
+      <tr>
+        <td>rms_db</td>
+        <td>Average level, perceived loudness reference</td>
+        <td>dBFS</td>
+      </tr>
+      <tr>
+        <td>crest_factor_db</td>
+        <td>Peak minus RMS, dynamic range indicator</td>
+        <td>dB</td>
+      </tr>
+      <tr>
+        <td>loudness_range_lu</td>
+        <td>Loudness variation across the capture</td>
+        <td>LU</td>
+      </tr>
+      <tr>
+        <td>lufs_momentary_max</td>
+        <td>Peak 400ms loudness moment</td>
+        <td>LUFS</td>
+      </tr>
+      <tr>
+        <td>lufs_short_term_max</td>
+        <td>Peak 3-second loudness window</td>
+        <td>LUFS</td>
+      </tr>
+      <tr>
+        <td>silence_fraction</td>
+        <td>Share of 100ms blocks below -70 dBFS</td>
+        <td>0.0 to 1.0</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>1/3-Octave Spectrum</h3>
+  <p>
+    31 bands from 20Hz to 20kHz, computed as a combined-channel power-domain
+    average (not an amplitude mono-sum). This avoids the phase cancellation
+    trap where an out-of-phase stereo stem would amplitude-sum to silence and
+    report a false diagnosis. L/R asymmetry is not visible in this single band
+    array. That is a v2 field, not a schema change.
+  </p>
+
+  <div class="spectrum">
+    <div class="bar" style="height:30%"></div>
+    <div class="bar" style="height:45%"></div>
+    <div class="bar" style="height:55%"></div>
+    <div class="bar" style="height:70%"></div>
+    <div class="bar" style="height:82%"></div>
+    <div class="bar" style="height:90%"></div>
+    <div class="bar" style="height:75%"></div>
+    <div class="bar" style="height:68%"></div>
+    <div class="bar" style="height:72%"></div>
+    <div class="bar" style="height:65%"></div>
+    <div class="bar" style="height:58%"></div>
+    <div class="bar" style="height:50%"></div>
+    <div class="bar" style="height:42%"></div>
+    <div class="bar" style="height:38%"></div>
+    <div class="bar" style="height:45%"></div>
+    <div class="bar" style="height:52%"></div>
+    <div class="bar" style="height:48%"></div>
+    <div class="bar" style="height:40%"></div>
+    <div class="bar" style="height:35%"></div>
+    <div class="bar" style="height:30%"></div>
+    <div class="bar" style="height:28%"></div>
+    <div class="bar" style="height:25%"></div>
+    <div class="bar" style="height:22%"></div>
+    <div class="bar" style="height:20%"></div>
+    <div class="bar" style="height:18%"></div>
+    <div class="bar" style="height:15%"></div>
+    <div class="bar" style="height:12%"></div>
+    <div class="bar" style="height:10%"></div>
+    <div class="bar" style="height:8%"></div>
+    <div class="bar" style="height:6%"></div>
+    <div class="bar" style="height:5%"></div>
+  </div>
+  <div class="spectrum-labels">
+    <span>20Hz</span>
+    <span>100Hz</span>
+    <span>500Hz</span>
+    <span>1kHz</span>
+    <span>5kHz</span>
+    <span>10kHz</span>
+    <span>20kHz</span>
+  </div>
+
+  <h3>Stereo Measurements</h3>
+  <div class="card-grid">
+    <div class="card">
+      <div class="card-label">correlation</div>
+      <div class="card-desc">Zero-lag L/R phase correlation. <code>null</code> for mono tracks. A positive value means the channels are in phase. A negative value means something is flipped.</div>
+    </div>
+    <div class="card">
+      <div class="card-label">mid_rms_db / side_rms_db</div>
+      <div class="card-desc">Mid (L+R) and side (L-R) energy. A wide side relative to mid means a lot of stereo content. A near-zero side means it's basically mono.</div>
+    </div>
+    <div class="card">
+      <div class="card-label">balance_db</div>
+      <div class="card-desc">L-minus-R balance. Positive means left-heavy, negative means right-heavy. Useful for catching a panned track that's feeding the wrong bus.</div>
+    </div>
+  </div>
+</section>
+
+<!-- 3. Track Check -->
+<section id="track-check">
+  <div class="section-num">03</div>
+  <h2>Track Check</h2>
+  <p>
+    The core loop. Select a track, park the edit cursor where it's making
+    sound, and hit <strong>Check This Track</strong>. Post Mortem reads the
+    track, captures a 10-second stem, measures it, and returns one diagnosis.
+  </p>
+
+  <div class="flow">
+    <div class="flow-step">
+      <div class="icon">📡</div>
+      <div class="label">Reads FX chain<br>routing, fader, pan</div>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step">
+      <div class="icon">🎵</div>
+      <div class="label">Captures 10s<br>post-FX stem</div>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step">
+      <div class="icon">📊</div>
+      <div class="label">Measures audio<br>spectrum, dynamics</div>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step">
+      <div class="icon">🧠</div>
+      <div class="label">Sends payload<br>to model</div>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step">
+      <div class="icon">🔍</div>
+      <div class="label">Returns one<br>diagnosis</div>
+    </div>
+  </div>
+
+  <h3>Capture isolation gate</h3>
+  <div class="callout warn">
+    <div class="co-label">Verified isolation required</div>
+    <p>
+      Post Mortem only diagnoses a track when the bridge proves the capture is
+      that track alone. <code>capture_scope: "isolated_track"</code> with
+      <code>isolation_verified: true</code> is mandatory evidence. A full-mix
+      render, unverified capture, or missing provenance is refused before the
+      model is called. Soloing a track by hand does not change this gate.
+    </p>
+  </div>
+  <p>
+    Item-less routing and bus tracks are supported by the current isolation path.
+    Ordinary tracks containing media items may be refused rather than diagnosed
+    from a full-mix render. That refusal is a product feature, not a bug.
+  </p>
+
+  <h3>Silence gate</h3>
+  <p>
+    If the capture's overall RMS is at or below -60 dBFS, or if 85% or more of
+    the capture is below -70 dBFS, Post Mortem refuses to spend a model call on
+    dead air. It tells you to park the cursor where the track is playing and
+    exits. <code>--force</code> overrides the silence gate. It never overrides
+    capture isolation.
+  </p>
+</section>
+
+<!-- 4. Diagnosis -->
+<section id="diagnosis">
+  <div class="section-num">04</div>
+  <h2>Understanding the Diagnosis</h2>
+  <p>
+    The diagnosis has two parts: a <strong>finding</strong> (what's wrong)
+    and a <strong>proposal</strong> (one concrete move). Both are validated
+    against the measured data before they reach you.
+  </p>
+
+  <h3>Finding</h3>
+  <table class="metric-table">
+    <thead>
+      <tr>
+        <th>Field</th>
+        <th>Description</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>summary</td>
+        <td>Two plain-language sentences. What the numbers say.</td>
+        <td>text</td>
+      </tr>
+      <tr>
+        <td>probable_cause</td>
+        <td>Which FX, parameter, or routing is likely causing it.</td>
+        <td>text</td>
+      </tr>
+      <tr>
+        <td>confidence</td>
+        <td>How much signal vs guessing. Low, medium, or high.</td>
+        <td>enum</td>
+      </tr>
+      <tr>
+        <td>evidence_refs</td>
+        <td>Exact payload paths the finding cites. Verified to exist.</td>
+        <td>list</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>Confidence levels</h3>
+  <div class="conf-row conf-high">
+    <div class="conf-label">High</div>
+    <div class="conf-meter"><div class="conf-fill"></div></div>
+    <div class="conf-desc">Strong measured signal. The evidence directly supports the finding.</div>
+  </div>
+  <div class="conf-row conf-med">
+    <div class="conf-label">Medium</div>
+    <div class="conf-meter"><div class="conf-fill"></div></div>
+    <div class="conf-desc">Some signal, some inference. The finding is a reasoned guess, not a bluff.</div>
+  </div>
+  <div class="conf-row conf-low">
+    <div class="conf-label">Low</div>
+    <div class="conf-meter"><div class="conf-fill"></div></div>
+    <div class="conf-desc">Weak evidence. The model is saying "I'm not sure" with a reason.</div>
+  </div>
+
+  <div class="callout">
+    <div class="co-label">When confidence is capped</div>
+    <p>
+      A silence fraction of 0.75 or higher caps confidence at <strong>low</strong>
+      and rejects any actionable proposal. A response that introduces a
+      cross-track claim in the single-track path is replaced with a safe
+      low-confidence finding and <code>rejection_reason: "cross_track_claim"</code>.
+    </p>
+  </div>
+
+  <h3>Proposal operations</h3>
+  <p>
+    The proposal is one move, not five. If the model proposes something the
+    validator can't support, the operation becomes <code>none</code> with a
+    rejection reason, and the finding still reaches you as advice.
+  </p>
+  <div class="op-list">
+    <div class="op-item">
+      <div class="op-num">01</div>
+      <div class="op-body">
+        <div class="op-name">set_track_volume</div>
+        <div class="op-unit">unit: db</div>
+        <div class="op-desc">Fader level change. Current and proposed values in dB.</div>
+      </div>
+    </div>
+    <div class="op-item">
+      <div class="op-num">02</div>
+      <div class="op-body">
+        <div class="op-name">set_track_pan</div>
+        <div class="op-unit">unit: normalized_pan (-1.0 to 1.0)</div>
+        <div class="op-desc">Pan position change. Left is negative, right is positive.</div>
+      </div>
+    </div>
+    <div class="op-item">
+      <div class="op-num">03</div>
+      <div class="op-body">
+        <div class="op-name">set_fx_param</div>
+        <div class="op-unit">unit: normalized (0.0 to 1.0)</div>
+        <div class="op-desc">One numeric FX parameter, identified by verified index and name.</div>
+      </div>
+    </div>
+    <div class="op-item">
+      <div class="op-num">04</div>
+      <div class="op-body">
+        <div class="op-name">set_fx_bypass</div>
+        <div class="op-unit">unit: boolean</div>
+        <div class="op-desc">Toggle bypass on one plug-in, identified by GUID.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout warn">
+    <div class="co-label">What proposals never do in 0.1.0</div>
+    <p>
+      Add or remove plug-ins, rewrite routing, edit items, or write automation.
+      The first release supports four operations. Everything else stays as advice.
+    </p>
+  </div>
+</section>
+
+<!-- 5. Fix Preview -->
+<section id="fix-preview">
+  <div class="section-num">05</div>
+  <h2>Fix Preview</h2>
+  <p>
+    The hero flow. When a diagnosis contains a supported move, Fix Preview
+    rechecks the track, FX, parameter, and current value before touching
+    anything. Then it captures a baseline, applies the proposed value
+    temporarily, captures the candidate, and restores the original.
+  </p>
+
+  <div class="flow">
+    <div class="flow-step">
+      <div class="icon">✓</div>
+      <div class="label">Identity check<br>GUID + value match</div>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step">
+      <div class="icon">◉</div>
+      <div class="label">Capture baseline<br>original state</div>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step">
+      <div class="icon">⚡</div>
+      <div class="label">Apply proposed<br>temporarily</div>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step">
+      <div class="icon">◉</div>
+      <div class="label">Capture candidate</div>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step">
+      <div class="icon">↺</div>
+      <div class="label">Restore original<br>automatically</div>
+    </div>
+  </div>
+
+  <h3>Guardrails</h3>
+  <p>
+    Preview computes before/after deltas and runs five safety checks. These
+    do not call the preview "better." They flag risks so you can decide.
+  </p>
+  <div class="guardrail-grid">
+    <div class="guardrail fail">
+      <div class="g-name">new_clipping</div>
+      <div class="g-desc">Fails above -0.3 dBFS when the baseline was below. Pre-existing clipping is not "new."</div>
+    </div>
+    <div class="guardrail warn-g">
+      <div class="g-name">loudness_shift</div>
+      <div class="g-desc">Warns above 3 LU change. The A/B becomes unfair so the intended-direction sentence is blocked.</div>
+    </div>
+    <div class="guardrail warn-g">
+      <div class="g-name">phase</div>
+      <div class="g-desc">Warns on a 0.25 correlation drop or a positive-to-negative flip.</div>
+    </div>
+    <div class="guardrail warn-g">
+      <div class="g-name">stereo_balance</div>
+      <div class="g-desc">Warns above 3 dB L/R balance shift.</div>
+    </div>
+    <div class="guardrail fail">
+      <div class="g-name">silence</div>
+      <div class="g-desc">Fails at 0.75 or higher silence fraction. Nothing else is claimed.</div>
+    </div>
+  </div>
+
+  <h3>Outcome sentences</h3>
+  <p>
+    Exactly one of these three locked sentences is shown. No code path can
+    claim improvement without the goal metric moving past its noise floor in
+    the intended direction. The word "better" never appears.
+  </p>
+  <div class="outcome positive">
+    <div class="o-icon">✓</div>
+    <div class="o-text">"The candidate moved in the intended direction."</div>
+  </div>
+  <div class="outcome neutral">
+    <div class="o-icon">~</div>
+    <div class="o-text">"The measurement changed, but not enough to prove improvement."</div>
+  </div>
+  <div class="outcome negative">
+    <div class="o-icon">✕</div>
+    <div class="o-text">"This introduced a new risk; keeping the original is safer."</div>
+  </div>
+
+  <h3>Noise floors</h3>
+  <p>
+    Each metric has a below-this-it-counts-as-no-change floor. If the delta
+    doesn't clear the floor, the outcome is "not enough to prove improvement,"
+    not "it worked."
+  </p>
+  <table class="metric-table">
+    <thead>
+      <tr>
+        <th>Metric</th>
+        <th>Noise floor</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td>Level / loudness</td><td>0.5 dB / 0.5 LU</td><td></td></tr>
+      <tr><td>Correlation</td><td>0.05</td><td></td></tr>
+      <tr><td>Spectrum band</td><td>1.0 dB per band</td><td></td></tr>
+    </tbody>
+  </table>
+
+  <h3>A/B controls</h3>
+  <div class="card-grid">
+    <div class="card">
+      <div class="card-label">Original</div>
+      <div class="card-desc">Play the baseline capture. This is the track's current state, unchanged.</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Suggested</div>
+      <div class="card-desc">Play the candidate capture. The proposed value is already applied and restored. You're hearing the rendered result, not a live change.</div>
+    </div>
+  </div>
+  <p>
+    A loudness-match toggle is available for subjective comparison. The exact
+    change, goal metric, and guardrail results are shown alongside the A/B.
+  </p>
+
+  <h3>Adjust</h3>
+  <p>
+    If the proposed value is close but you want to nudge it, the Adjust slider
+    offers a conservative range around the proposed value, clamped by the same
+    move-limit constants the validator uses on proposals. You cannot type a
+    value outside the safe range through the panel or the sidecar.
+  </p>
+</section>
+
+<!-- 6. Apply Fix -->
+<section id="apply-fix">
+  <div class="section-num">06</div>
+  <h2>Apply Fix</h2>
+  <p>
+    Apply performs a fresh identity check (track GUID, FX GUID, parameter
+    index, parameter name, current value) and creates one named REAPER undo
+    point. One <code>Ctrl+Z</code> (or <code>Cmd+Z</code>) returns the project
+    to the previous state.
+  </p>
+
+  <div class="callout">
+    <div class="co-label">What Apply guarantees</div>
+    <p>
+      The value is applied only if every identity field still matches the
+      diagnosis. If anything changed between preview and apply, Apply refuses
+      and tells you to run a fresh Track Check.
+    </p>
+  </div>
+
+  <div class="badges">
+    <div class="badge good"><div class="dot"></div><span>One undo point</span></div>
+    <div class="badge good"><div class="dot"></div><span>Identity rechecked</span></div>
+    <div class="badge muted"><div class="dot"></div><span>No automation written</span></div>
+    <div class="badge muted"><div class="dot"></div><span>No routing changes</span></div>
+    <div class="badge muted"><div class="dot"></div><span>No items edited</span></div>
+    <div class="badge muted"><div class="dot"></div><span>No plug-ins added or removed</span></div>
+  </div>
+</section>
+
+<!-- 7. Onboarding -->
+<section id="onboarding">
+  <div class="section-num">07</div>
+  <h2>Onboarding</h2>
+
+  <h3>Step 1: Welcome</h3>
+  <p>Three trust statements before anything happens:</p>
+  <div class="card-grid">
+    <div class="card">
+      <div class="card-title">No project changes during analysis</div>
+      <div class="card-desc">Track Check is read-only. Nothing in your project moves.</div>
+    </div>
+    <div class="card">
+      <div class="card-title">Preview changes are temporary</div>
+      <div class="card-desc">Fix Preview restores the original before returning control to you.</div>
+    </div>
+    <div class="card">
+      <div class="card-title">Raw audio stays local</div>
+      <div class="card-desc">The model sees measurements. Not your stems, not your WAV files.</div>
+    </div>
+  </div>
+
+  <h3>Step 2: Automatic setup</h3>
+  <div class="steps">
+    <div class="step">
+      <div class="step-title">Found REAPER</div>
+      <div class="step-desc">Setup detects the REAPER resource directory. Portable installs are supported via manual folder selection.</div>
+    </div>
+    <div class="step">
+      <div class="step-title">Installed the local bridge</div>
+      <div class="step-desc">Reaper Daemon is installed into the REAPER resource folder. No admin access needed.</div>
+    </div>
+    <div class="step">
+      <div class="step-title">Enabled safe track capture</div>
+      <div class="step-desc">Requires one REAPER restart. This changes bridge capture permission, not the project.</div>
+    </div>
+    <div class="step">
+      <div class="step-title">Added the Post Mortem panel</div>
+      <div class="step-desc">Panel action is registered in REAPER's Actions list. Search "Post Mortem" to open it.</div>
+    </div>
+  </div>
+
+  <p>
+    If the render dialog requires "Automatically close when finished," Setup
+    shows one illustrated instruction and a <strong>Test Again</strong> button.
+    This is the only manual setup exception.
+  </p>
+
+  <h3>Step 3: Connect analysis</h3>
+  <div class="card-grid">
+    <div class="card">
+      <div class="card-label">Option A</div>
+      <div class="card-title">Connect an API key</div>
+      <div class="card-desc">
+        Paste an Anthropic API key. One small validation request is made before
+        the key is saved locally. The key lives in your Post Mortem config, not
+        in the project.
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-label">Option B</div>
+      <div class="card-title">Use an MCP client</div>
+      <div class="card-desc">
+        The model in your MCP client performs the diagnosis. Post Mortem does
+        not need a separate API key. The client needs a working Reaper Daemon
+        MCP connection.
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-label">Advanced</div>
+      <div class="card-title">Compatible endpoint</div>
+      <div class="card-desc">
+        Anthropic-compatible providers use <code>POSTMORTEM_API_KEY</code>,
+        <code>ANTHROPIC_BASE_URL</code>, and <code>POSTMORTEM_MODEL</code>.
+        The provider key is kept separate from any Anthropic key so the wrong
+        credential is never forwarded to another host.
+      </div>
+    </div>
+  </div>
+
+  <h3>Step 4: First success</h3>
+  <p>
+    Select a track, put the edit cursor over audio, and run the first
+    10-second Track Check. Onboarding is complete only when a real project
+    track has produced a diagnosis.
+  </p>
+</section>
+
+<!-- 8. Panel States -->
+<section id="panel-states">
+  <div class="section-num">08</div>
+  <h2>Panel States</h2>
+
+  <h3>Bridge status</h3>
+  <div class="badges">
+    <div class="badge good"><div class="dot"></div><span>Ready</span></div>
+    <div class="badge warn"><div class="dot"></div><span>Busy</span></div>
+    <div class="badge warn"><div class="dot"></div><span>Needs REAPER</span></div>
+    <div class="badge warn"><div class="dot"></div><span>Needs Attention</span></div>
+  </div>
+
+  <h3>Model state</h3>
+  <div class="badges">
+    <div class="badge good"><div class="dot"></div><span>Connected</span></div>
+    <div class="badge warn"><div class="dot"></div><span>Setup Required</span></div>
+  </div>
+
+  <h3>Navigation</h3>
+  <p>Four panel destinations in 0.1.0. Track is the default because it gets you to a diagnosis fastest.</p>
+  <div class="card-grid">
+    <div class="card">
+      <div class="card-label">Track</div>
+      <div class="card-title">Track Check + Fix Preview</div>
+      <div class="card-desc">Selected-track diagnosis, proposed fix, A/B preview, apply or reject.</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Settings</div>
+      <div class="card-title">Connection, model, privacy, license</div>
+      <div class="card-desc">API key, MCP client, provider config, diagnostics, license status, updates.</div>
+    </div>
+  </div>
+  <p>
+    <strong>Mix Check</strong> and <strong>History</strong> are in the panel
+    navigation scaffold but are not functional in 0.1.0. They are not
+    represented as current features.
+  </p>
+</section>
+
+<!-- 9. CLI -->
+<section id="cli">
+  <div class="section-num">09</div>
+  <h2>Command Line Interface</h2>
+  <p>
+    The free MIT engine ships with a CLI for developers and terminal users.
+    Same engine, same hedge contract, same isolation gate. No panel, no
+    installer, no license check.
+  </p>
+
+  <h3>Basic usage</h3>
+  <pre><code># Single-track diagnosis (text output)
+postmortem "Kick"
+
+# JSON output for preview/commit pipeline
+postmortem "Kick" --format json
+
+# Cross-track masking (2+ tracks, prose output)
+postmortem "Kick" "Bass"</code></pre>
+
+  <h3>Options</h3>
+  <table class="metric-table">
+    <thead>
+      <tr>
+        <th>Flag</th>
+        <th>Description</th>
+        <th>Default</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>--seconds N</td>
+        <td>Capture length in seconds</td>
+        <td>10</td>
+      </tr>
+      <tr>
+        <td>--keep-wav</td>
+        <td>Keep the local temporary stem instead of deleting it</td>
+        <td>off</td>
+      </tr>
+      <tr>
+        <td>--payload-only</td>
+        <td>Print measured data, skip the model call. Never gated by silence.</td>
+        <td>off</td>
+      </tr>
+      <tr>
+        <td>--format text|json</td>
+        <td>Output format. JSON is single-track only.</td>
+        <td>text</td>
+      </tr>
+      <tr>
+        <td>--force</td>
+        <td>Bypass the silence gate only. Never bypasses capture isolation.</td>
+        <td>off</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>Fix Preview from the terminal</h3>
+  <pre><code># Save a diagnosis to file
+postmortem "Kick" --format json > diagnosis.json
+
+# Preview the proposed fix (captures baseline + candidate)
+postmortem preview diagnosis.json
+
+# Apply the fix (creates one undo point)
+postmortem commit diagnosis.json</code></pre>
+</section>
+
+<!-- 10. Privacy -->
+<section id="privacy">
+  <div class="section-num">10</div>
+  <h2>Privacy &amp; Data</h2>
+
+  <div class="dataflow">
+    <div class="dataflow-row">
+      <div class="df-side">Local</div>
+      <div class="df-content">Captured WAV files, temp stems, service logs, feedback records, license status, API keys</div>
+    </div>
+    <div class="dataflow-divider">↓</div>
+    <div class="dataflow-row">
+      <div class="df-side">Sent</div>
+      <div class="df-content">
+        Measurements: LUFS, peak, RMS, crest, spectrum, stereo, silence.
+        Project metadata: track names, FX names, parameter names and values,
+        routing details, tempo, time signature.
+      </div>
+    </div>
+    <div class="dataflow-divider">✕</div>
+    <div class="dataflow-row">
+      <div class="df-side">Never sent</div>
+      <div class="df-content">Raw audio WAV files. API keys are not sent to the model, only used for authentication.</div>
+    </div>
+  </div>
+
+  <h3>Local data paths</h3>
+  <table class="metric-table">
+    <thead>
+      <tr>
+        <th>Platform</th>
+        <th>Data root</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td>macOS</td><td>~/Library/Application Support/PostMortem</td><td></td></tr>
+      <tr><td>Windows</td><td>%APPDATA%\PostMortem</td><td></td></tr>
+      <tr><td>Linux</td><td>$XDG_DATA_HOME/postmortem</td><td></td></tr>
+    </tbody>
+  </table>
+  <p>
+    Provider config (API keys) is separate:
+    <code>~/.config/postmortem/config</code> on macOS and Linux, stored with
+    owner-only permissions where the OS supports them. Environment variables
+    can be used instead.
+  </p>
+
+  <h3>License checks</h3>
+  <p>
+    The paid panel uses a signed JSON license. Validation uses the public key
+    in the installed product and does not contact a license server. The local
+    license record contains the holder, product, purchased major version,
+    issue date, update-entitlement date, signing-key ID, and signature. The
+    purchased major version does not expire. The update-entitlement date is a
+    separate check with a 30-day offline grace period.
+  </p>
+
+  <h3>Telemetry</h3>
+  <div class="callout">
+    <div class="co-label">None</div>
+    <p>
+      Version 0.1.0 has no analytics, no usage telemetry, no remote crash
+      reporting, no account system, and no automatic license check. The only
+      normal network request is the model-provider call initiated for analysis,
+      or traffic initiated by your separate MCP client.
+    </p>
+  </div>
+
+  <h3>Feedback</h3>
+  <p>
+    The <strong>Not Helpful</strong> action appends a local record to
+    <code>feedback.jsonl</code>. Version 0.1.0 does not upload that file.
+  </p>
+</section>
+
+<!-- 11. Troubleshooting -->
+<section id="troubleshooting">
+  <div class="section-num">11</div>
+  <h2>Troubleshooting</h2>
+  <p>
+    Start with the exact message the panel or Setup shows. Recovery messages
+    are part of the product. Follow them before changing files by hand.
+  </p>
+
+  <div class="guardrail-grid">
+    <div class="guardrail info">
+      <div class="g-name">Panel not in Actions list</div>
+      <div class="g-desc">Quit REAPER. Run Setup, choose Install or Update. Restart REAPER. Search "Post Mortem" in Actions.</div>
+    </div>
+    <div class="guardrail info">
+      <div class="g-name">Engine not running</div>
+      <div class="g-desc">Choose Start Engine in the panel. If it won't stay running, open Setup and choose Test Setup. Reinstall if files are incomplete.</div>
+    </div>
+    <div class="guardrail info">
+      <div class="g-name">Needs REAPER</div>
+      <div class="g-desc">REAPER must be open with Reaper Daemon running. Restart REAPER once after install or update. If it persists, run Test Setup.</div>
+    </div>
+    <div class="guardrail warn-g">
+      <div class="g-name">Safe capture not enabled</div>
+      <div class="g-desc">Choose Enable Safe Capture in the panel, then restart REAPER. This changes bridge capture permission, not the project.</div>
+    </div>
+    <div class="guardrail warn-g">
+      <div class="g-name">Render window stays open</div>
+      <div class="g-desc">In REAPER's render window, enable "Automatically close when finished." REAPER remembers it. Return to panel and choose Test Again.</div>
+    </div>
+    <div class="guardrail warn-g">
+      <div class="g-name">Capture is silent</div>
+      <div class="g-desc">Move the edit cursor to where the track is making sound. Muted items, empty time selection, or a quiet routing track can all produce silence.</div>
+    </div>
+    <div class="guardrail fail">
+      <div class="g-name">Capture isolation refused</div>
+      <div class="g-desc">The bridge can prove isolation for item-less routing and bus tracks. A track with media items may be refused. Soloing does not bypass this.</div>
+    </div>
+    <div class="guardrail fail">
+      <div class="g-name">API key rejected</div>
+      <div class="g-desc">Confirm the key is active with its provider. Check billing or credits. Third-party endpoints need POSTMORTEM_API_KEY, not ANTHROPIC_API_KEY.</div>
+    </div>
+    <div class="guardrail fail">
+      <div class="g-name">License not accepted</div>
+      <div class="g-desc">Use the original signed JSON file, unedited. Confirm it is for version 1. Check the Mac's date and time. Reopen Setup, Add License.</div>
+    </div>
+    <div class="guardrail info">
+      <div class="g-name">Preview won't play</div>
+      <div class="g-desc">Preview playback uses SWS. Reinstall with Setup if the panel says SWS is missing. Existing user-installed SWS or ReaImGui is not overwritten.</div>
+    </div>
+    <div class="guardrail warn-g">
+      <div class="g-name">Preview didn't confirm restoration</div>
+      <div class="g-desc">Do not Apply. Check the affected parameter in REAPER. The bridge owns crash recovery and normally restores. If still changed, use undo and save under a new name.</div>
+    </div>
+  </div>
+</section>
+
+<!-- 12. Known Limits -->
+<section id="limits">
+  <div class="section-num">12</div>
+  <h2>Known Limits</h2>
+
+  <div class="card-grid">
+    <div class="card">
+      <div class="card-label">Platform</div>
+      <div class="card-title">Apple silicon macOS only</div>
+      <div class="card-desc">Windows and Linux paid installers are withheld until clean-machine customer checks pass. The free engine and Reaper Daemon support all three platforms.</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Capture</div>
+      <div class="card-title">Item tracks may be refused</div>
+      <div class="card-desc">The bridge can prove isolation for item-less routing and bus tracks. Ordinary tracks with media items may fail the gate. This is a product feature.</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Scope</div>
+      <div class="card-title">Track Check and Fix Preview only</div>
+      <div class="card-desc">Mix Check, history, hosted credits, and automatic update checks are not in 0.1.0.</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Operations</div>
+      <div class="card-title">Four supported moves</div>
+      <div class="card-desc">Volume, pan, FX bypass, one numeric FX parameter. No plug-in add/remove, routing edits, item edits, or automation.</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Spectrum</div>
+      <div class="card-title">1/3-octave resolution</div>
+      <div class="card-desc">31 bands. A narrow resonance at 2.4kHz shows as a bump in the 2.5kHz band. Higher-resolution FFT is a v2 addition.</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Stereo</div>
+      <div class="card-title">Single band array</div>
+      <div class="card-desc">L/R asymmetry is not visible in the combined spectrum. Per-channel spectra are a v2 field addition, not a schema change.</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Parent bus</div>
+      <div class="card-title">Parent FX not analyzed</div>
+      <div class="card-desc">A stems render of a child track does not include parent bus FX. The model sees the parent name. Analyzing it is not in 0.1.0.</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Real-time</div>
+      <div class="card-title">Static capture only</div>
+      <div class="card-desc">Post Mortem renders a short section and measures it. There is no real-time spectrum, no live monitoring, no audio feedback loop to the model.</div>
+    </div>
+  </div>
+</section>
+
+<!-- Footer -->
+<div class="footer">
+  <div class="footer-brand">Dead Pixel Design</div>
+  <div class="footer-line">
+    Post Mortem 0.1.0 <a href="https://deadpixeldesign.com/workflows/post-mortem/">deadpixeldesign.com/workflows/post-mortem/</a>
+  </div>
+  <div class="footer-line" style="margin-top: 8px;">
+    Support: david@deadpixeldesign.com
+  </div>
+</div>
+
+</div>
+</body>
+</html>
