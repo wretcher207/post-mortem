@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.1.0 release candidate - 2026-07-14
+## 0.1.0 - 2026-07-15
 
 ### Added
 
@@ -26,10 +26,10 @@
 
 ### Known limits
 
-- The paid release candidate is Apple silicon macOS only.
-- Public checkout and automated customer license delivery are not connected.
+- The paid release is Apple silicon macOS only. Purchase is live through the
+  Dead Pixel Design storefront with automated license delivery.
 - The hosted Windows install-to-first-check proof remains open.
-- The Linux paid customer path is withheld from this release candidate.
+- The Linux paid customer path is withheld from this release.
 - Ordinary tracks with media items may fail the capture-isolation gate.
 - The panel ships Track Check and Fix Preview only. Mix Check, history, hosted
   credits, and automatic update checks are not in `0.1.0`.

@@ -20,12 +20,13 @@ A Dead Pixel Design release.
 
 ## Release status
 
-The paid Post Mortem panel and installer are in `0.1.0` release-candidate
-validation for Apple silicon Macs. The macOS build is signed and notarized.
-Public checkout is not open yet.
+Post Mortem `0.1.0` is live for Apple silicon Macs as a `$39` one-time early
+access purchase through the Dead Pixel Design storefront. The macOS build is
+signed and notarized. Purchase includes permanent version 1 use and 12 months
+of version 1 updates.
 
-The paid Windows and Linux installers are not part of this release candidate.
-Their customer paths remain gated until the clean-machine checks pass. The MIT
+The paid Windows and Linux installers are not part of this release. Their
+customer paths remain gated until the clean-machine checks pass. The MIT
 engine and Reaper Daemon continue to support macOS, Windows, and Linux.
 
 ## What ships in the paid app
@@ -68,8 +69,7 @@ isolation path. Ordinary tracks containing media items may be refused rather
 than diagnosed from a full-mix render.
 
 That refusal is intentional. Soloing a track by hand does not change the proof
-requirement. This limit is one of the remaining release gates, not something
-the product hides.
+requirement. This is a known product limit, not something the product hides.
 
 ## Fix Preview
 
@@ -175,5 +175,5 @@ postmortem commit diagnosis.json
 ## License
 
 The code in this repository is MIT licensed. The paid panel and installer are
-proprietary and will have separate commercial terms before any sale. Those
-terms are not published yet, which is one reason checkout remains closed.
+proprietary with separate commercial terms. Purchases and license delivery are
+handled through the Dead Pixel Design storefront.
