@@ -5,7 +5,10 @@ import os
 from typing import Any, Mapping
 from urllib.parse import urlparse
 
-import anthropic
+try:
+    import anthropic
+except ImportError:  # pragma: no cover
+    anthropic = None
 from pydantic import BaseModel, ValidationError
 
 from .. import config
@@ -57,6 +60,20 @@ def _thinking_enabled():
     return mode not in {"off", "0", "false", "none"}
 
 
+def _require_anthropic():
+    """Import and return the anthropic SDK, or raise a clear ProviderError.
+
+    The lazy import keeps the module collectable without the SDK installed,
+    so pure-engine tests (analysis, proposals, schemas) don't fail at import.
+    """
+    if anthropic is None:
+        raise ProviderError(
+            ProviderErrorCategory.AUTHENTICATION,
+            "the anthropic package is not installed; install it to use the provider path",
+        )
+    return anthropic
+
+
 class AnthropicProvider:
     """Translate the provider-independent request into Anthropic SDK calls."""
 
@@ -65,24 +82,25 @@ class AnthropicProvider:
 
     def _request(self, request):
         """Execute one provider request with stable, safe error mapping."""
+        sdk = _require_anthropic()
         try:
             response = self._client.messages.create(**request)
-        except (anthropic.AuthenticationError, anthropic.PermissionDeniedError) as error:
+        except (sdk.AuthenticationError, sdk.PermissionDeniedError) as error:
             raise ProviderError(
                 ProviderErrorCategory.AUTHENTICATION,
                 "provider authentication or configuration failed",
             ) from error
-        except anthropic.RateLimitError as error:
+        except sdk.RateLimitError as error:
             raise ProviderError(
                 ProviderErrorCategory.RATE_LIMIT,
                 "the provider rate limit or available credit was exhausted",
             ) from error
-        except (anthropic.APITimeoutError, anthropic.APIConnectionError) as error:
+        except (sdk.APITimeoutError, sdk.APIConnectionError) as error:
             raise ProviderError(
                 ProviderErrorCategory.NETWORK,
                 "the provider request timed out or could not connect",
             ) from error
-        except anthropic.APIStatusError as error:
+        except sdk.APIStatusError as error:
             status = getattr(error, "status_code", None)
             detail = str(error).lower()
             if status in {401, 403}:
@@ -139,8 +157,9 @@ class AnthropicProvider:
 
     @staticmethod
     def _create_client(**kwargs):
+        sdk = _require_anthropic()
         try:
-            return anthropic.Anthropic(**kwargs)
+            return sdk.Anthropic(**kwargs)
         except Exception as error:
             raise ProviderError(
                 ProviderErrorCategory.AUTHENTICATION,
