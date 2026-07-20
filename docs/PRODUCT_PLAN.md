@@ -676,7 +676,7 @@ Exit criteria:
   render-setting restoration drills on 2026-07-15.
 
 Phase 3 remains open until the unchecked cross-platform criterion passes. The
-live `0.1.1` Apple silicon release is not evidence that the paid Windows and
+live `0.1.2` Apple silicon release is not evidence that the paid Windows and
 Linux paths are ready for sale.
 
 ### Phase 4 — Mix Check
@@ -818,7 +818,7 @@ Mitigation: monetize convenience, polish, workflow, updates, evaluation data, ho
 
 The following decisions were confirmed on 2026-07-10:
 
-1. **Platform:** the paid `0.1.1` early-access release is Apple silicon only. Windows and Linux remain withheld until their customer gates close. The public engine and Reaper Daemon remain cross-platform.
+1. **Platform:** the paid `0.1.2` early-access release is Apple silicon only. Windows and Linux remain withheld until their customer gates close. The public engine and Reaper Daemon remain cross-platform.
 2. **Business model:** Open-core. Reaper Daemon and a genuinely useful Post Mortem engine remain open; the docked product shell, advanced workflow orchestration, installer/updater, hosted credits, and support form the paid product.
 3. **Primary interface:** Docked inside REAPER using ReaImGui for the first beta.
 4. **Customer level:** Intermediate. Lead with a clear finding, keep evidence visible, and preserve user control rather than over-explaining fundamentals.

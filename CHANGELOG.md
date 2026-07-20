@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.2 - 2026-07-19
+
+### Changed
+
+- Version-align the public engine and packaged sidecar with the paid `0.1.2`
+  panel maintenance release. Engine behavior and safety contracts are
+  unchanged from `0.1.1`.
+
 ## 0.1.1 - 2026-07-17
 
 ### Fixed

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "postmortem-reaper"
-version = "0.1.1"
+version = "0.1.2"
 description = "AI track diagnosis for REAPER: reads a track's FX chain, routing, and a post-FX stem capture, returns an honest mix diagnosis"
 readme = "README.md"
 requires-python = ">=3.10"
